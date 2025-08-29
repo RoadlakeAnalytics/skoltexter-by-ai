@@ -1,68 +1,68 @@
-# 📊 School Description Data Pipeline
+# 📊 Datapipeline för Skolbeskrivningar
 
-This project is a data processing pipeline that transforms raw Swedish school statistics (CSV) into AI-enhanced descriptions and generates a modern, interactive website for browsing school information. The primary goal is to make complex school data accessible and useful for parents choosing schools, while also serving as a robust foundation for advanced AI text generation use cases.
+Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik (CSV) till AI-förbättrade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
 
-## 🗂️ Table of Contents
+## 🗂️ Innehållsförteckning
 
-- [🔍 Overview](#overview)
-- [🧩 Main Components](#main-components)
-- [📁 Project Structure](#project-structure)
-- [⚙️ Prerequisites](#prerequisites)
-- [🚀 Setup](#setup)
-- [▶️ Usage](#usage)
-- [🔧 Operational Details](#operational-details)
-- [📝 Logging](#logging)
-- [📦 Dependencies](#dependencies)
-- [🤖 Switching to a different LLM](#switching-to-a-different)
-- [🪪 License](#license)
+- [🔍 Översikt](#översikt)
+- [🧩 Huvudkomponenter](#huvudkomponenter)
+- [📁 Projektstruktur](#projektstruktur)
+- [⚙️ Förutsättningar](#förutsättningar)
+- [🚀 Installation](#installation)
+- [▶️ Användning](#användning)
+- [🔧 Driftsdetaljer](#driftsdetaljer)
+- [📝 Loggning](#loggning)
+- [📦 Beroenden](#beroenden)
+- [🤖 Byta till en annan LLM](#byta-till-en-annan-llm)
+- [🪪 Licens](#licens)
 
-## 🔍 Overview
+## 🔍 Översikt
 
-This pipeline processes Swedish school statistics through three main stages:
+Denna pipeline bearbetar svensk skolstatistik genom tre huvudsteg:
 
-1. 📝 **CSV to Markdown**: Reads raw CSV data and generates a markdown file per school using a template.
-2. 🤖 **AI Enhancement**: Processes each markdown file with Azure OpenAI (GPT-4o) to generate enhanced, parent-focused descriptions.
-3. 🌐 **Website Generation**: Loads school codes/names and AI-generated descriptions, converts markdown to HTML, and generates a standalone, interactive HTML website.
+1. 📝 **CSV till Markdown**: Läser rå CSV-data och genererar en markdown-fil per skola med hjälp av en mall.
+2. 🤖 **AI-förbättring**: Bearbetar varje markdown-fil med Azure OpenAI (GPT-4o) för att skapa förbättrade, föräldrafokuserade beskrivningar.
+3. 🌐 **Webbplatsgenerering**: Läser in skolornas koder/namn och AI-genererade beskrivningar, konverterar markdown till HTML och genererar en fristående, interaktiv HTML-webbplats.
 
 ---
 
-### 🚀 Raw data to website in less than 5 minutes 🚀
+### 🚀 Rådata till webbplats på mindre än 5 minuter 🚀
 
-If you already have an Azure OpenAI endpoint and have your three values for key, endpoint and model name within reach, you can comfortably expect to run the whole pipeline within the next five minutes, using the guided `setup_project.py` program, which guides your through the process:
-- Configuring the program with the correct values (optional, can be done manually).
-- Creating a virtual environment for Python (optional - takes 2-3 minutes, but recommended).
-- Taking the time to read short summaries for the programs (optional).
-- Running the pipeline:
-  - Step one creates the 44 Markdown files.
-  - Step two sends them to the AI and saves the responses.
-  - Step three creates a small website for you to easily browse the data (optional).
-- Now you need to open the generated `index.html` file inside of the folder `output` (manually clicking it, which opens the web browser - optional but recommended).
-- Read a school description (if not using a browser you will find them in the folder `data/ai_processed_markdown/`).
+Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, endpoint och modellnamn tillgängliga, kan du nu förvänta dig att köra hela pipelinen inom de närmaste fem minuterna, med hjälp av det guidande `setup_project.py`-programmet, som guidar dig genom processen:
+- Konfigurera programmet med rätt värden (valfritt, kan göras manuellt).
+- Skapa en virtuell miljö för Python (valfritt - tar 2-3 minuter, men rekommenderas).
+- Ta dig tid att läsa korta sammanfattningar för programmen (valfritt).
+- Kör pipelinen:
+  - Steg ett skapar de 44 Markdown-filerna.
+  - Steg två skickar dem till AI och sparar svaren.
+  - Steg tre skapar en liten webbplats för att enkelt bläddra bland data (valfritt).
+- Nu behöver du öppna den genererade `index.html`-filen i mappen `output` (klicka på den, vilket öppnar webbläsaren - valfritt, men rekommenderas).
+- Välj en skola från rullgardinsmenyn (om du inte använder webbläsaren finner du skoltexterna i mappen `data/ai_processed_markdown/`).
 
-> If you skip the virtual environment, and have the .env file set up, you will be able to run the whole pipeline in less than 1 minute. 🚀
+> Om du hoppar över den virtuella miljön och har `.env`-filen inställd kan du kunna köra hela pipelinen på mindre än 1 minut. 🚀
 
-## 🧩 Main Components
+## 🧩 Huvudkomponenter
 
-- **📊 Data & Templates**
-  - `data/database_data/database_school_data.csv`: Main input CSV with school statistics, identifiers, and survey results.
-  - `data/templates/school_description_template.md`: Markdown template for per-school reports.
-  - `data/templates/ai_prompt_template.txt`: Prompt template for Azure OpenAI, specifying requirements for the AI-generated descriptions.
-  - `data/templates/website_template.html`: Responsive HTML template for the generated website.
+- **📊 Data & Mallar**
+  - `data/database_data/database_school_data.csv`: Huvudsaklig indata-CSV med skolstatistik, identifierare och enkätresultat.
+  - `data/templates/school_description_template.md`: Markdown-mall för rapporter per skola.
+  - `data/templates/ai_prompt_template.txt`: Promptmall för Azure OpenAI, specificerar krav för AI-genererade beskrivningar.
+  - `data/templates/website_template.html`: Responsiv HTML-mall för den genererade webbplatsen.
 
-- **🧠 Source Code (`src/`)**
-  - [`src/config.py`](src/config.py): Centralizes all constants, paths, and configuration.
-  - [`src/program1_generate_markdowns.py`](src/program1_generate_markdowns.py): Generates markdown files from the CSV.
-  - [`src/program2_ai_processor.py`](src/program2_ai_processor.py): Processes markdown files with Azure OpenAI, handling rate limiting and retries.
-  - [`src/program3_generate_website.py`](src/program3_generate_website.py): Generates the interactive HTML website.
+- **🧠 Källkod (`src/`)**
+  - [`src/config.py`](src/config.py): Centraliserar alla konstanter, sökvägar och konfiguration.
+  - [`src/program1_generate_markdowns.py`](src/program1_generate_markdowns.py): Genererar markdown-filer från CSV.
+  - [`src/program2_ai_processor.py`](src/program2_ai_processor.py): Bearbetar markdown-filer med Azure OpenAI, hanterar hastighetsbegränsning och omförsök.
+  - [`src/program3_generate_website.py`](src/program3_generate_website.py): Genererar den interaktiva HTML-webbplatsen.
 
-- **🛠️ Orchestration & Setup**
-  - `setup_project.py`: Interactive, menu-driven CLI for managing the pipeline, supporting language selection, environment management, dependency installation, pipeline execution, log viewing, and file resets.
+- **🛠️ Orkestrering & Installation**
+  - `setup_project.py`: Interaktiv, menybaserad CLI för att hantera pipelinen, stödjer språkval, miljöhantering, installation av beroenden, pipelinekörning, loggvisning och återställning av filer.
 
-- **📃 Configuration & Environment**
-  - `.env-example`: Template for required Azure OpenAI environment variables.
-  - `.gitignore`: Excludes sensitive data, build artifacts, and generated outputs.
+- **📃 Konfiguration & Miljö**
+  - `.env-example`: Mall för nödvändiga Azure OpenAI-miljövariabler.
+  - `.gitignore`: Utesluter känslig data, byggartefakter och genererade utdata.
 
-## 📁 Project Structure
+## 📁 Projektstruktur
 
 ```
 school-description-processor/
@@ -95,88 +95,88 @@ school-description-processor/
 └── README.md
 ```
 
-## ⚙️ Prerequisites
+## ⚙️ Förutsättningar
 
 - 🐍 Python 3.7+
-- 🔑 Azure OpenAI API access (GPT-4o deployment)
-- 📈 School statistics CSV in the expected format
-- 🌐 Internet connection
+- 🔑 Azure OpenAI API-åtkomst (GPT-4o-distribution)
+- 📈 Skolstatistik-CSV i förväntat format
+- 🌐 Internetuppkoppling
 
-## 🚀 Setup
+## 🚀 Installation
 
-### ✅ Recommended: Interactive Setup
+### ✅ Rekommenderat: Interaktiv installation
 
-Run the interactive setup script and follow the menu prompts (supports English/Swedish):
+Kör det interaktiva installationsskriptet och följ menyvalen (stöd för engelska/svenska):
 
 ```bash
 python setup_project.py
 ```
 
-### 🔧 Manual Setup
-1. Copy `.env-example` to `.env` and fill in Azure credentials.
-2. Create a virtual environment and install dependencies:
+### 🔧 Manuell installation
+1. Kopiera `.env-example` till `.env` och fyll i Azure-uppgifterna.
+2. Skapa en virtuell miljö och installera beroenden:
 
 ```bash
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
-3. Place your CSV at `data/database_data/database_school_data.csv`.
+3. Placera din CSV på `data/database_data/database_school_data.csv`.
 
-Ensure the CSV file follows the expected format with columns for school statistics, identifiers, and survey results.
+Säkerställ att CSV-filen följer det förväntade formatet med kolumner för skolstatistik, identifierare och enkätresultat.
 
-## ▶️ Usage
+## ▶️ Användning
 
-### 🧭 Interactive
+### 🧭 Interaktiv
 
-Use the setup script's menu to run the full pipeline:
+Använd installationsskriptets meny för att köra hela pipelinen:
 
 ```bash
 python setup_project.py
 ```
 
-### 🛠️ Manual
+### 🛠️ Manuell
 
-Generate markdown:
+Generera markdown:
 
 ```bash
 python src/program1_generate_markdowns.py
 ```
 
-AI process markdown:
+AI-bearbeta markdown:
 
 ```bash
 python src/program2_ai_processor.py
 ```
 
-Generate website:
+Generera webbplats:
 
 ```bash
 python src/program3_generate_website.py
 ```
 
-## 🔧 Operational Details
+## 🔧 Driftsdetaljer
 
-- **Input**: `data/database_data/database_school_data.csv` (school statistics)
-- **Templates**: `data/templates/` (markdown, AI prompt, website)
-- **AI-enhanced markdown output**: `data/ai_processed_markdown/`
-- **Raw/failed AI responses**: `data/ai_raw_responses/`
-- **Website output**: `output/index.html`
-- **Logs**: `logs/` (all major steps log detailed info)
+- **Indata**: `data/database_data/database_school_data.csv` (skolstatistik)
+- **Mallar**: `data/templates/` (markdown, AI-prompt, webbplats)
+- **AI-förbättrad markdown-utdata**: `data/ai_processed_markdown/`
+- **Rå/misslyckade AI-svar**: `data/ai_raw_responses/`
+- **Webbplatsutdata**: `output/index.html`
+- **Loggar**: `logs/` (alla huvudsteg loggar detaljerad information)
 
-## 📝 Logging
+## 📝 Loggning
 
-All major steps log to the `logs/` directory with detailed information for troubleshooting and performance monitoring.
+Alla huvudsteg loggar till katalogen `logs/` med detaljerad information för felsökning och prestandaövervakning.
 
-| 📄 Log File                | 🧾 Description                     |
-|----------------------------|-----------------------------------|
-| `generate_markdowns.log`   | CSV processing                    |
-| `ai_processor.log`         | AI service communication           |
-| `generate_website.log`     | Website generation                 |
+| 📄 Loggfil                  | 🧾 Beskrivning                      |
+|-----------------------------|-------------------------------------|
+| `generate_markdowns.log`    | CSV-bearbetning                     |
+| `ai_processor.log`          | Kommunikation med AI-tjänst          |
+| `generate_website.log`      | Webbplatsgenerering                  |
 
-## 📦 Dependencies
+## 📦 Beroenden
 
-From `requirements.txt`:
+Från `requirements.txt`:
 
 - pandas
 - openpyxl
@@ -187,25 +187,25 @@ From `requirements.txt`:
 - Jinja2
 - markdown2
 
-🧰 Additional standard library modules used: argparse, csv, logging, pathlib, json, re, os, asyncio, typing
+🧰 Ytterligare standardbibliotek som används: argparse, csv, logging, pathlib, json, re, os, asyncio, typing
 
-Install all dependencies with:
+Installera alla beroenden med:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Switching to a different LLM
+## Byta till en annan LLM
 
-I have provided a brief file regarding configuration options for other LLM models, see `BYTA_LLM.md`
+Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för att använda en annan LLM, se [BYTA_LLM.md](./BYTA_LLM.md).
 
-## 🪪 License
+## 🪪 Licens
 
-This project is licensed under the MIT License, with an added requirement:
+Detta projekt är licensierat under MIT-licensen, med ett tilläggskrav:
 
-> If you reuse **SUBSTANTIAL PORTIONS OF THE CODE OR ITS STRUCTURE** in a commercial product or in a publicly deployed or published service, you must provide clear attribution such as: 
-> _"Based on work by Carl O. Mattsson / Roadlake Analytics AB"_
+> Om du återanvänder **VÄSENTLIGA DELAR AV KODEN ELLER DESS STRUKTUR** i en kommersiell produkt eller i en offentligt distribuerad eller publicerad tjänst, måste du ge tydlig attribution såsom:  
+> _"Baserat på arbete av Carl O. Mattsson / Roadlake Analytics AB"_
 
-- Essentially, you can not claim you wrote the program as is.
+- I praktiken innebär detta att du inte får påstå att du skrev det i det skick som det återfinns häri.
 
-See the [LICENSE](./LICENSE.txt) file for full details.
+Se filen [LICENSE](./LICENSE.txt) för fullständiga detaljer.
