@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skolinformation</title>
+    <!-- Google Fonts for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base styles */
+        body {
+            margin: 0;
+            background-color: #f0f2f5; /* Light grey background */
+            font-family: 'Roboto', sans-serif;
+            color: #333; /* Standard text color */
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px; /* Max width for content */
+            margin: 2rem auto;
+            background: #ffffff; /* White background for content card */
+            padding: 0; /* Remove padding to allow full-width header */
+            border-radius: 8px; /* Rounded corners */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Softer shadow */
+            overflow: hidden; /* Ensure border radius works with child elements */
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: 500;
+            margin: 0;
+        }
+        .content {
+            padding: 1.5rem 2rem;
+        }
+        .school-title {
+            color: #0056b3;
+            font-size: 2.2em;
+            font-weight: 700;
+            margin: 1.5rem 0 1rem 0;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 0.5rem;
+        }
+        h1 {
+            margin-top: 0;
+            margin-bottom: 1.5rem; /* Space below title */
+            font-weight: 700; /* Bolder title */
+            color: #0056b3; /* Primary color for headings */
+            text-align: center;
+        }
+        select {
+            width: 100%;
+            padding: 0.85rem 1rem; /* Comfortable padding */
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #ced4da; /* Standard border color */
+            border-radius: 4px;
+            background-color: #fff;
+            box-sizing: border-box; /* Consistent sizing */
+            appearance: none; /* Remove default appearance */
+            background-image: url('data:image/svg+xml;charset=US-ASCII,<svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.41.59L6 5.17L10.59.59L12 2L6 8L0 2L1.41.59Z" fill="%23333333"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 12px;
+        }
+        select:focus {
+            border-color: #007bff; /* Highlight on focus */
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+        .school-info-wrapper {
+            margin-top: 0;
+            padding: 0;
+            background-color: transparent;
+            border: none;
+            border-radius: 0;
+        }
+        .school-content {
+            overflow-wrap: break-word; /* Prevent overflow */
+            color: #495057; /* Slightly lighter text for content */
+            line-height: 1.4; /* Tighter line spacing to reduce gaps */
+        }
+        
+        /* Aggressiv hantering av spacing för alla element */
+        .school-content * {
+            margin-top: 0; /* Reset alla top margins */
+        }
+        
+        .school-content h1 {
+            color: #0056b3;
+            font-size: 1.8em;
+            margin-top: 1.2em !important; /* Space for first header level */
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+        .school-content h1:first-child {
+            margin-top: 0 !important; /* First header in the document gets no top margin */
+        }
+
+        .school-content h2 {
+            color: #0056b3;
+            font-size: 1.3em;
+            margin-top: 1em !important;
+            margin-bottom: 0.4em;
+            font-weight: 600;
+        }
+        
+        .school-content h3 {
+            color: #0056b3;
+            font-size: 1.1em;
+            margin-top: 0.8em !important;
+            margin-bottom: 0.3em;
+            font-weight: 500;
+        }
+        
+        .school-content h4, .school-content h5, .school-content h6 {
+            color: #0056b3;
+            font-size: 1.0em;
+            margin-top: 0.6em !important;
+            margin-bottom: 0.2em;
+            font-weight: 500;
+        }
+        
+        .school-content p {
+            margin-bottom: 0.6em;
+            margin-top: 0 !important; /* No top margins for paragraphs */
+        }
+
+        /* Specific handling for first element after headings */
+        .school-content h1 + *,
+        .school-content h2 + *,
+        .school-content h3 + *,
+        .school-content h4 + *,
+        .school-content h5 + *,
+        .school-content h6 + * {
+            margin-top: 0 !important; /* No spacing immediately after headings */
+        }
+        
+        /* Hantera listor */
+        .school-content ul, .school-content ol {
+            padding-left: 1.5em;
+            margin-bottom: 0.6em;
+            margin-top: 0 !important;
+        }
+        
+        .school-content li {
+            margin-bottom: 0.2em;
+        }
+        
+        .school-content br {
+            line-height: 0;
+        }
+        
+        .school-content br + br {
+            display: none;
+        }
+        .school-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0.6em;
+        }
+        .school-content th, .school-content td {
+            border: 1px solid #dee2e6;
+            padding: 0.5em;
+            text-align: left;
+        }
+        .school-content th {
+            background-color: #e9ecef;
+        }
+        .placeholder-text {
+            color: #6c757d; /* Muted color for placeholder */
+            text-align: center;
+            padding: 2rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">Skolinformation</div>
+        <div class="content">
+            <select id="school-select">
+                <option value="">-- Välj en skola --</option>
+            </select>
+            <div id="school-details-placeholder" class="placeholder-text">
+                <p>Välj en skola från rullgardinsmenyn för att se dess detaljer.</p>
+            </div>
+            <div id="school-details-content" style="display:none;"></div>
+        </div>
+    </div>
+    <script>
+        // Parse the school data passed from Python
+        const schools = {school_list_json};
+        const selectElement = document.getElementById('school-select');
+        const detailsPlaceholder = document.getElementById('school-details-placeholder');
+        const detailsContentContainer = document.getElementById('school-details-content');
+
+        // Populate the dropdown menu with school options
+        schools.forEach(school => {
+            const option = document.createElement('option');
+            option.value = school.id;
+            option.textContent = school.name;
+            selectElement.appendChild(option);
+        });
+
+        // Listen for selection changes and display the school description
+        selectElement.addEventListener('change', function() {
+            const selectedSchoolId = selectElement.value;
+
+            if (!selectedSchoolId) {
+                detailsPlaceholder.style.display = 'block';
+                detailsContentContainer.style.display = 'none';
+                detailsContentContainer.innerHTML = '';
+                return;
+            }
+
+            const selectedSchool = schools.find(function(s) { return s.id === selectedSchoolId; });
+            if (!selectedSchool) {
+                detailsPlaceholder.innerHTML = '<p>Error: School data not found.</p>';
+                detailsPlaceholder.style.display = 'block';
+                detailsContentContainer.style.display = 'none';
+                return;
+            }
+
+            detailsPlaceholder.style.display = 'none';
+            detailsContentContainer.style.display = 'block';
+
+            // Clear previous content
+            detailsContentContainer.innerHTML = '';
+
+            // Create the school title as h1
+            const titleElement = document.createElement('h1');
+            titleElement.textContent = selectedSchool.name;
+            detailsContentContainer.appendChild(titleElement);
+
+            // Create wrapper for the AI description content
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'school-info-wrapper';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'school-content';
+            contentDiv.innerHTML = selectedSchool.ai_description_html;
+
+            infoDiv.appendChild(contentDiv);
+            detailsContentContainer.appendChild(infoDiv);
+        });
+    </script>
+</body>
+</html>

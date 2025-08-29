@@ -1,0 +1,8 @@
+pandas
+openpyxl
+aiohttp
+aiolimiter
+python-dotenv
+tqdm
+Jinja2
+markdown2
