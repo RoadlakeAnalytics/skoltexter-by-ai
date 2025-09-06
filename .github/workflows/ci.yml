@@ -77,5 +77,6 @@ jobs:
         with:
           file: ./coverage.xml
           fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       # mypy already runs in lint-and-types job
