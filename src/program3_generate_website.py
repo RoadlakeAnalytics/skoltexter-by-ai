@@ -1,8 +1,10 @@
-"""Program 3: Website Generation
+"""Program 3: Website Generation.
 
-Generates a standalone HTML file to display school information.
-Loads school data from a CSV file and combines it with AI-generated markdown (converted to HTML).
-The resulting webpage features a dropdown menu for school selection and displays the school's AI-generated description.
+Generates a standalone HTML file to display school information. The script
+loads school data from a CSV file, combines it with AI-generated markdown
+files (converted to HTML), and renders a final website using a template.
+The resulting page includes a searchable school list and renders a selected
+school's AI-generated description.
 """
 
 import argparse
@@ -10,54 +12,73 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict, List
 
-import pandas as pd
 import markdown2  # type: ignore
+import pandas as pd
 
 from src.config import (
-    ORIGINAL_CSV_PATH,
     AI_MARKDOWN_DIR,
-    OUTPUT_HTML_DIR,
-    OUTPUT_HTML_FILE,
-    FALLBACK_SCHOOL_NAME_FORMAT,
-    FALLBACK_DESCRIPTION_HTML,
     ERROR_DESCRIPTION_HTML,
-    NO_DATA_HTML,
+    FALLBACK_DESCRIPTION_HTML,
+    FALLBACK_SCHOOL_NAME_FORMAT,
     LOG_DIR,
-    LOG_FORMAT,
     LOG_FILENAME_GENERATE_WEBSITE,
+    LOG_FORMAT,
+    NO_DATA_HTML,
+    ORIGINAL_CSV_PATH,
+    OUTPUT_HTML_FILE,
     WEBSITE_TEMPLATE_PATH,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def setup_logging(log_level: str = "INFO") -> None:
+def setup_logging(log_level: str = "INFO", enable_file: bool = True) -> None:
     """Configure logging for the website generation script.
 
-    Args:
-        log_level: Logging level as a string (e.g., "INFO", "DEBUG").
+    Parameters
+    ----------
+    log_level : str
+        Logging level as a string (e.g., ``"INFO"``, ``"DEBUG"``).
+    enable_file : bool
+        If ``True``, add a file handler; otherwise only log to console.
+
+    Returns
+    -------
+    None
+        This function configures global logging handlers.
     """
-    LOG_DIR.mkdir(exist_ok=True)
+    for h in logging.root.handlers[:]:
+        logging.root.removeHandler(h)
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    if enable_file:
+        try:
+            LOG_DIR.mkdir(exist_ok=True)
+            handlers.insert(
+                0,
+                logging.FileHandler(LOG_DIR / LOG_FILENAME_GENERATE_WEBSITE, mode="a"),
+            )
+        except Exception:
+            pass
     logging.basicConfig(
         level=getattr(logging, log_level.upper(), logging.INFO),
         format=LOG_FORMAT,
-        handlers=[
-            logging.FileHandler(LOG_DIR / LOG_FILENAME_GENERATE_WEBSITE, mode="a"),
-            logging.StreamHandler(),
-        ],
+        handlers=handlers,
     )
 
 
 def read_school_csv(csv_path: Path) -> pd.DataFrame:
     """Read the school CSV file and return a DataFrame with required columns.
 
-    Args:
-        csv_path: Path to the CSV file.
+    Parameters
+    ----------
+    csv_path : Path
+        Path to the semicolon-delimited CSV file.
 
-    Returns:
-        DataFrame with 'SchoolCode' and 'SchoolName' columns.
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with ``SchoolCode`` and ``SchoolName`` columns (filled with empty strings on NA).
     """
     try:
         dataframe = pd.read_csv(
@@ -86,16 +107,34 @@ def read_school_csv(csv_path: Path) -> pd.DataFrame:
 
 def deduplicate_and_format_school_records(
     dataframe: pd.DataFrame,
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """Deduplicate school records and apply fallback names if needed.
 
-    Args:
-        dataframe: DataFrame with school data.
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+        DataFrame with columns ``SchoolCode`` and ``SchoolName``.
 
-    Returns:
-        List of dictionaries with 'id' and 'name' for each school.
+    Returns
+    -------
+    list[dict[str, str]]
+        List of dictionaries with ``id`` and ``name`` for each school.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> df = pd.DataFrame([
+    ...     {"SchoolCode": "A", "SchoolName": "Alpha"},
+    ...     {"SchoolCode": "A", "SchoolName": "Alpha Again"},
+    ...     {"SchoolCode": "B", "SchoolName": ""},
+    ... ])
+    >>> out = deduplicate_and_format_school_records(df)
+    >>> out[0]
+    {'id': 'A', 'name': 'Alpha'}
+    >>> out[1]['id']
+    'B'
     """
-    schools_data: List[Dict[str, str]] = []
+    schools_data: list[dict[str, str]] = []
     processed_school_codes = set()
 
     for _, school_row in dataframe.iterrows():
@@ -124,23 +163,28 @@ def deduplicate_and_format_school_records(
     if not schools_data:
         logger.warning("No school data could be loaded or processed.")
     else:
-        logger.info(f"Successfully loaded and prepared data for {len(schools_data)} schools.")
+        logger.info(
+            f"Successfully loaded and prepared data for {len(schools_data)} schools."
+        )
 
     schools_data.sort(key=lambda school: school["name"])
     return schools_data
 
 
-def get_school_description_html(
-    school_code: str, ai_markdown_dir: Path
-) -> str:
-    """Read and convert the AI-generated markdown for a school to cleaned HTML.
+def get_school_description_html(school_code: str, ai_markdown_dir: Path) -> str:
+    """Read and convert a school's AI-generated markdown to cleaned HTML.
 
-    Args:
-        school_code: The school code.
-        ai_markdown_dir: Directory containing AI-generated markdown files.
+    Parameters
+    ----------
+    school_code : str
+        The school code.
+    ai_markdown_dir : Path
+        Directory containing AI-generated markdown files.
 
-    Returns:
-        Cleaned HTML string for the school's description.
+    Returns
+    -------
+    str
+        Cleaned HTML string for the school's description or a fallback/error HTML.
     """
     markdown_file_path = ai_markdown_dir / f"{school_code}_ai_description.md"
     if not markdown_file_path.exists():
@@ -164,14 +208,35 @@ def get_school_description_html(
 
 
 def clean_html_output(html_content: str) -> str:
-    """Clean up HTML output from markdown conversion.
+    """Clean up HTML by removing empty tags and excessive whitespace.
 
-    Args:
-        html_content: Raw HTML string.
+    This utility targets artifacts from markdown conversion such as empty
+    paragraphs (``<p></p>``) and repeated breaks to produce a more compact
+    and semantically clean HTML string.
 
-    Returns:
-        Cleaned HTML string.
+    Parameters
+    ----------
+    html_content : str
+        The raw HTML string generated from a markdown source.
+
+    Returns
+    -------
+    str
+        A cleaned HTML string.
+
+    Raises
+    ------
+    TypeError
+        If the input ``html_content`` is not a string.
+
+    Examples
+    --------
+    >>> raw_html = "<p>Title</p><p>  </p><p><br/></p><div>Content</div><br><br>"
+    >>> clean_html_output(raw_html)
+    '<p>Title</p><div>Content</div><br>'
     """
+    if not isinstance(html_content, str):
+        raise TypeError("Input must be a string.")
     html_content = re.sub(r"<p>\s*</p>", "", html_content)
     html_content = re.sub(r"<p>&nbsp;</p>", "", html_content)
     html_content = re.sub(r"<p><br\s*/?>\s*</p>", "", html_content)
@@ -192,17 +257,20 @@ def clean_html_output(html_content: str) -> str:
     return html_content
 
 
-def load_school_data(
-    csv_path: Path, ai_markdown_dir: Path
-) -> List[Dict[str, str]]:
+def load_school_data(csv_path: Path, ai_markdown_dir: Path) -> list[dict[str, str]]:
     """Load school data and combine with AI-generated descriptions.
 
-    Args:
-        csv_path: Path to the CSV file.
-        ai_markdown_dir: Directory containing AI-generated markdown files.
+    Parameters
+    ----------
+    csv_path : Path
+        Path to the school CSV file.
+    ai_markdown_dir : Path
+        Directory containing AI-generated markdown files.
 
-    Returns:
-        List of dictionaries with 'id', 'name', and 'ai_description_html' for each school.
+    Returns
+    -------
+    list[dict[str, str]]
+        Each item contains ``id``, ``name``, and ``ai_description_html`` keys.
     """
     logger.info(f"Loading school master data from CSV: {csv_path.resolve()}")
     dataframe = read_school_csv(csv_path)
@@ -218,12 +286,16 @@ def load_school_data(
 
 
 def generate_html_content(school_list_json: str) -> str:
-    """Generate the complete HTML document as a string using the external template.
+    """Generate the complete HTML document using the external template.
 
-    Args:
-        school_list_json: A JSON string representing the list of school data.
+    Parameters
+    ----------
+    school_list_json : str
+        A JSON string representing the list of school dictionaries.
 
-    Returns:
+    Returns
+    -------
+    str
         The complete HTML document as a string.
     """
     with WEBSITE_TEMPLATE_PATH.open("r", encoding="utf-8") as template_file:
@@ -234,38 +306,64 @@ def generate_html_content(school_list_json: str) -> str:
 def write_html_output(html_content: str, output_file: Path) -> None:
     """Write the generated HTML content to the output file.
 
-    Args:
-        html_content: The HTML content to write.
-        output_file: Path to the output HTML file.
+    Parameters
+    ----------
+    html_content : str
+        The HTML content to write.
+    output_file : Path
+        Path to the output HTML file.
+
+    Returns
+    -------
+    None
+        Writes the file and logs the result.
     """
     try:
         output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.write_text(html_content, encoding="utf-8")
         logger.info(f"Successfully generated website: {output_file.resolve()}")
-    except IOError as error:
-        logger.error(f"Failed to write HTML output to file {output_file.resolve()}: {error}")
+    except OSError as error:
+        logger.error(
+            f"Failed to write HTML output to file {output_file.resolve()}: {error}"
+        )
     except Exception as error:
         logger.error(
-            f"An unexpected error occurred during HTML file writing: {error}", exc_info=True
+            f"An unexpected error occurred during HTML file writing: {error}",
+            exc_info=True,
         )
 
 
 def write_no_data_html(output_file: Path) -> None:
     """Write a minimal HTML page indicating no data is available.
 
-    Args:
-        output_file: Path to the output HTML file.
+    Parameters
+    ----------
+    output_file : Path
+        Path to the output HTML file.
+
+    Returns
+    -------
+    None
+        Writes the fallback HTML file and logs the result.
     """
     try:
         output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.write_text(NO_DATA_HTML, encoding="utf-8")
-        logger.info(f"Generated a fallback HTML page due to no data: {output_file.resolve()}")
-    except IOError as error:
+        logger.info(
+            f"Generated a fallback HTML page due to no data: {output_file.resolve()}"
+        )
+    except OSError as error:
         logger.error(f"Failed to write fallback HTML file: {error}")
 
 
 def main() -> None:
-    """Main function to orchestrate the generation of the website."""
+    """Orchestrate the generation of the static website from CLI arguments.
+
+    Returns
+    -------
+    None
+        Performs I/O and logs progress; writes the final HTML file.
+    """
     import os
 
     parser = argparse.ArgumentParser(
@@ -303,10 +401,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    setup_logging(args.log_level)
-    logger.info("="*50)
+    import os as _os
+
+    disable_file = bool(
+        _os.environ.get("DISABLE_FILE_LOGS") or _os.environ.get("PYTEST_CURRENT_TEST")
+    )
+    setup_logging(args.log_level, enable_file=not disable_file)
+    logger.info("=" * 50)
     logger.info("Starting Program 3: Website Generation")
-    logger.info("="*50)
+    logger.info("=" * 50)
     # Language argument is accepted for future-proofing; not used in this script
 
     logger.info("Starting website generation process...")
@@ -322,5 +425,5 @@ def main() -> None:
     write_html_output(full_html_output, args.output)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover - CLI entry
     main()

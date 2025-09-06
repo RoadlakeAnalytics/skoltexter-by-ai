@@ -1,3 +1,6 @@
+########################################
+# Runtime & core libraries
+########################################
 pandas
 openpyxl
 aiohttp
@@ -6,3 +9,26 @@ python-dotenv
 tqdm
 Jinja2
 markdown2
+rich
+questionary
+
+########################################
+# Linting, formatting & quality gates
+########################################
+black
+ruff
+mypy
+bandit
+pip-audit
+cyclonedx-bom
+pip-licenses
+pre-commit
+
+########################################
+# Testing
+########################################
+pytest
+pytest-cov
+xdoctest
+pytest-mock
+pytest-asyncio

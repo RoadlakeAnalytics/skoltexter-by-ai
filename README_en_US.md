@@ -1,5 +1,11 @@
 # 📊 School Description Data Pipeline
 
+> Demo (GIFs to be added — placeholders below)
+>
+> - Pipeline demo: shows launching `setup_project.py`, the guided menu flow, venv management, running steps 1–3, and opening `output/index.html` with the search field.
+>
+>   ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
+
 This project is a data processing pipeline that transforms raw Swedish school statistics (CSV) into AI-enhanced descriptions and generates a modern, interactive website for browsing school information. The primary goal is to make complex school data accessible and useful for parents choosing schools, while also serving as a robust foundation for advanced AI text generation use cases.
 
 ## 🗂️ Table of Contents
@@ -13,6 +19,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 - [🔧 Operational Details](#operational-details)
 - [📝 Logging](#logging)
 - [📦 Dependencies](#dependencies)
+- [🧪 Testing](#testing)
 - [🤖 Switching to a different LLM](#switching-to-a-different)
 - [🪪 License](#license)
 
@@ -57,6 +64,11 @@ If you already have an Azure OpenAI endpoint and have your three values for key,
 
 - **🛠️ Orchestration & Setup**
   - `setup_project.py`: Interactive, menu-driven CLI for managing the pipeline, supporting language selection, environment management, dependency installation, pipeline execution, log viewing, and file resets.
+
+### 🏷️ CI/Badges
+
+[![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai)
 
 - **📃 Configuration & Environment**
   - `.env-example`: Template for required Azure OpenAI environment variables.
@@ -112,6 +124,10 @@ Run the interactive setup script and follow the menu prompts (supports English/S
 python setup_project.py
 ```
 
+Once dependencies (e.g., `rich` and `questionary`) are installed, the setup
+program automatically restarts inside the virtual environment to enable the
+enhanced UI without extra steps.
+
 ### 🔧 Manual Setup
 1. Copy `.env-example` to `.env` and fill in Azure credentials.
 2. Create a virtual environment and install dependencies:
@@ -134,6 +150,8 @@ Use the setup script's menu to run the full pipeline:
 ```bash
 python setup_project.py
 ```
+
+When starting the pipeline, you will first be prompted to run a quick AI connectivity test. It sends a minimal request to verify that your `.env` and network configuration are working. If it passes, the pipeline continues; otherwise, you get a clear error message so you can fix issues before re‑running.
 
 ### 🛠️ Manual
 
@@ -195,6 +213,36 @@ Install all dependencies with:
 pip install -r requirements.txt
 ```
 
+## 🧪 Testing
+
+- Run full test suite (quiet):
+
+  ```bash
+  pytest -q
+  ```
+
+- Run with coverage and show missing lines:
+
+  ```bash
+  pytest --cov=src --cov=setup_project --cov-report=term-missing --cov-report=xml
+  ```
+
+- Coverage gate in CI: 100%.
+- Type checking and lint run in CI. Locally:
+
+  ```bash
+  ruff check .
+  mypy --strict src setup_project.py
+  ```
+
+- Pre-commit (format, lint, security checks):
+
+  ```bash
+  pip install -r requirements.txt
+  pre-commit install
+  pre-commit run --all-files
+  ```
+
 ## Switching to a different LLM
 
 I have provided a brief file regarding configuration options for other LLM models, see `BYTA_LLM.md`
@@ -203,9 +251,32 @@ I have provided a brief file regarding configuration options for other LLM model
 
 This project is licensed under the MIT License, with an added requirement:
 
-> If you reuse **SUBSTANTIAL PORTIONS OF THE CODE OR ITS STRUCTURE** in a commercial product or in a publicly deployed or published service, you must provide clear attribution such as: 
+> If you reuse **SUBSTANTIAL PORTIONS OF THE CODE OR ITS STRUCTURE** in a commercial product or in a publicly deployed or published service, you must provide clear attribution such as:
 > _"Based on work by Carl O. Mattsson / Roadlake Analytics AB"_
 
 - Essentially, you can not claim you wrote the program as is.
 
 See the [LICENSE](./LICENSE.txt) file for full details.
+
+## 🔐 Security & Reliability
+
+- Lint & Types: `ruff` (no warnings) and `mypy --strict` in CI.
+- Security scanning: `bandit` (MEDIUM+), `pip-audit` for CVEs, and secret scanning via Gitleaks.
+- SBOM: Generated with CycloneDX in CI (`sbom.json`).
+- Tests: `pytest` with coverage gating in CI; async tests with network fakes; timeouts/backoff in runtime code.
+- Rate limiting & retries: All AI calls use limiter + exponential backoff; request timeouts via `aiohttp.ClientTimeout`.
+- Logging hygiene: No API keys or PII in logs. File logging is disabled in tests.
+ - Reproducibility: All tooling is listed in `requirements.txt`. Pre-commit hooks enforce style and common security checks locally.
+
+License allowlist
+
+- Allowed: MIT, BSD-2/3-Clause, Apache-2.0, ISC, MPL-2.0, PSF/Python, and similar permissive licenses.
+- Enforced via a pre-commit hook (`pip-licenses`) and in CI; see `tools/policy/check_licenses.py`.
+
+Local pre-commit setup:
+
+```bash
+pip install -r requirements.txt
+pre-commit install
+pre-commit run --all-files
+```

@@ -1,11 +1,18 @@
 # 📊 Datapipeline för Skolbeskrivningar
 
+> Demo (GIFs kommer att läggas till – platshållare nedan)
+>
+> - Pipeline-demo: visar hur `setup_project.py` startas, menyflödet, venv-hantering, körning av steg 1–3 och öppning av `output/index.html` med sökfältet.
+>
+>   ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
+
 Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik (CSV) till AI-förbättrade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
 
 ## 🗂️ Innehållsförteckning
 
 - [🔍 Översikt](#översikt)
 - [🧩 Huvudkomponenter](#huvudkomponenter)
+  - [🏷️ CI/Badges](#cibadges)
 - [📁 Projektstruktur](#projektstruktur)
 - [⚙️ Förutsättningar](#förutsättningar)
 - [🚀 Installation](#installation)
@@ -13,6 +20,7 @@ Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik (CSV) t
 - [🔧 Driftsdetaljer](#driftsdetaljer)
 - [📝 Loggning](#loggning)
 - [📦 Beroenden](#beroenden)
+- [🧪 Testning](#testning)
 - [🤖 Byta till en annan LLM](#byta-till-en-annan-llm)
 - [🪪 Licens](#licens)
 
@@ -57,6 +65,11 @@ Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, e
 
 - **🛠️ Orkestrering & Installation**
   - `setup_project.py`: Interaktiv, menybaserad CLI för att hantera pipelinen, stödjer språkval, miljöhantering, installation av beroenden, pipelinekörning, loggvisning och återställning av filer.
+
+### 🏷️ CI/Badges
+
+[![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai)
 
 - **📃 Konfiguration & Miljö**
   - `.env-example`: Mall för nödvändiga Azure OpenAI-miljövariabler.
@@ -112,6 +125,10 @@ Kör det interaktiva installationsskriptet och följ menyvalen (stöd för engel
 python setup_project.py
 ```
 
+När installationsskriptet har installerat beroenden (t.ex. `rich` och `questionary`)
+startar det om sig självt inuti den virtuella miljön för att aktivera det förbättrade
+gränssnittet automatiskt.
+
 ### 🔧 Manuell installation
 1. Kopiera `.env-example` till `.env` och fyll i Azure-uppgifterna.
 2. Skapa en virtuell miljö och installera beroenden:
@@ -134,6 +151,8 @@ Använd installationsskriptets meny för att köra hela pipelinen:
 ```bash
 python setup_project.py
 ```
+
+När du startar pipelinen får du först ett val om att köra ett snabbt AI‑anslutningstest. Det skickar en minimal förfrågan och verifierar att din `.env` och nätverkskonfiguration fungerar. Vid lyckat test fortsätter pipelinen, annars får du ett tydligt felmeddelande och kan åtgärda innan du kör om.
 
 ### 🛠️ Manuell
 
@@ -195,15 +214,69 @@ Installera alla beroenden med:
 pip install -r requirements.txt
 ```
 
+## 🧪 Testning
+
+- Kör hela testsuiten (snabbt läge):
+
+  ```bash
+  pytest -q
+  ```
+
+- Kör tester med coverage-rapport (visar otäckta rader):
+
+  ```bash
+  pytest --cov=src --cov=setup_project --cov-report=term-missing --cov-report=xml
+  ```
+
+- Täckningsgrind i CI: 100%.
+- Typkontroll och lint körs i CI. Lokalt kan du köra:
+
+  ```bash
+  ruff check .
+  mypy --strict src setup_project.py
+  ```
+
+- Pre-commit (format, lint, säkerhetskontroller):
+
+  ```bash
+  pip install -r requirements.txt
+  pre-commit install
+  pre-commit run --all-files
+  ```
+
 ## Byta till en annan LLM
 
 Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för att använda en annan LLM, se [BYTA_LLM.md](./BYTA_LLM.md).
+
+## 🔐 Säkerhet & Tillförlitlighet
+
+- Lint & Typer: `ruff` (inga varningar) och `mypy --strict` i CI.
+- Säkerhetsskanning: `bandit` (MEDIUM+), `pip-audit` för sårbarheter, och secrets‑skanning via Gitleaks.
+- SBOM: Genereras med CycloneDX i CI (`sbom.json`).
+- Tester: `pytest` med coverage‑grind i CI; async‑tester med nätverksfakes; timeouter/backoff i runtime.
+- Rate limiting & retries: Alla AI‑anrop har limiter + exponentiell backoff; timeouts via `aiohttp.ClientTimeout`.
+- Logg‑hygien: Inga API‑nycklar/PII i loggar. Fil‑logg avstängd under tester.
+- Reproducerbarhet: Dev‑verktyg i `dev-requirements.txt`. Pre-commit‑hooks upprätthåller stil och grundläggande säkerhet lokalt.
+ - Reproducerbarhet: Alla verktyg finns i `requirements.txt`. Pre-commit‑hooks upprätthåller stil och grundläggande säkerhet lokalt.
+
+Licens‑allowlist
+
+- Tillåtna: MIT, BSD‑2/3‑Clause, Apache‑2.0, ISC, MPL‑2.0, PSF/Python och liknande permissiva licenser.
+- Upprätthålls via en pre‑commit‑hook (`pip-licenses`) och i CI; se `tools/policy/check_licenses.py`.
+
+Lokal pre-commit:
+
+```bash
+pip install -r requirements.txt
+pre-commit install
+pre-commit run --all-files
+```
 
 ## 🪪 Licens
 
 Detta projekt är licensierat under MIT-licensen, med ett tilläggskrav:
 
-> Om du återanvänder **VÄSENTLIGA DELAR AV KODEN ELLER DESS STRUKTUR** i en kommersiell produkt eller i en offentligt distribuerad eller publicerad tjänst, måste du ge tydlig attribution såsom:  
+> Om du återanvänder **VÄSENTLIGA DELAR AV KODEN ELLER DESS STRUKTUR** i en kommersiell produkt eller i en offentligt distribuerad eller publicerad tjänst, måste du ge tydlig attribution såsom:
 > _"Baserat på arbete av Carl O. Mattsson / Roadlake Analytics AB"_
 
 - I praktiken innebär detta att du inte får påstå att du skrev det i det skick som det återfinns häri.

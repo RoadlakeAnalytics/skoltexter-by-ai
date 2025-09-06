@@ -25,6 +25,7 @@ MANIFEST
 
 # Virtual Environment
 venv/
+.venv/
 env/
 ENV/
 env.bak/
@@ -134,5 +135,6 @@ output/
 # repomix
 repomix*
 
-# roo
-.roorules
+# Roo Code, CC, Codex
+.roo/rules/rules.md
+AGENTS.md
