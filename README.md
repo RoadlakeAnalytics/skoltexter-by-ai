@@ -1,6 +1,6 @@
 # 📊 Datapipeline för Skolbeskrivningar
 
-> Demo
+> 1-minutsdemo
 >
 > - Pipeline-demo: visar hur `setup_project.py` startas, menyflödet, venv-hantering, körning av steg 1–3 och öppning av `output/index.html` med sökfältet.
 >

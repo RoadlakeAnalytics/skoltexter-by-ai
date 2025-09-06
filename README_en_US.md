@@ -1,6 +1,6 @@
 # 📊 School Description Data Pipeline
 
-> Demo
+> 1 Minute Demo
 >
 > - Pipeline demo: shows launching `setup_project.py`, the guided menu flow, venv management, running steps 1–3, and opening `output/index.html` with the search field.
 >
