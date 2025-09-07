@@ -93,9 +93,6 @@ jobs:
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
           flags: ${{ matrix.codecov-flag }}
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      # mypy already runs in lint-and-types job
