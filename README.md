@@ -1,3 +1,5 @@
+# 📊 Datapipeline för Skolbeskrivningar
+
 [![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/feature%2Fui-and-p10-ish-compliance/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/feature%2Fui-and-p10-ish-compliance)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
@@ -6,21 +8,16 @@
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
 ![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
 
-# 📊 Datapipeline för Skolbeskrivningar
-
 Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI-genererade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
 
 > Pipeline-demo: visar hur `setup_project.py` startas, menyflödet, venv-hantering, körning av steg 1–3 och öppning av `output/index.html` med sökfältet.
 >
 >   ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
 
-
-
 ## 🗂️ Innehållsförteckning
 
 - [🔍 Översikt](#översikt)
 - [🧩 Huvudkomponenter](#huvudkomponenter)
-  - [🏷️ CI/Badges](#cibadges)
 - [📁 Projektstruktur](#projektstruktur)
 - [⚙️ Förutsättningar](#förutsättningar)
 - [🚀 Installation](#installation)
