@@ -887,6 +887,33 @@ async def test_call_openai_api_no_endpoint(tmp_path: Path):
     assert ok is False and err.get("error_type") == "ConfigurationError"
 
 
+def test_openai_config_loads_dotenv(monkeypatch, tmp_path: Path):
+    """Cover .env present branch (lines 115-116) by pointing PROJECT_ROOT to tmp and writing .env.
+
+    Ensures load_dotenv is called and no ValueError is raised by providing minimal required keys.
+    """
+    # Point module-level PROJECT_ROOT used by OpenAIConfig to a temp directory
+    monkeypatch.setattr(p2, "PROJECT_ROOT", tmp_path, raising=True)
+    env_text = (
+        "AZURE_API_KEY=kkk\n"
+        "AZURE_ENDPOINT_BASE=https://example.test\n"
+        "GPT4O_DEPLOYMENT_NAME=gpt-4o\n"
+        "AZURE_API_VERSION=2024-05-01-preview\n"
+    )
+    (tmp_path / ".env").write_text(env_text, encoding="utf-8")
+    cfg = p2.OpenAIConfig()
+    # Sanity: endpoint constructed from .env values
+    assert cfg.gpt4o_endpoint.startswith("https://example.test")
+    # Clean up env variables that load_dotenv may have injected
+    for key in [
+        "AZURE_API_KEY",
+        "AZURE_ENDPOINT_BASE",
+        "GPT4O_DEPLOYMENT_NAME",
+        "AZURE_API_VERSION",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+
 def test_parse_arguments_all_flags(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("LANG_UI", "sv")

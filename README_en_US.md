@@ -112,7 +112,7 @@ Note: During execution, additional result folders and files are created, includi
 - `output/index.html` (generated website)
 - `logs/` (runtime logs)
 
-The `tests/` folder contains a test suite of 137 tests (100% coverage) which is run with `pytest`.
+The `tests/` folder contains a test suite of 138 tests (100% coverage) which is run with `pytest`.
 
 ## ⚙️ Prerequisites
 
