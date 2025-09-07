@@ -60,7 +60,8 @@ jobs:
       - name: License allowlist
         run: python tools/policy/check_licenses.py
       - name: SBOM (CycloneDX)
-        run: cyclonedx-bom -e -o sbom.json
+        run: |
+          python -m cyclonedx_py -e -o sbom.json
       - name: Gitleaks (secrets)
         uses: zricethezav/gitleaks-action@v2.3.7
 
