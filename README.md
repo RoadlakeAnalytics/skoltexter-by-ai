@@ -11,6 +11,8 @@
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
 ![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
 
+<img alt="gitleaks badge" src="https://img.shields.io/badge/protected%20by-gitleaks-blue">
+
 Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI-genererade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
 
 > Pipeline-demo: Realtidsvideo på under en minut som visar hur `setup_project.py` startas, och sedan körs hela piplinen tills öppning av de färdiga webbsidorna (`output/index.html`).
@@ -281,6 +283,8 @@ Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för 
 - Rate limiting & retries: Alla AI‑anrop har limiter + exponentiell backoff; timeouts via `aiohttp.ClientTimeout`.
 - Logg‑hygien: Inga API‑nycklar/PII i loggar. Fil‑logg avstängd under tester.
  - Reproducerbarhet: Alla verktyg finns i `requirements.txt`. Pre-commit‑hooks upprätthåller stil och grundläggande säkerhet lokalt.
+
+Gitleaks körs vid push/PR och dagligen (04:00 UTC). För organisations‑repo behöver du lägga till en hemlighet `GITLEAKS_LICENSE` under repo/organisationens “Secrets and variables → Actions → Secrets”. För personliga repo behövs ingen licens.
 
 Licens‑allowlist
 
