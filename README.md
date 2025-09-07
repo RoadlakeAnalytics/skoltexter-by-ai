@@ -10,7 +10,7 @@
 
 Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI-genererade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
 
-> Pipeline-demo: visar hur `setup_project.py` startas, menyflödet, venv-hantering, körning av steg 1–3 och öppning av `output/index.html` med sökfältet.
+> Pipeline-demo: Realtidsvideo på under en minut som visar hur `setup_project.py` startas, och sedan körs hela piplinen tills öppning av de färdiga webbsidorna (`output/index.html`).
 >
 >   ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
 
