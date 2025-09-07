@@ -3,6 +3,7 @@
 [![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/feature%2Fui-and-p10-ish-compliance/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/feature%2Fui-and-p10-ish-compliance)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
@@ -59,10 +60,10 @@ Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, e
 ## 🧩 Huvudkomponenter
 
 - **📊 Data & Mallar**
-  - `data/database_data/database_school_data.csv`: Huvudsaklig indata-CSV med skolstatistik, identifierare och enkätresultat.
-  - `data/templates/school_description_template.md`: Markdown-mall för rapporter per skola.
-  - `data/templates/ai_prompt_template.txt`: Promptmall för Azure OpenAI, specificerar krav för AI-genererade beskrivningar.
-  - `data/templates/website_template.html`: Responsiv HTML-mall för den genererade webbplatsen.
+  - [`database_school_data.csv`](data/database_data/database_school_data.csv): Huvudsaklig indata-CSV med skolstatistik, identifierare och enkätresultat.
+  - [`school_description_template.md`](data/templates/school_description_template.md): Markdown-mall för rapporter per skola.
+  - [`ai_prompt_template.txt`](data/templates/ai_prompt_template.txt): Promptmall för Azure OpenAI, specificerar krav för AI-genererade beskrivningar.
+  - [`website_template.html`](data/templates/website_template.html): Responsiv HTML-mall för den genererade webbplatsen.
 
 - **🧠 Källkod (`src/`)**
   - [`src/config.py`](src/config.py): Centraliserar alla konstanter, sökvägar och konfiguration.
@@ -71,11 +72,11 @@ Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, e
   - [`src/program3_generate_website.py`](src/program3_generate_website.py): Genererar den interaktiva HTML-webbplatsen.
 
 - **🛠️ Orkestrering & Installation**
-  - `setup_project.py`: Interaktiv, menybaserad CLI för att hantera pipelinen, stödjer språkval, miljöhantering, installation av beroenden, pipelinekörning, loggvisning och återställning av filer.
+  - [`setup_project.py`](setup_project.py): Interaktiv, menybaserad CLI för att hantera pipelinen, stödjer språkval, miljöhantering, installation av beroenden, pipelinekörning, loggvisning och återställning av filer.
 
 - **📃 Konfiguration & Miljö**
-  - `.env-example`: Mall för nödvändiga Azure OpenAI-miljövariabler.
-  - `.gitignore`: Utesluter känslig data, byggartefakter och genererade utdata.
+  - [`.env-example`](.env-example): Mall för nödvändiga Azure OpenAI-miljövariabler.
+  - [`.gitignore`](.gitignore): Utesluter känslig data, byggartefakter och genererade utdata.
 
 ## 📁 Projektstruktur
 
