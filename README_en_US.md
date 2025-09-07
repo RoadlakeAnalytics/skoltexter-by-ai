@@ -249,14 +249,9 @@ I have provided a brief file regarding configuration options for other LLM model
 
 ## 🪪 License
 
-This project is licensed under the MIT License, with an added requirement:
+This project is licensed under the MIT License.
 
-> If you reuse **SUBSTANTIAL PORTIONS OF THE CODE OR ITS STRUCTURE** in a commercial product or in a publicly deployed or published service, you must provide clear attribution such as:
-> _"Based on work by Carl O. Mattsson / Roadlake Analytics AB"_
-
-- Essentially, you can not claim you wrote the program as is.
-
-See the [LICENSE](./LICENSE.txt) file for full details.
+See the [LICENSE](./LICENSE) file for full details.
 
 ## 🔐 Security & Reliability
 

@@ -68,8 +68,14 @@ Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, e
 
 ### 🏷️ CI/Badges
 
-[![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
+[![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai)
+[![License: MIT](https://img.shields.io/github/license/RoadlakeAnalytics/skoltexter-by-ai)](./LICENSE)
+![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
+![ruff](https://img.shields.io/badge/lint-ruff-informational)
+![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
+![Bandit](https://img.shields.io/badge/security-bandit-informational)
+![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
 
 - **📃 Konfiguration & Miljö**
   - `.env-example`: Mall för nödvändiga Azure OpenAI-miljövariabler.
@@ -274,11 +280,6 @@ pre-commit run --all-files
 
 ## 🪪 Licens
 
-Detta projekt är licensierat under MIT-licensen, med ett tilläggskrav:
+Detta projekt är licensierat under MIT-licensen.
 
-> Om du återanvänder **VÄSENTLIGA DELAR AV KODEN ELLER DESS STRUKTUR** i en kommersiell produkt eller i en offentligt distribuerad eller publicerad tjänst, måste du ge tydlig attribution såsom:
-> _"Baserat på arbete av Carl O. Mattsson / Roadlake Analytics AB"_
-
-- I praktiken innebär detta att du inte får påstå att du skrev det i det skick som det återfinns häri.
-
-Se filen [LICENSE](./LICENSE.txt) för fullständiga detaljer.
+Se filen [LICENSE](./LICENSE) för fullständiga detaljer.
