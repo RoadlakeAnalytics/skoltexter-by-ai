@@ -68,9 +68,9 @@ Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, e
 
 ### 🏷️ CI/Badges
 
-[![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai)
-[![License: MIT](https://img.shields.io/github/license/RoadlakeAnalytics/skoltexter-by-ai)](./LICENSE)
+[![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg?branch=feature%2Fui-and-p10-ish-compliance)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml?query=branch%3Afeature%2Fui-and-p10-ish-compliance)
+[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/feature%2Fui-and-p10-ish-compliance/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/feature%2Fui-and-p10-ish-compliance)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
