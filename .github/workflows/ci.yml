@@ -61,6 +61,8 @@ jobs:
         run: python tools/policy/check_licenses.py
       - name: SBOM (CycloneDX)
         run: |
+          # cyclonedx-py requires chardet at runtime for encoding detection
+          python -m pip install chardet
           python -m cyclonedx_py -e -o sbom.json
       - name: Gitleaks (secrets)
         uses: zricethezav/gitleaks-action@v2.3.7
