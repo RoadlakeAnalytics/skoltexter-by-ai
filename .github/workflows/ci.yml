@@ -61,11 +61,12 @@ jobs:
       - name: License allowlist
         run: python tools/policy/check_licenses.py
       # --- SBOM EFTER licenskollen ---
-      - name: SBOM (CycloneDX, module form)
+      - name: SBOM (CycloneDX, install+run in one step)
         run: |
+          python -m pip install --upgrade pip
           python -m pip install cyclonedx-bom
-          # cyclonedx_py is the module CLI packaged with cyclonedx-bom
-          python -m cyclonedx_py environment -o sbom.json --format json
+          python -c 'import shutil,sys; p=shutil.which("cyclonedx-bom"); print("cyclonedx-bom at:", p); raise SystemExit(0 if p else 1)'
+          cyclonedx-bom -e -o sbom.json --format json
       - name: Gitleaks (secrets)
         uses: zricethezav/gitleaks-action@v2.3.7
 
