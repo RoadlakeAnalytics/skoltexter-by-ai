@@ -288,13 +288,18 @@ See the [LICENSE](./LICENSE) file for full details.
 
 License allowlist
 
-- Allowed: MIT, BSD-2/3-Clause, Apache-2.0, ISC, MPL-2.0, PSF/Python, and similar permissive licenses.
-- Enforced via a pre-commit hook (`pip-licenses`) and in CI; see `tools/policy/check_licenses.py`.
+- Allowed: MIT, BSD‑2/3‑Clause, Apache‑2.0, ISC, MPL‑2.0, PSF/Python, and similar permissive licenses.
+- The policy normalizes common license strings (e.g., “MIT License”, “Apache Software License”) to SPDX‑like IDs and supports combinations such as “Apache‑2.0 AND MIT”.
+- Known packages with ambiguous or varying license strings are handled through explicit overrides (see the script), and the meta‑package `pre-commit-placeholder-package` is ignored.
+- To avoid GPL dependencies, we use the non‑GPL jsonschema extra: `jsonschema[format-nongpl]>=4.18` in `requirements.txt`.
+- The allowlist is enforced via pre‑commit and in CI; see `tools/policy/check_licenses.py`.
 
-Local pre-commit setup:
+Local usage:
 
 ```bash
 pip install -r requirements.txt
 pre-commit install
 pre-commit run --all-files
+# or just the license check
+python tools/policy/check_licenses.py
 ```

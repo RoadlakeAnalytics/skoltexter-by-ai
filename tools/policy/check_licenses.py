@@ -1,84 +1,166 @@
-"""License allowlist check using pip-licenses output.
+"""License allowlist check using pip-licenses output with normalization.
 
-Runs `pip-licenses --format=json` and fails if any package license is not in the
-allowlist. Prints a compact report of violations.
+This script runs ``pip-licenses`` and validates that only permissive licenses
+are used. It normalizes common license string variants to SPDX-like identifiers,
+handles mixed expressions (e.g., "Apache-2.0 AND MIT"), and applies
+package-specific overrides for packages that report unclear or missing metadata.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
+from collections.abc import Iterable
 
+# Permissive SPDX identifiers we allow
 ALLOWED = {
     "MIT",
-    "BSD-3-Clause",
     "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSD",  # some tools report the generic text
     "Apache-2.0",
-    "Apache Software License",
     "ISC",
     "MPL-2.0",
-    "Python-2.0",
-    "PSF",
-    "LGPL-3.0-or-later",
+    "PSF-2.0",
+    "Unlicense",
 }
 
-IGNORED_PACKAGES = {
-    "pre-commit-placeholder-package",
+# Package-specific overrides to correct messy/unknown license strings
+PKG_OVERRIDES: dict[str, str] = {
+    # Previously UNKNOWN in CI
+    "CacheControl": "Apache-2.0",
+    "attrs": "MIT",
+    "click": "BSD-3-Clause",
+    "jsonschema": "MIT",
+    "jsonschema-specifications": "MIT",
+    "mypy_extensions": "MIT",
+    "pytest-asyncio": "Apache-2.0",
+    "referencing": "MIT",
+    "rpds-py": "MIT",
+    "types-python-dateutil": "Apache-2.0 AND MIT",
+    "typing_extensions": "PSF-2.0",
+    "urllib3": "MIT",
+    # Known permissive packages with varying reported strings
+    "Jinja2": "BSD-3-Clause",
+    "MarkupSafe": "BSD-3-Clause",
+    "Pygments": "BSD-3-Clause",
+    "idna": "BSD-3-Clause",
+    "lxml": "BSD-3-Clause",
+    "pathspec": "MPL-2.0",
+    "tqdm": "MIT",
+    "python-dateutil": "BSD-3-Clause OR Apache-2.0",
 }
 
+# Map common textual variants to SPDX-like identifiers
+MAP_TO_SPDX: dict[str, str] = {
+    "MIT License": "MIT",
+    "BSD License": "BSD-3-Clause",  # conservative mapping
+    "Apache Software License": "Apache-2.0",
+    "Apache 2.0": "Apache-2.0",
+    "Apache License 2.0": "Apache-2.0",
+    "The Unlicense (Unlicense)": "Unlicense",
+    "Mozilla Public License 2.0 (MPL 2.0)": "MPL-2.0",
+    "Python Software Foundation License": "PSF-2.0",
+    "PSF": "PSF-2.0",
+    "PSF-2.0": "PSF-2.0",
+}
 
-def main() -> int:
-    """Run pip-licenses and validate licenses against allowlist.
+# Disallow strong copyleft licenses
+DISALLOWED_RE = re.compile(r"\bGPL\b|LGPL|AGPL", re.IGNORECASE)
+
+
+def normalize(license_str: str) -> list[str]:
+    """Normalize a license string into a list of SPDX-like identifiers.
+
+    Handles combined expressions like "Apache-2.0 AND MIT" or
+    semicolon-separated variants such as "BSD License;MIT License".
+
+    Parameters
+    ----------
+    license_str : str
+        Raw license string from pip-licenses.
 
     Returns
     -------
-    int
-        Exit code where 0 indicates success, 1 indicates disallowed or
-        unspecified licenses were found, and 2 indicates a tooling error
-        (e.g., running pip-licenses or parsing its JSON output failed).
+    list[str]
+        A list of normalized license identifiers (best-effort).
     """
+    if not license_str:
+        return []
+
+    s = license_str.strip()
+    s = s.replace(";", " AND ")  # harmonize delimiters
+    parts = re.split(r"\s+(?:AND|OR|,)\s+", s, flags=re.IGNORECASE)
+    out: list[str] = []
+    for p in parts:
+        p2 = MAP_TO_SPDX.get(p.strip(), p.strip())
+        out.append(p2)
+    return out
+
+
+def is_permissive(licenses: Iterable[str]) -> bool:
+    """Return True if the set of licenses is permissive and contains no GPL.*.
+
+    Accepts when there is at least one permissive license and none match the
+    disallowed GPL/AGPL/LGPL patterns.
+    """
+    saw_allowed = False
+    for lic in licenses:
+        if DISALLOWED_RE.search(lic):
+            return False
+        if lic in ALLOWED:
+            saw_allowed = True
+    return saw_allowed
+
+
+def get_pip_licenses() -> list[dict]:
+    """Return pip-licenses data as a JSON-parsed list of dicts."""
+    cmd = [
+        "pip-licenses",
+        "--format=json",
+        "--with-authors",
+        "--with-urls",
+        "--with-license-file",
+    ]
+    res = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    return json.loads(res.stdout or "[]")
+
+
+def main() -> int:
+    """Run pip-licenses, normalize results, and enforce the allowlist policy."""
     try:
-        proc = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "piplicenses",
-                "--format=json",
-                "--from=mixed",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except Exception as exc:  # pragma: no cover - hook environment failure
+        data = get_pip_licenses()
+    except Exception as exc:  # pragma: no cover - tool/runtime environment issue
         print(f"[license-check] Failed to run pip-licenses: {exc}", file=sys.stderr)
         return 2
 
-    try:
-        data: list[dict[str, str]] = json.loads(proc.stdout or "[]")
-    except json.JSONDecodeError:
-        print("[license-check] Invalid JSON from pip-licenses", file=sys.stderr)
-        return 2
-
-    violations: list[dict[str, str]] = []
+    bad: list[tuple[str, str]] = []
     for row in data:
-        lic = (row.get("License") or "").strip()
         pkg = row.get("Name") or row.get("Package") or "<unknown>"
-        if pkg in IGNORED_PACKAGES:
+        lic_raw = (row.get("License") or "").strip()
+        # Skip placeholder meta-packages some environments inject
+        if pkg == "pre-commit-placeholder-package":
             continue
-        if lic and lic not in ALLOWED:
-            violations.append({"package": pkg, "license": lic})
-        if not lic:
-            violations.append({"package": pkg, "license": "<unspecified>"})
 
-    if violations:
-        print("[license-check] Disallowed licenses detected:")
-        for v in violations:
-            print(f"  - {v['package']}: {v['license']}")
+        # Apply package-level overrides when available
+        if pkg in PKG_OVERRIDES:
+            lic_raw = PKG_OVERRIDES[pkg]
+
+        normed = normalize(lic_raw)
+        if not normed or not is_permissive(normed):
+            bad.append((pkg, lic_raw))
+
+    if bad:
+        print(
+            "[license-check] Disallowed or unknown licenses detected:", file=sys.stderr
+        )
+        for pkg, lic in sorted(bad, key=lambda x: x[0].lower()):
+            print(f"  - {pkg}: {lic}", file=sys.stderr)
         return 1
 
-    print("[license-check] All package licenses are allowed.")
+    print("[license-check] OK - only permissive licenses detected.")
     return 0
 
 

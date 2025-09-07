@@ -13,7 +13,7 @@ import logging
 import re
 from pathlib import Path
 
-import markdown2  # type: ignore
+import markdown2
 import pandas as pd
 
 from src.config import (

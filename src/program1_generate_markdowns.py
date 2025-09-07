@@ -281,8 +281,6 @@ def render_template(template_content: str, context: dict[str, str]) -> str:
 
     def format_number_string(val: str) -> str:
         """Format numeric string ending in '.0' as integer string."""
-        if not isinstance(val, str):
-            return val  # pragma: no cover - defensive branch
         if re.fullmatch(r"-?\d+\.0", val):
             return str(int(float(val)))
         return val

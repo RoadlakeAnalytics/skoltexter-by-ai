@@ -285,14 +285,19 @@ Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för 
 Licens‑allowlist
 
 - Tillåtna: MIT, BSD‑2/3‑Clause, Apache‑2.0, ISC, MPL‑2.0, PSF/Python och liknande permissiva licenser.
-- Upprätthålls via en pre‑commit‑hook (`pip-licenses`) och i CI; se `tools/policy/check_licenses.py`.
+- Vi normaliserar licenstexter (t.ex. “MIT License”, “Apache Software License”) till SPDX‑liknande ID:n och hanterar kombinationer som “Apache‑2.0 AND MIT”.
+- Kända paket med oklara/varierande licenstexter har explicita overrides (se koden för lista), och meta‑paketet `pre-commit-placeholder-package` ignoreras.
+- För att undvika GPL‑beroenden används den icke‑GPL:ade varianten av jsonschema: `jsonschema[format-nongpl]>=4.18` i `requirements.txt`.
+- Policyn upprätthålls via pre‑commit och i CI; se `tools/policy/check_licenses.py`.
 
-Lokal pre-commit:
+Kör lokalt:
 
 ```bash
 pip install -r requirements.txt
 pre-commit install
 pre-commit run --all-files
+# eller endast licenskollen
+python tools/policy/check_licenses.py
 ```
 
 ## 🪪 Licens

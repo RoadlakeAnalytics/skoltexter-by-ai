@@ -29,6 +29,7 @@ import shutil
 import subprocess
 import sys
 import venv
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -46,15 +47,15 @@ from src.config import (
 
 # --- Rich / Questionary UI ---
 try:  # Prefer rich for nicer CLI output and components
-    from rich import print as rprint  # type: ignore
-    from rich.console import Console  # type: ignore
-    from rich.panel import Panel  # type: ignore
-    from rich.rule import Rule  # type: ignore
+    from rich import print as rprint
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.rule import Rule
 
     _RICH_CONSOLE: Console | None = Console()
 except Exception:  # pragma: no cover - fallback
 
-    def rprint(*args: Any, **kwargs: Any) -> None:  # type: ignore
+    def rprint(*args: Any, **kwargs: Any) -> None:
         """Lightweight fallback for ``rich.print``.
 
         Parameters
@@ -74,11 +75,12 @@ except Exception:  # pragma: no cover - fallback
 
 
 try:
-    import questionary  # type: ignore
+    import questionary as _questionary
 
+    questionary: Any | None = _questionary
     _HAS_Q = True
 except Exception:  # pragma: no cover - fallback
-    questionary = None  # type: ignore
+    questionary = None
     _HAS_Q = False
 
 
@@ -118,7 +120,7 @@ def ui_header(title: str) -> None:
 
 
 @contextmanager
-def ui_status(message: str):
+def ui_status(message: str) -> Iterator[None]:
     """Visual status spinner for longer actions (rich) or plain print fallback."""
     if _RICH_CONSOLE:
         with _RICH_CONSOLE.status(message, spinner="dots"):
@@ -169,7 +171,7 @@ def ui_menu(items: list[tuple[str, str]]) -> None:
         A list of (choice_key, display_label) tuples.
     """
     if _RICH_CONSOLE:
-        from rich.table import Table  # type: ignore
+        from rich.table import Table
 
         table = Table(show_header=True, header_style="bold blue")
         table.add_column("#", style="bold")
@@ -589,19 +591,19 @@ def set_language() -> None:
     global LANG
     while True:
         try:
-            choice = ask_text(TEXTS["en"]["language_prompt"])  # type: ignore[arg-type]
+            choice = ask_text(TEXTS["en"]["language_prompt"])
             if choice == "1":
                 LANG = "en"
                 break
             if choice == "2":
                 LANG = "sv"
                 break
-            rprint(TEXTS["en"]["invalid_choice"])  # type: ignore[index]
+            rprint(TEXTS["en"]["invalid_choice"])
         except KeyboardInterrupt:
-            rprint(TEXTS["en"]["exiting"])  # type: ignore[index]
+            rprint(TEXTS["en"]["exiting"])
             sys.exit(0)
         except Exception:
-            rprint(TEXTS["en"]["invalid_choice"])  # type: ignore[index]
+            rprint(TEXTS["en"]["invalid_choice"])
     if LANG not in TEXTS:
         LANG = "en"  # pragma: no cover - defensive fallback
 
@@ -752,7 +754,7 @@ def manage_virtual_environment() -> None:
             else:
                 # If already in venv, try to enable rich/questionary dynamically
                 try:
-                    from rich import print as _rp  # type: ignore
+                    from rich import print as _rp
 
                     globals()["rprint"] = _rp  # swap to rich.print
                 except Exception:
@@ -812,7 +814,7 @@ def run_program(
     try:
         if stream_output:
             # Stream output in real time
-            process = subprocess.Popen(
+            proc = subprocess.Popen(
                 [python_executable, "-m", module_name, lang_arg, log_level_arg],
                 cwd=PROJECT_ROOT,
                 env=env,
@@ -820,7 +822,7 @@ def run_program(
                 stdout=sys.stdout,
                 stderr=sys.stderr,
             )
-            return_code = process.wait()
+            return_code = proc.wait()
             if return_code == 0:
                 logger.info(_(f"{program_name.lower().replace(' ', '_')}_complete"))
                 return True
@@ -828,7 +830,7 @@ def run_program(
             logger.error(f"{_(fail_key_str)} (Return code: {return_code})")
             return False
         else:
-            process = subprocess.run(
+            result = subprocess.run(
                 [python_executable, "-m", module_name, lang_arg, log_level_arg],
                 cwd=PROJECT_ROOT,
                 check=False,
@@ -836,13 +838,13 @@ def run_program(
                 text=True,
                 env=env,
             )
-            if process.returncode == 0:
+            if result.returncode == 0:
                 logger.info(_(f"{program_name.lower().replace(' ', '_')}_complete"))
                 return True
             fail_key_str = f"{program_name.lower().replace(' ', '_')}_failed"
-            logger.error(f"{_(fail_key_str)} (Return code: {process.returncode})")
+            logger.error(f"{_(fail_key_str)} (Return code: {result.returncode})")
             logger.error(
-                "Subprocess output:\n" + (process.stdout or "") + (process.stderr or "")
+                "Subprocess output:\n" + (result.stdout or "") + (result.stderr or "")
             )
             return False
     except Exception as error:
@@ -1392,7 +1394,10 @@ def run_ai_connectivity_check_interactive() -> bool:
                     False,
                     "Missing OpenAI endpoint configuration.",
                 )  # pragma: no cover - depends on external env
-            headers = {"Content-Type": "application/json", "api-key": cfg.api_key}
+            headers: dict[str, str] = {
+                "Content-Type": "application/json",
+                "api-key": str(cfg.api_key),
+            }
             payload = {
                 "messages": [
                     {

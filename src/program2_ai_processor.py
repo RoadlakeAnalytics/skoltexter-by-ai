@@ -13,6 +13,7 @@ import logging
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from aiolimiter import AsyncLimiter
@@ -118,12 +119,13 @@ class OpenAIConfig:
                 f".env file not found at {env_path}. Using system environment variables."
             )
 
-        self.api_key = os.getenv("AZURE_API_KEY") or os.getenv("API_KEY")
-        self.endpoint_base = os.getenv("AZURE_ENDPOINT_BASE")
-        self.deployment_name = os.getenv(
+        # Explicit attribute types for mypy
+        self.api_key: str | None = os.getenv("AZURE_API_KEY") or os.getenv("API_KEY")
+        self.endpoint_base: str | None = os.getenv("AZURE_ENDPOINT_BASE")
+        self.deployment_name: str = os.getenv(
             "GPT4O_DEPLOYMENT_NAME", DEFAULT_DEPLOYMENT_NAME
         )
-        self.api_version = os.getenv("AZURE_API_VERSION", DEFAULT_API_VERSION)
+        self.api_version: str = os.getenv("AZURE_API_VERSION", DEFAULT_API_VERSION)
 
         if not self.api_key:
             logger.error(
@@ -153,7 +155,7 @@ class OpenAIConfig:
             Computes and stores the chat completions endpoint URL.
         """
         if self.endpoint_base:
-            self.gpt4o_endpoint = (
+            self.gpt4o_endpoint: str = (
                 f"{self.endpoint_base.rstrip('/')}/openai/deployments/{self.deployment_name}/"
                 f"chat/completions?api-version={self.api_version}"
             )
@@ -244,7 +246,7 @@ class SchoolDescriptionProcessor:
         with template_path.open("r", encoding="utf-8") as file_handle:
             return file_handle.read()
 
-    def _parse_prompt_template(self, school_data: str) -> dict:
+    def _parse_prompt_template(self, school_data: str) -> dict[str, Any]:
         """Parse the loaded prompt template and substitute school data.
 
         Parameters
@@ -319,7 +321,7 @@ class SchoolDescriptionProcessor:
             cleaned_content = cleaned_content[: -len("```")].rstrip()
         return cleaned_content
 
-    def create_ai_payload(self, school_data: str) -> dict:
+    def create_ai_payload(self, school_data: str) -> dict[str, Any]:
         """Create the payload for the OpenAI API request using the template.
 
         Parameters
@@ -337,10 +339,10 @@ class SchoolDescriptionProcessor:
     async def call_openai_api(
         self,
         session: aiohttp.ClientSession,
-        payload: dict,
+        payload: dict[str, Any],
         school_id: str,
         rate_limiter: AsyncLimiter,
-    ) -> tuple[bool, str | None, dict | None]:
+    ) -> tuple[bool, str | None, dict[str, Any] | None]:
         """Call the OpenAI API with rate limiting, retries, and error handling.
 
         Parameters
@@ -372,9 +374,10 @@ class SchoolDescriptionProcessor:
                 },
             )
 
-        headers = {
+        # Ensure headers are correctly typed as str->str
+        headers: dict[str, str] = {
             "Content-Type": "application/json",
-            "api-key": self.config.api_key,
+            "api-key": str(self.config.api_key),
         }
 
         for attempt_number in range(self.config.max_retries + 1):
@@ -590,7 +593,9 @@ class SchoolDescriptionProcessor:
         with output_path.open("w", encoding="utf-8") as output_file:
             output_file.write(content)
 
-    def _save_json_response(self, output_path: Path, response_json: dict) -> None:
+    def _save_json_response(
+        self, output_path: Path, response_json: dict[str, Any]
+    ) -> None:
         """Save the raw or failed AI JSON response to file.
 
         Parameters

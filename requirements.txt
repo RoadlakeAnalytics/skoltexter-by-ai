@@ -11,6 +11,7 @@ Jinja2
 markdown2
 rich
 questionary
+jsonschema[format-nongpl]>=4.18
 
 ########################################
 # Linting, formatting & quality gates
