@@ -59,14 +59,13 @@ jobs:
       - name: License allowlist
         run: python tools/policy/check_licenses.py
       # --- SBOM EFTER licenskollen ---
-      - name: SBOM (CycloneDX console script, robust path)
+      - name: SBOM (CycloneDX via python -m)
         shell: bash
         run: |
           python -m pip install --upgrade pip
           python -m pip install cyclonedx-bom
-          CYCLONEDX_BIN="$(python -c 'import os, sys; print(os.path.join(os.path.dirname(sys.executable), "cyclonedx-bom"))')"
-          echo "Using cyclonedx-bom at: ${CYCLONEDX_BIN}"
-          "${CYCLONEDX_BIN}" -e -o sbom.json --format json
+          # Kör modul-CLI:t med korrekt subkommando och flaggor
+          python -m cyclonedx_py environment -o sbom.json --format json
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
         with:
