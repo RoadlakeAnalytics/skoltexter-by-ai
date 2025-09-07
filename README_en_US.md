@@ -214,6 +214,22 @@ From `requirements.txt`:
 
 🧰 Additional standard library modules used: argparse, csv, logging, pathlib, json, re, os, asyncio, typing
 
+For testing and code control:
+
+- black
+- ruff
+- mypy
+- bandit
+- pip-audit
+- cyclonedx-bom
+- pip-licenses
+- pre-commit
+- pytest
+- pytest-cov
+- xdoctest
+- pytest-mock
+- pytest-asyncio
+
 Install all dependencies with:
 
 ```bash
