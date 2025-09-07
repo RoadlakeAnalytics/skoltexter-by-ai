@@ -10,8 +10,7 @@
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
 ![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
-
-<img alt="gitleaks badge" src="https://img.shields.io/badge/protected%20by-gitleaks-blue">
+![gitleaks](https://img.shields.io/badge/protected%20by-gitleaks-blue)
 
 Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI-genererade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
 
