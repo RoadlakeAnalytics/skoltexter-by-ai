@@ -1018,3 +1018,89 @@ async def test_process_school_file_failure_saves_failed_json(
         assert ok is False
     failed = proc.json_output_dir / "Y_gpt4o_FAILED_response.json"
     assert failed.exists()
+
+
+@pytest.mark.asyncio
+async def test_process_school_file_success_without_raw_json(
+    tmp_path: Path, monkeypatch
+):
+    """Success path with no raw JSON should skip JSON save branch.
+
+    Ensures branch at lines 557->563 is covered when ``raw_response_json`` is falsy.
+    """
+    input_dir = tmp_path / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    f = input_dir / "Z.md"
+    f.write_text("Z", encoding="utf-8")
+    cfg = SimpleNamespace(
+        api_key="x",
+        gpt4o_endpoint="https://x",
+        temperature=0.0,
+        request_timeout=5,
+        max_retries=0,
+        backoff_factor=1.0,
+        retry_sleep_on_429=0,
+        max_concurrent_requests=2,
+        target_rpm=100,
+    )
+    proc = SchoolDescriptionProcessor(cfg, input_dir, tmp_path)
+
+    async def fake_call(self, session, payload, school_id, limiter):
+        return True, "OK", None
+
+    monkeypatch.setattr(
+        SchoolDescriptionProcessor, "call_openai_api", fake_call, raising=True
+    )
+    import aiohttp
+
+    async with aiohttp.ClientSession() as session:
+        ok = await proc.process_school_file(
+            session, f, FakeLimiter(), asyncio.Semaphore(1)
+        )
+        assert ok is True
+    # Should not write raw JSON when it's None
+    raw_path = proc.json_output_dir / "Z_gpt4o_raw_response.json"
+    assert not raw_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_process_school_file_failure_without_raw_json(
+    tmp_path: Path, monkeypatch
+):
+    """Failure path with no raw JSON should skip failed JSON save branch.
+
+    Ensures branch at lines 568->575 is covered when ``raw_response_json`` is falsy.
+    """
+    input_dir = tmp_path / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    f = input_dir / "W.md"
+    f.write_text("W", encoding="utf-8")
+    cfg = SimpleNamespace(
+        api_key="x",
+        gpt4o_endpoint="https://x",
+        temperature=0.0,
+        request_timeout=5,
+        max_retries=0,
+        backoff_factor=1.0,
+        retry_sleep_on_429=0,
+        max_concurrent_requests=2,
+        target_rpm=100,
+    )
+    proc = SchoolDescriptionProcessor(cfg, input_dir, tmp_path)
+
+    async def fake_call(self, session, payload, school_id, limiter):
+        return False, None, None
+
+    monkeypatch.setattr(
+        SchoolDescriptionProcessor, "call_openai_api", fake_call, raising=True
+    )
+    import aiohttp
+
+    async with aiohttp.ClientSession() as session:
+        ok = await proc.process_school_file(
+            session, f, FakeLimiter(), asyncio.Semaphore(1)
+        )
+        assert ok is False
+    # Should not write failed JSON when it's None
+    failed = proc.json_output_dir / "W_gpt4o_FAILED_response.json"
+    assert not failed.exists()

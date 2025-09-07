@@ -941,3 +941,181 @@ def test_run_ai_connectivity_check_interactive_fail(monkeypatch):
     )
     monkeypatch.setitem(sys.modules, "aiohttp", fake_aiohttp)
     assert sp.run_ai_connectivity_check_interactive() is False
+
+
+def test_manage_virtual_environment_no_venvdir_pip_python_fallback(
+    monkeypatch, tmp_path: Path
+):
+    """Cover branch where pip path is missing and VENV_DIR does not exist (688->692).
+
+    We simulate an active venv with missing pip executable path and a non-existent
+    project VENV_DIR, ensuring the code takes the false branch and continues.
+    """
+    import setup_project as sp_local
+
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: True)
+    # Return a non-existent pip path for the active environment
+    monkeypatch.setattr(
+        sp_local,
+        "get_venv_pip_executable",
+        lambda p: tmp_path / "missing" / "pip",
+    )
+    # Return a non-existent python path to force fallback resolution later
+    monkeypatch.setattr(
+        sp_local,
+        "get_venv_python_executable",
+        lambda p: tmp_path / "missing" / "python",
+    )
+    monkeypatch.setattr(sp_local, "VENV_DIR", tmp_path / "no_venv_here")
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
+    sp_local.manage_virtual_environment()
+
+
+def test_manage_virtual_environment_venv_exists_no_python_fallback(
+    monkeypatch, tmp_path: Path
+):
+    """Cover fallback to system python when VENV_DIR exists but python is missing (697->703)."""
+    import setup_project as sp_local
+
+    vdir = tmp_path / "vdir"
+    vdir.mkdir()
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    seq = iter(["y", "y"])  # yes to manage; yes to recreate
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": next(seq))
+
+    def fake_create(path, with_pip=True):
+        # Create venv directory structure without python executable
+        (vdir / ("Scripts" if sys.platform == "win32" else "bin")).mkdir(
+            parents=True, exist_ok=True
+        )
+
+    monkeypatch.setattr(sp_local.venv, "create", fake_create)
+    # Ensure get_venv_python_executable returns a non-existent path
+    monkeypatch.setattr(
+        sp_local,
+        "get_venv_python_executable",
+        lambda p: vdir
+        / ("Scripts" if sys.platform == "win32" else "bin")
+        / ("python.exe" if sys.platform == "win32" else "python"),
+    )
+    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
+    sp_local.manage_virtual_environment()
+
+
+def test_manage_virtual_environment_restart_with_invalid_lang(
+    monkeypatch, tmp_path: Path
+):
+    """Drive restart branch and cover LANG not in (en, sv) path (742->744)."""
+    import setup_project as sp_local
+
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local, "LANG", "xx")
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+    vdir = tmp_path / "rv"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+
+    def create_with_python(path, with_pip=True):
+        bindir = vdir / ("Scripts" if sys.platform == "win32" else "bin")
+        bindir.mkdir(parents=True, exist_ok=True)
+        (bindir / ("python.exe" if sys.platform == "win32" else "python")).write_text(
+            "", encoding="utf-8"
+        )
+
+    monkeypatch.setattr(sp_local.venv, "create", create_with_python)
+    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
+    captured = {}
+
+    def fake_execve(exe, argv, env):
+        captured["exe"] = exe
+        captured["argv"] = argv
+        captured["env"] = env
+        return None
+
+    monkeypatch.setattr(sp_local.os, "execve", fake_execve)
+    sp_local.manage_virtual_environment()
+    # Ensure we attempted to execve with --no-venv appended
+    assert captured.get("argv") and captured["argv"][-1] == "--no-venv"
+
+
+def test_entry_point_skip_language_prompt_env(monkeypatch):
+    """Cover entry_point branches when no --lang and SETUP_SKIP_LANGUAGE_PROMPT=1 (1448->1451, 1451->1453)."""
+    import setup_project as sp_local
+
+    monkeypatch.setattr(sys, "argv", ["setup_project.py", "--no-venv"], raising=False)
+    monkeypatch.setenv("SETUP_SKIP_LANGUAGE_PROMPT", "1")
+    # set_language should not be called; fail the test if it would be
+    monkeypatch.setattr(
+        sp_local,
+        "set_language",
+        lambda: (_ for _ in ()).throw(RuntimeError("should not call")),
+    )
+    monkeypatch.setattr(sp_local, "ensure_azure_openai_env", lambda: None)
+    monkeypatch.setattr(sp_local, "main_menu", lambda: None)
+    monkeypatch.setattr(sp_local.sys, "exit", lambda code=0: None)
+    sp_local.entry_point()
+
+
+def test_parse_env_file_with_unmatched_lines(tmp_path: Path):
+    """Ensure parse_env_file skips unmatched lines to cover 1269->1267 branch."""
+    import setup_project as sp_local
+
+    envp = tmp_path / ".env"
+    envp.write_text(
+        "# comment\nINVALID LINE\nKEY1=val1\nKEY2='val two'\n",
+        encoding="utf-8",
+    )
+    data = sp_local.parse_env_file(envp)
+    assert data.get("KEY1") == "val1" and data.get("KEY2") == "val two"
+    assert "INVALID LINE" not in "\n".join([f"{k}={v}" for k, v in data.items()])
+
+
+def test_manage_virtual_environment_vdir_not_created_then_fallback(
+    monkeypatch, tmp_path: Path
+):
+    """Ensure branch 697->703 triggers when venv.create does not create VENV_DIR.
+
+    We simulate a scenario where VENV_DIR does not exist before and after venv.create,
+    forcing the code to skip the 'elif VENV_DIR.exists()' block and hit the fallback.
+    """
+    import setup_project as sp_local
+
+    vdir = tmp_path / "vnone"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    # Choose to proceed with venv creation
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+
+    # venv.create does nothing (does not create directory), so VENV_DIR remains absent
+    monkeypatch.setattr(sp_local.venv, "create", lambda *a, **k: None)
+    # get_venv_python_executable returns a non-existent path
+    monkeypatch.setattr(
+        sp_local,
+        "get_venv_python_executable",
+        lambda p: vdir
+        / ("Scripts" if sys.platform == "win32" else "bin")
+        / ("python.exe" if sys.platform == "win32" else "python"),
+    )
+    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
+    sp_local.manage_virtual_environment()
+
+
+def test_run_processing_pipeline_program3_no_success_message(monkeypatch):
+    """Cover run_processing_pipeline path where program3_success is False (937->exit)."""
+    import setup_project as sp_local
+
+    # AI check accepted
+    monkeypatch.setattr(sp_local, "ask_confirm", lambda *a, **k: True)
+    calls = {"n": 0}
+
+    def step_runner(prompt_key, program_name, program_path, fail_key, ok_key, **kw):
+        calls["n"] += 1
+        # Return False only on the third step to simulate program 3 failing
+        return calls["n"] != 3
+
+    monkeypatch.setattr(sp_local, "_run_pipeline_step", step_runner)
+    # Avoid network check side effects
+    monkeypatch.setattr(sp_local, "run_ai_connectivity_check_interactive", lambda: True)
+    sp_local.run_processing_pipeline()
+    assert calls["n"] == 3

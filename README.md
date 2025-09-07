@@ -112,7 +112,7 @@ Observera: Under körning skapas resultatmappar och filer, bland annat:
 - `output/index.html` (genererad webbplats)
 - `logs/` (körloggar)
 
-Mappen `tests/` innehåller en testsvit om 128 tester (100% täckning) som körs med `pytest`.
+Mappen `tests/` innehåller en testsvit om 137 tester (100% täckning) som körs med `pytest`.
 
 ## ⚙️ Förutsättningar
 
