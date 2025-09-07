@@ -77,23 +77,15 @@ If you already have an Azure OpenAI endpoint and have your three values for key,
 ## 📁 Project Structure
 
 ```
-school-description-processor/
+skoltexter-by-ai/
 │
 ├── data/
 │   ├── database_data/
 │   │   └── database_school_data.csv
-│   ├── templates/
-│   │   ├── school_description_template.md
-│   │   ├── ai_prompt_template.txt
-│   │   └── website_template.html
-│   ├── generated_markdown_from_csv/
-│   ├── ai_processed_markdown/
-│   └── ai_raw_responses/
-│
-├── logs/
-│
-├── output/
-│   └── index.html
+│   └── templates/
+│       ├── school_description_template.md
+│       ├── ai_prompt_template.txt
+│       └── website_template.html
 │
 ├── src/
 │   ├── config.py
@@ -107,11 +99,20 @@ school-description-processor/
 └── README.md
 ```
 
+Note: During execution, additional result folders and files are created, including:
+- `data/generated_markdown_from_csv/` (markdown generated from CSV)
+- `data/ai_processed_markdown/` (AI‑enhanced markdown)
+- `data/ai_raw_responses/` (raw AI responses and failures)
+- `output/index.html` (generated website)
+- `logs/` (runtime logs)
+
+The `tests/` folder contains a test suite of 128 tests (100% coverage) which is run with `pytest`.
+
 ## ⚙️ Prerequisites
 
-- 🐍 Python 3.7+
+- 🐍 Python 3.11+
 - 🔑 Azure OpenAI API access (GPT-4o deployment)
-- 📈 School statistics CSV in the expected format
+- 📈 School statistics CSV in the expected format (included)
 - 🌐 Internet connection
 
 ## 🚀 Setup

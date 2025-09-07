@@ -78,23 +78,15 @@ Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, e
 ## 📁 Projektstruktur
 
 ```
-school-description-processor/
+skoltexter-by-ai/
 │
 ├── data/
 │   ├── database_data/
 │   │   └── database_school_data.csv
-│   ├── templates/
-│   │   ├── school_description_template.md
-│   │   ├── ai_prompt_template.txt
-│   │   └── website_template.html
-│   ├── generated_markdown_from_csv/
-│   ├── ai_processed_markdown/
-│   └── ai_raw_responses/
-│
-├── logs/
-│
-├── output/
-│   └── index.html
+│   └── templates/
+│       ├── school_description_template.md
+│       ├── ai_prompt_template.txt
+│       └── website_template.html
 │
 ├── src/
 │   ├── config.py
@@ -108,11 +100,20 @@ school-description-processor/
 └── README.md
 ```
 
+Observera: Under körning skapas resultatmappar och filer, bland annat:
+- `data/generated_markdown_from_csv/` (markdown från CSV)
+- `data/ai_processed_markdown/` (AI‑förädlade markdown)
+- `data/ai_raw_responses/` (råa AI‑svar och fel)
+- `output/index.html` (genererad webbplats)
+- `logs/` (körloggar)
+
+Mappen `tests/` innehåller en testsvit om 128 tester (100% täckning) som körs med `pytest`.
+
 ## ⚙️ Förutsättningar
 
-- 🐍 Python 3.7+
+- 🐍 Python 3.11+
 - 🔑 Azure OpenAI API-åtkomst (GPT-4o-distribution)
-- 📈 Skolstatistik-CSV i förväntat format
+- 📈 Skolstatistik-CSV i förväntat format (inkluderad)
 - 🌐 Internetuppkoppling
 
 ## 🚀 Installation
