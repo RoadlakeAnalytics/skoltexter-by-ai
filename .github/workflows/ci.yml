@@ -22,10 +22,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Install requirements
+      - name: Install requirements (fresh resolve, non-GPL)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --upgrade --upgrade-strategy eager -r requirements.txt
+          python -m pip uninstall -y chardet || true
       - name: Ruff (lint)
         run: ruff check . --output-format=github
       - name: Pre-commit (format & hooks)
@@ -45,10 +46,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Install requirements
+      - name: Install requirements (fresh resolve, non-GPL)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --upgrade --upgrade-strategy eager -r requirements.txt
+          python -m pip uninstall -y chardet || true
       - name: Bandit (MEDIUM+)
         run: bandit -r src/ -x tests -ll
       - name: pip-audit (deps)
@@ -79,10 +81,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Install deps
+      - name: Install deps (fresh resolve, non-GPL)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --upgrade --upgrade-strategy eager -r requirements.txt
+          python -m pip uninstall -y chardet || true
       - name: Pytest (coverage gate 100%, branch coverage)
         env:
           PYTHONPATH: .

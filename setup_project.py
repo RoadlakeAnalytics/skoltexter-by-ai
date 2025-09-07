@@ -32,7 +32,7 @@ import venv
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 from src.config import (
     LANG as DEFAULT_LANG,
@@ -55,21 +55,15 @@ try:  # Prefer rich for nicer CLI output and components
     _RICH_CONSOLE: Console | None = Console()
 except Exception:  # pragma: no cover - fallback
 
-    def rprint(*args: Any, **kwargs: Any) -> None:
-        """Lightweight fallback for ``rich.print``.
-
-        Parameters
-        ----------
-        *args : Any
-            Positional arguments forwarded to ``print``.
-        **kwargs : Any
-            Keyword arguments forwarded to ``print``.
-
-        Returns
-        -------
-        None
-        """
-        print(*args, **kwargs)
+    def rprint(
+        *objects: Any,
+        sep: str = " ",
+        end: str = "\n",
+        file: IO[str] | None = None,
+        flush: bool = False,
+    ) -> None:
+        """Fallback replacement that mirrors builtins.print signature."""
+        print(*objects, sep=sep, end=end, file=file, flush=flush)
 
     _RICH_CONSOLE = None
 

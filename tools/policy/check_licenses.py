@@ -65,6 +65,7 @@ MAP_TO_SPDX: dict[str, str] = {
     "Python Software Foundation License": "PSF-2.0",
     "PSF": "PSF-2.0",
     "PSF-2.0": "PSF-2.0",
+    "ISC License (ISCL)": "ISC",
 }
 
 # Disallow strong copyleft licenses
