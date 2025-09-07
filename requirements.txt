@@ -23,7 +23,6 @@ ruff
 mypy
 bandit
 pip-audit
-cyclonedx-bom
 pip-licenses
 pre-commit
 
