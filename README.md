@@ -2,6 +2,7 @@
 
 [![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/feature%2Fui-and-p10-ish-compliance/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/feature%2Fui-and-p10-ish-compliance)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)

@@ -67,8 +67,14 @@ If you already have an Azure OpenAI endpoint and have your three values for key,
 
 ### 🏷️ CI/Badges
 
-[![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai)
+[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
+![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
+![ruff](https://img.shields.io/badge/lint-ruff-informational)
+![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
+![Bandit](https://img.shields.io/badge/security-bandit-informational)
+![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
 
 - **📃 Configuration & Environment**
   - `.env-example`: Template for required Azure OpenAI environment variables.
