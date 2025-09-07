@@ -53,19 +53,19 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -r requirements.txt
           python -m pip uninstall -y chardet || true
           python -m pip uninstall -y rfc3987 || true
+          pip check
       - name: Bandit (MEDIUM+)
         run: bandit -r src/ -x tests -ll
       - name: pip-audit (deps)
         run: pip-audit --requirement requirements.txt
       - name: License allowlist
         run: python tools/policy/check_licenses.py
-      - name: Install CycloneDX CLI (after license check)
+      # --- SBOM EFTER licenskollen ---
+      - name: SBOM (CycloneDX, module form)
         run: |
-          python -m pip install --upgrade pip
-          pip install cyclonedx-bom
-      - name: SBOM (CycloneDX)
-        run: |
-          cyclonedx-bom -e -o sbom.json --format json
+          python -m pip install cyclonedx-bom
+          # cyclonedx_py is the module CLI packaged with cyclonedx-bom
+          python -m cyclonedx_py environment -o sbom.json --format json
       - name: Gitleaks (secrets)
         uses: zricethezav/gitleaks-action@v2.3.7
 
