@@ -27,6 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -r requirements.txt
           python -m pip uninstall -y chardet || true
+          python -m pip uninstall -y rfc3987 || true
       - name: Ruff (lint)
         run: ruff check . --output-format=github
       - name: Pre-commit (format & hooks)
@@ -51,6 +52,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -r requirements.txt
           python -m pip uninstall -y chardet || true
+          python -m pip uninstall -y rfc3987 || true
       - name: Bandit (MEDIUM+)
         run: bandit -r src/ -x tests -ll
       - name: pip-audit (deps)
@@ -86,6 +88,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -r requirements.txt
           python -m pip uninstall -y chardet || true
+          python -m pip uninstall -y rfc3987 || true
       - name: Pytest (coverage gate 100%, branch coverage)
         env:
           PYTHONPATH: .
