@@ -279,7 +279,6 @@ Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för 
 - Tester: `pytest` med coverage‑grind i CI; async‑tester med nätverksfakes; timeouter/backoff i runtime.
 - Rate limiting & retries: Alla AI‑anrop har limiter + exponentiell backoff; timeouts via `aiohttp.ClientTimeout`.
 - Logg‑hygien: Inga API‑nycklar/PII i loggar. Fil‑logg avstängd under tester.
-- Reproducerbarhet: Dev‑verktyg i `dev-requirements.txt`. Pre-commit‑hooks upprätthåller stil och grundläggande säkerhet lokalt.
  - Reproducerbarhet: Alla verktyg finns i `requirements.txt`. Pre-commit‑hooks upprätthåller stil och grundläggande säkerhet lokalt.
 
 Licens‑allowlist
