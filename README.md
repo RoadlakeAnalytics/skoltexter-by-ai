@@ -13,7 +13,7 @@ Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI
 
 > Pipeline-demo: Realtidsvideo på under en minut som visar hur `setup_project.py` startas, och sedan körs hela piplinen tills öppning av de färdiga webbsidorna (`output/index.html`).
 >
->   ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
+> ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
 
 ## 🗂️ Innehållsförteckning
 
@@ -43,6 +43,7 @@ Denna pipeline bearbetar svensk skolstatistik genom tre huvudsteg:
 ### 🚀 Rådata till webbplats på mindre än 5 minuter 🚀
 
 Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, endpoint och modellnamn tillgängliga, kan du nu förvänta dig att köra hela pipelinen inom de närmaste fem minuterna, med hjälp av det guidande `setup_project.py`-programmet, som guidar dig genom processen:
+
 - Konfigurera programmet med rätt värden (valfritt, kan göras manuellt).
 - Skapa en virtuell miljö för Python (valfritt - tar 2-3 minuter, men rekommenderas).
 - Ta dig tid att läsa korta sammanfattningar för programmen (valfritt).
@@ -102,6 +103,7 @@ skoltexter-by-ai/
 ```
 
 Observera: Under körning skapas resultatmappar och filer, bland annat:
+
 - `data/generated_markdown_from_csv/` (markdown från CSV)
 - `data/ai_processed_markdown/` (AI‑förädlade markdown)
 - `data/ai_raw_responses/` (råa AI‑svar och fel)
@@ -207,8 +209,26 @@ Från `requirements.txt`:
 - tqdm
 - Jinja2
 - markdown2
+- rich
+- questionary
 
 🧰 Ytterligare standardbibliotek som används: argparse, csv, logging, pathlib, json, re, os, asyncio, typing
+
+För testning och kodkontroll:
+
+- black
+- ruff
+- mypy
+- bandit
+- pip-audit
+- cyclonedx-bom
+- pip-licenses
+- pre-commit
+- pytest
+- pytest-cov
+- xdoctest
+- pytest-mock
+- pytest-asyncio
 
 Installera alla beroenden med:
 
