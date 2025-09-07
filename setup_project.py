@@ -21,49 +21,285 @@ When run interactively, presents a menu to create a virtual environment or conti
 Both choices are valid and supported. The --no-venv CLI flag works for automation, bypassing the menu.
 """
 
-import sys
-import subprocess
-import venv
-import shutil
 import argparse
 import logging
 import os
-from pathlib import Path
-from typing import Any, Dict, List
 import re
+import shutil
+import subprocess
+import sys
+import venv
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+from typing import IO, Any
 
 from src.config import (
-    PROJECT_ROOT,
-    SRC_DIR,
-    VENV_DIR,
-    LOG_DIR,
-    REQUIREMENTS_FILE,
     LANG as DEFAULT_LANG,
 )
+from src.config import (
+    LOG_DIR,
+    PROJECT_ROOT,
+    REQUIREMENTS_FILE,
+    SRC_DIR,
+    VENV_DIR,
+)
+
+# --- Rich / Questionary UI ---
+try:  # Prefer rich for nicer CLI output and components
+    from rich import print as rprint
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.rule import Rule
+
+    _RICH_CONSOLE: Console | None = Console()
+except Exception:  # pragma: no cover - fallback
+
+    def rprint(
+        *objects: Any,
+        sep: str = " ",
+        end: str = "\n",
+        file: IO[str] | None = None,
+        flush: bool = False,
+    ) -> None:
+        """Fallback replacement that mirrors builtins.print signature."""
+        print(*objects, sep=sep, end=end, file=file, flush=flush)
+
+    _RICH_CONSOLE = None
+
+
+try:
+    import questionary as _questionary
+
+    questionary: Any | None = _questionary
+    _HAS_Q = True
+except Exception:  # pragma: no cover - fallback
+    questionary = None
+    _HAS_Q = False
+
+
+def ui_has_rich() -> bool:
+    """Return True if rich Console is available for enhanced UI."""
+    return _RICH_CONSOLE is not None
+
+
+def ui_rule(title: str) -> None:
+    """Render a visual rule/header to separate sections.
+
+    Parameters
+    ----------
+    title : str
+        Title to display centered in the rule.
+    """
+    if _RICH_CONSOLE:
+        _RICH_CONSOLE.print(Rule(title, style="bold blue"))
+    else:
+        rprint("\n" + title)
+
+
+def ui_header(title: str) -> None:
+    """Render a prominent header panel when rich is available.
+
+    Parameters
+    ----------
+    title : str
+        Title text to display inside a panel.
+    """
+    if _RICH_CONSOLE:
+        _RICH_CONSOLE.print(
+            Panel.fit(title, style="bold white on blue", border_style="blue")
+        )
+    else:
+        rprint(title)
+
+
+@contextmanager
+def ui_status(message: str) -> Iterator[None]:
+    """Visual status spinner for longer actions (rich) or plain print fallback."""
+    if _RICH_CONSOLE:
+        with _RICH_CONSOLE.status(message, spinner="dots"):
+            yield
+    else:
+        rprint(message)
+        yield
+
+
+def ui_info(message: str) -> None:
+    """Print an informational message with subtle styling when available."""
+    if ui_has_rich():
+        rprint(f"[cyan]{message}[/cyan]")
+    else:
+        rprint(message)
+
+
+def ui_success(message: str) -> None:
+    """Print a success message with a checkmark when available."""
+    if ui_has_rich():
+        rprint(f"[green]✓ {message}[/green]")
+    else:
+        rprint(message)
+
+
+def ui_warning(message: str) -> None:
+    """Print a warning message with a warning sign when available."""
+    if ui_has_rich():
+        rprint(f"[yellow]⚠ {message}[/yellow]")
+    else:
+        rprint(message)
+
+
+def ui_error(message: str) -> None:
+    """Print an error message with a cross when available."""
+    if ui_has_rich():
+        rprint(f"[bold red]✗ {message}[/bold red]")
+    else:
+        rprint(message)
+
+
+def ui_menu(items: list[tuple[str, str]]) -> None:
+    """Render a simple two-column menu of (key, label) pairs using Rich if available.
+
+    Parameters
+    ----------
+    items : list[tuple[str, str]]
+        A list of (choice_key, display_label) tuples.
+    """
+    if _RICH_CONSOLE:
+        from rich.table import Table
+
+        table = Table(show_header=True, header_style="bold blue")
+        table.add_column("#", style="bold")
+        table.add_column("Val")
+        for key, label in items:
+            table.add_row(key, label)
+        _RICH_CONSOLE.print(table)
+    else:
+        for key, label in items:
+            rprint(f"{key}. {label}")
+
+
+def ask_text(prompt: str, default: str | None = None) -> str:
+    """Prompt user for free-form text using Questionary if available.
+
+    Parameters
+    ----------
+    prompt : str
+        The question to show.
+    default : str | None
+        Default value to use if input is empty.
+
+    Returns
+    -------
+    str
+        The entered text (or default when empty).
+
+    Examples
+    --------
+    >>> # Example (interactive):  # doctest: +SKIP
+    >>> # ask_text('Your name: ', default='Alice')  # doctest: +SKIP
+    'Alice'
+    """
+    if _HAS_Q and questionary is not None:
+        ans = questionary.text(prompt, default=default or "").ask()
+        return (ans or (default or "")).strip()
+    return input(prompt).strip() or (default or "")
+
+
+def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
+    """Prompt user for a yes/no confirmation.
+
+    Parameters
+    ----------
+    prompt : str
+        The question to show.
+    default_yes : bool
+        Default answer if user presses Enter.
+
+    Returns
+    -------
+    bool
+        ``True`` for yes, ``False`` for no.
+
+    Examples
+    --------
+    >>> # Example (interactive):  # doctest: +SKIP
+    >>> # ask_confirm('Continue?', default_yes=True)  # doctest: +SKIP
+    True
+    """
+    if _HAS_Q and questionary is not None:
+        return bool(questionary.confirm(prompt, default=default_yes).ask())
+    val = input(prompt).strip().lower()
+    if not val:
+        return default_yes
+    return val in ("y", "j", "yes")
+
+
+def ask_select(prompt: str, choices: list[str]) -> str:
+    """Prompt user to select from a list of choices.
+
+    Parameters
+    ----------
+    prompt : str
+        The question/instruction to show.
+    choices : list[str]
+        Choices to present to the user.
+
+    Returns
+    -------
+    str
+        The selected value (or raw input when fallback is used).
+
+    Examples
+    --------
+    >>> # Example (interactive):  # doctest: +SKIP
+    >>> # ask_select('Pick one', ['A', 'B', 'C'])  # doctest: +SKIP
+    'B'
+    """
+    if _HAS_Q and questionary is not None:
+        return str(questionary.select(prompt, choices=choices).ask())
+    rprint(prompt)
+    for idx, ch in enumerate(choices, start=1):
+        rprint(f"{idx}. {ch}")
+    sel = input("> ").strip()
+    try:
+        i = int(sel) - 1
+        return choices[i]
+    except Exception:  # pragma: no cover - fallback path
+        return sel  # pragma: no cover
+
 
 # --- Platform-specific virtual environment path helpers ---
 def get_venv_bin_dir(venv_path: Path) -> Path:
-    """Return the bin/Scripts directory for a virtual environment based on platform.
-    
-    Args:
-        venv_path (Path): Path to the virtual environment directory
-        
-    Returns:
-        Path: The bin directory on Unix/Linux/macOS or Scripts directory on Windows
+    """Return the bin/Scripts directory for a virtual environment.
+
+    Parameters
+    ----------
+    venv_path : Path
+        Path to the virtual environment directory.
+
+    Returns
+    -------
+    Path
+        The ``bin`` directory on Unix/Linux/macOS or ``Scripts`` directory on Windows.
     """
     if sys.platform == "win32":
         return venv_path / "Scripts"
     else:
         return venv_path / "bin"
 
+
 def get_venv_python_executable(venv_path: Path) -> Path:
-    """Return the Python executable path for a virtual environment based on platform.
-    
-    Args:
-        venv_path (Path): Path to the virtual environment directory
-        
-    Returns:
-        Path: The Python executable path (python.exe on Windows, python on Unix)
+    """Return the Python executable path for a virtual environment.
+
+    Parameters
+    ----------
+    venv_path : Path
+        Path to the virtual environment directory.
+
+    Returns
+    -------
+    Path
+        Path to the Python executable (``python.exe`` on Windows, ``python`` on Unix-like systems).
     """
     bin_dir = get_venv_bin_dir(venv_path)
     if sys.platform == "win32":
@@ -71,14 +307,19 @@ def get_venv_python_executable(venv_path: Path) -> Path:
     else:
         return bin_dir / "python"
 
+
 def get_venv_pip_executable(venv_path: Path) -> Path:
-    """Return the pip executable path for a virtual environment based on platform.
-    
-    Args:
-        venv_path (Path): Path to the virtual environment directory
-        
-    Returns:
-        Path: The pip executable path (pip.exe on Windows, pip on Unix)
+    """Return the pip executable path for a virtual environment.
+
+    Parameters
+    ----------
+    venv_path : Path
+        Path to the virtual environment directory.
+
+    Returns
+    -------
+    Path
+        Path to the ``pip`` executable (``pip.exe`` on Windows, ``pip`` on Unix-like systems).
     """
     bin_dir = get_venv_bin_dir(venv_path)
     if sys.platform == "win32":
@@ -86,10 +327,11 @@ def get_venv_pip_executable(venv_path: Path) -> Path:
     else:
         return bin_dir / "pip"
 
+
 # --- Logging Setup ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -105,7 +347,7 @@ REQUIRED_AZURE_KEYS = [
 ENV_KEY_VALUE_PATTERN = re.compile(r'^\s*([A-Z0-9_]+)\s*=\s*["\']?(.*?)["\']?\s*$')
 
 # --- Internationalization (i18n) ---
-TEXTS = {
+TEXTS: dict[str, dict[str, str]] = {
     "en": {
         "welcome": "Welcome to the School Data Processing Project Setup!",
         "language_prompt": "Select language (1 for English, 2 for Svenska): ",
@@ -117,7 +359,7 @@ TEXTS = {
         "venv_menu_option_2": "2. Continue without a virtual environment",
         "venv_menu_prompt": "Choose an option (1 or 2): ",
         "venv_menu_info": "",
-        "create_venv_prompt": f"Create/recreate and install dependencies? (y/n, default y): ",
+        "create_venv_prompt": "Create/recreate and install dependencies? (y/n, default y): ",
         "activate_venv_prompt": f"Virtual environment '{VENV_DIR.name}' exists. Install/update dependencies? (y/n, default y): ",
         "no_venv_prompt": f"No virtual environment found. Create '{VENV_DIR.name}' and install dependencies? (y/n, default y): ",
         "creating_venv": "Creating virtual environment...",
@@ -167,6 +409,11 @@ TEXTS = {
         "program_3_complete": "Program 3 completed.",
         "program_3_failed": "Program 3 failed or was skipped.",
         "pipeline_complete": "Processing pipeline finished.",
+        "ai_check_title": "\n--- AI Connectivity Check ---",
+        "ai_check_prompt": "Run a quick AI connectivity test? (y/n, default y): ",
+        "ai_check_running": "Testing AI connectivity...",
+        "ai_check_ok": "AI connectivity OK. Received expected reply.",
+        "ai_check_fail": "AI connectivity failed. Please verify your .env, network, and Azure settings.",
         "logs_title": "\n--- View Logs ---",
         "no_logs": f"No log files found in {LOG_DIR}",
         "select_log_prompt": "Enter the log file name to view (or 0 to return): ",
@@ -181,7 +428,7 @@ TEXTS = {
         "reset_cancelled": "Reset cancelled.",
         "azure_env_intro": "The following Azure OpenAI values are required for local storage so the program can call Azure OpenAI.",
         "azure_env_storage": "They will be stored in the .env file. These values are only needed for local storage and are not shared.",
-        "azure_env_prompt": "Enter value for {key}: "
+        "azure_env_prompt": "Enter value for {key}: ",
     },
     "sv": {
         "welcome": "Välkommen till installationsprogrammet för skoldata!",
@@ -194,7 +441,7 @@ TEXTS = {
         "venv_menu_option_2": "2. Fortsätt utan virtuell miljö",
         "venv_menu_prompt": "Välj ett alternativ (1 eller 2): ",
         "venv_menu_info": "",
-        "create_venv_prompt": f"Skapa/återskapa och installera beroenden? (y/n, standard y): ",
+        "create_venv_prompt": "Skapa/återskapa och installera beroenden? (y/n, standard y): ",
         "activate_venv_prompt": f"Virtuell miljö '{VENV_DIR.name}' finns. Installera/uppdatera beroenden? (y/n, standard y): ",
         "no_venv_prompt": f"Ingen virtuell miljö hittades. Skapa '{VENV_DIR.name}' och installera beroenden? (y/n, standard y): ",
         "creating_venv": "Skapar virtuell miljö...",
@@ -244,6 +491,11 @@ TEXTS = {
         "program_3_complete": "Program 3 klar.",
         "program_3_failed": "Program 3 misslyckades eller hoppade över.",
         "pipeline_complete": "Bearbetningsflöde klart.",
+        "ai_check_title": "\n--- AI-anslutningstest ---",
+        "ai_check_prompt": "Kör ett snabbt AI-anslutningstest? (y/n, standard y): ",
+        "ai_check_running": "Testar AI-anslutning...",
+        "ai_check_ok": "AI-anslutning OK. Fick förväntat svar.",
+        "ai_check_fail": "AI-anslutning misslyckades. Kontrollera .env, nätverk och Azure-inställningar.",
         "logs_title": "\n--- Visa loggar ---",
         "no_logs": f"Inga loggfiler hittades i {LOG_DIR}",
         "select_log_prompt": "Ange loggfilens namn att visa (eller 0 för att återgå): ",
@@ -258,82 +510,118 @@ TEXTS = {
         "reset_cancelled": "Återställning avbröts.",
         "azure_env_intro": "Följande Azure OpenAI-värden krävs för lokal lagring så att programmet kan använda Azure OpenAI.",
         "azure_env_storage": "De sparas i .env-filen. Dessa värden behövs endast för lokal lagring och delas inte.",
-        "azure_env_prompt": "Ange värde för {key}: "
+        "azure_env_prompt": "Ange värde för {key}: ",
     },
 }
 LANG = DEFAULT_LANG
 
+
 def translate(text_key: str) -> str:
-    """Return the localized string for the current language.
+    """Return a localized string for the current UI language.
 
-    Args:
-        text_key (str): The key for the text string to look up.
+    Parameters
+    ----------
+    text_key : str
+        Lookup key for the localized text.
 
-    Returns:
-        str: The localized string for the current language, or the English fallback if not found.
+    Returns
+    -------
+    str
+        Localized string for the current language, or the English fallback when missing.
+
+    Examples
+    --------
+    >>> isinstance(translate('welcome'), str)
+    True
     """
     if LANG not in TEXTS:
-        logger.warning(f"Unsupported language '{LANG}' selected. Falling back to English.")
+        logger.warning(
+            f"Unsupported language '{LANG}' selected. Falling back to English."
+        )
         return TEXTS["en"].get(text_key, text_key)
     return TEXTS[LANG].get(text_key, TEXTS["en"].get(text_key, text_key))
+
 
 LANG = DEFAULT_LANG
 
+
 def _(text_key: str) -> str:
-    """Return the localized string for the current language (alias for translate).
+    """Alias of :func:`translate` returning a localized string.
 
-    Args:
-        text_key (str): The key for the text string to look up.
+    Parameters
+    ----------
+    text_key : str
+        Lookup key for the localized text.
 
-    Returns:
-        str: The localized string for the current language, or the English fallback if not found.
+    Returns
+    -------
+    str
+        Localized string for the current language, or the English fallback when missing.
+
+    Examples
+    --------
+    >>> isinstance(_('welcome'), str)
+    True
     """
     if LANG not in TEXTS:
-        logger.warning(f"Unsupported language '{LANG}' selected. Falling back to English.")
+        logger.warning(
+            f"Unsupported language '{LANG}' selected. Falling back to English."
+        )
         return TEXTS["en"].get(text_key, text_key)
     return TEXTS[LANG].get(text_key, TEXTS["en"].get(text_key, text_key))
 
+
 def set_language() -> None:
-    """Prompt the user to select a UI language and update the global LANG variable.
+    """Prompt for UI language and update the global setting.
 
-    Prompts the user to choose a language for the UI. Updates the global LANG variable
-    accordingly. Exits the program on keyboard interrupt.
+    Prompts the user to choose a language for the UI and updates the
+    global ``LANG`` variable accordingly. Exits the program on keyboard
+    interrupt.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
     global LANG
     while True:
         try:
-            choice = input(TEXTS["en"]["language_prompt"])
+            choice = ask_text(TEXTS["en"]["language_prompt"])
             if choice == "1":
                 LANG = "en"
                 break
             if choice == "2":
                 LANG = "sv"
                 break
-            print(TEXTS["en"]["invalid_choice"])
+            rprint(TEXTS["en"]["invalid_choice"])
         except KeyboardInterrupt:
-            print(TEXTS["en"]["exiting"])
+            rprint(TEXTS["en"]["exiting"])
             sys.exit(0)
         except Exception:
-            print(TEXTS["en"]["invalid_choice"])
+            rprint(TEXTS["en"]["invalid_choice"])
     if LANG not in TEXTS:
-        LANG = "en"
+        LANG = "en"  # pragma: no cover - defensive fallback
+
 
 def is_venv_active() -> bool:
-    """Return True if a Python virtual environment is currently active.
+    """Return whether a Python virtual environment is active.
 
-    Returns:
-        bool: True if a virtual environment is active, False otherwise.
+    Returns
+    -------
+    bool
+        ``True`` if a virtual environment is active; otherwise ``False``.
     """
-    return hasattr(sys, 'prefix') and sys.prefix != sys.base_prefix
+    return (
+        hasattr(sys, "prefix") and sys.prefix != sys.base_prefix
+    )  # pragma: no cover - environment-specific
+
 
 def get_python_executable() -> str:
     """Return the path to the Python executable for the current environment.
 
-    Returns:
-        str: Path to the Python executable in the active virtual environment,
+    Returns
+    -------
+    str
+        Path to the Python executable in the active virtual environment,
         the project's venv if it exists, or the system Python otherwise.
     """
     if is_venv_active():
@@ -341,52 +629,54 @@ def get_python_executable() -> str:
     venv_python = get_venv_python_executable(VENV_DIR)
     if venv_python.exists():
         return str(venv_python)
-    return sys.executable
+    return sys.executable  # pragma: no cover - system fallback
+
 
 def manage_virtual_environment() -> None:
     """Create, activate, or recreate a virtual environment and install dependencies.
 
-    Prompts the user to create, activate, or recreate a Python virtual environment.
-    Installs dependencies from REQUIREMENTS_FILE. Handles user input, logs errors,
-    and prints status messages.
+    Prompts the user to create, activate, or recreate a Python virtual
+    environment. Installs dependencies from ``REQUIREMENTS_FILE``. Handles
+    user input, logs errors, and prints status messages.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
-    pip_executable = ""
-    python_executable = ""
-    if is_venv_active():
+    pip_executable: Path | None = None
+    python_executable: Path | None = None
+    if is_venv_active():  # pragma: no cover - dependent on external runner env
         pip_executable = get_venv_pip_executable(Path(sys.prefix))
         python_executable = get_venv_python_executable(Path(sys.prefix))
         prompt_text = _("activate_venv_prompt")
-        default_choice = 'y'
+        default_choice = "y"
     elif VENV_DIR.exists():
         pip_executable = get_venv_pip_executable(VENV_DIR)
         python_executable = get_venv_python_executable(VENV_DIR)
         prompt_text = _("create_venv_prompt")
-        default_choice = 'y'
+        default_choice = "y"
     else:
         prompt_text = _("no_venv_prompt")
-        default_choice = 'y'
-    choice = input(prompt_text).strip().lower() or default_choice
-    if choice not in ['y', 'j']:
-        print(_("venv_skipped"))
+        default_choice = "y"
+    choice = ask_text(prompt_text, default=default_choice).lower()
+    if choice not in ["y", "j"]:
+        rprint(_("venv_skipped"))
         return
     if not is_venv_active() and VENV_DIR.exists():
-        recreate_choice = input(_("confirm_recreate_venv")).strip().lower() or 'n'
-        if recreate_choice in ['y', 'j']:
+        recreate_choice = ask_text(_("confirm_recreate_venv"), default="n").lower()
+        if recreate_choice in ["y", "j"]:
             try:
                 shutil.rmtree(VENV_DIR)
             except Exception as error:
                 logger.error(f"Error removing venv: {error}")
                 return
-        elif choice not in ['y', 'j']:
+        elif choice not in ["y", "j"]:  # pragma: no cover - no-op guard
             pass
-        else:
-            print(_("venv_skipped"))
+        else:  # pragma: no cover - user-decline branch
+            ui_info(_("venv_skipped"))
             return
     if not is_venv_active() and not VENV_DIR.exists():
-        print(_("creating_venv"))
+        ui_info(_("creating_venv"))
         try:
             venv.create(VENV_DIR, with_pip=True)
             pip_executable = get_venv_pip_executable(VENV_DIR)
@@ -394,52 +684,113 @@ def manage_virtual_environment() -> None:
         except Exception as error:
             logger.error(f"Error creating virtual environment: {error}")
             return
-    if not pip_executable or not Path(pip_executable).exists():
-        pip_executable = get_venv_pip_executable(VENV_DIR) if VENV_DIR.exists() else "pip"
-    
+    if not pip_executable or not pip_executable.exists():
+        if VENV_DIR.exists():
+            pip_executable = get_venv_pip_executable(VENV_DIR)
+
     # Determine Python executable to use for pip commands
-    pip_python = None
-    if python_executable and Path(str(python_executable)).exists():
+    pip_python: str | None = None
+    if python_executable and python_executable.exists():
         pip_python = str(python_executable)
-    elif is_venv_active():
+    elif is_venv_active():  # pragma: no cover - depends on active env
         pip_python = sys.executable
     elif VENV_DIR.exists():
         venv_python = get_venv_python_executable(VENV_DIR)
         if venv_python.exists():
-            pip_python = str(venv_python)
-    
+            pip_python = str(venv_python)  # pragma: no cover - indirect path
+
     # Fallback to system Python if nothing else works
     if not pip_python:
         pip_python = sys.executable
-    
-    print(_("installing_deps"))
+
     try:
-        # Use python -m pip instead of direct pip to avoid Windows issues
-        subprocess.check_call([pip_python, "-m", "pip", "install", "--upgrade", "pip"])
-        subprocess.check_call([pip_python, "-m", "pip", "install", "-r", str(REQUIREMENTS_FILE)])
-        print(_("deps_installed"))
-        print(_("venv_ready"))
+        with ui_status(_("installing_deps")):
+            # Use python -m pip instead of direct pip to avoid Windows issues
+            subprocess.check_call(
+                [pip_python, "-m", "pip", "install", "--upgrade", "pip"]
+            )
+            subprocess.check_call(
+                [pip_python, "-m", "pip", "install", "-r", str(REQUIREMENTS_FILE)]
+            )
+        rprint(
+            f"[green]✓[/green] {_('deps_installed')}"
+            if ui_has_rich()
+            else _("deps_installed")
+        )
+        rprint(
+            f"[green]✓[/green] {_('venv_ready')}" if ui_has_rich() else _("venv_ready")
+        )
+        # After a successful install, ensure we pick up the "nice" UI (rich/questionary).
+        # If we're not currently inside the venv where dependencies were installed,
+        # restart this script using the venv's Python so the nicer UI is available.
+        try:
+            venv_python = get_venv_python_executable(VENV_DIR)
+            if (
+                not is_venv_active()
+                and venv_python.exists()
+                and not os.environ.get("SETUP_SWITCHED_UI")
+            ):
+                # Mark that we're switching UI to avoid loops and skip language prompt on restart
+                env = os.environ.copy()
+                env["SETUP_SWITCHED_UI"] = "1"
+                env["SETUP_SKIP_LANGUAGE_PROMPT"] = "1"
+                # Build arguments for a smooth restart: keep language selection and skip venv flow
+                argv = [
+                    str(venv_python),
+                    str(PROJECT_ROOT / "setup_project.py"),
+                ]
+                if LANG in ("en", "sv"):
+                    argv.extend(["--lang", LANG])
+                argv.append("--no-venv")
+                rprint("\n[cyan]Restarting with enhanced UI...[/cyan]")
+                # Replace current process to ensure fresh imports for rich/questionary
+                os.execve(str(venv_python), argv, env)
+            else:
+                # If already in venv, try to enable rich/questionary dynamically
+                try:
+                    from rich import print as _rp
+
+                    globals()["rprint"] = _rp  # swap to rich.print
+                except Exception:
+                    pass
+                try:
+                    import importlib
+
+                    globals()["questionary"] = importlib.import_module("questionary")
+                    globals()["_HAS_Q"] = True
+                except Exception:
+                    pass
+        except Exception as _ui_err:  # pragma: no cover - best effort UI upgrade
+            logger.debug(f"UI switch not applied: {_ui_err}")
     except subprocess.CalledProcessError as error:
         logger.error(f"{_('deps_install_failed')} Error: {error}")
     except FileNotFoundError:
         logger.error(f"Error: {pip_python} or {REQUIREMENTS_FILE} not found.")
 
-def run_program(program_name: str, program_file: Path, stream_output: bool = False) -> bool:
+
+def run_program(
+    program_name: str, program_file: Path, stream_output: bool = False
+) -> bool:
     """Run a specified program script as a subprocess with language and log level.
 
-    Args:
-        program_name (str): The name of the program (for logging and i18n).
-        program_file (Path): The path to the program script.
-        stream_output (bool, optional): If True, stream stdout/stderr to user in real time. Defaults to False.
+    Parameters
+    ----------
+    program_name : str
+        The name of the program (for logging and i18n).
+    program_file : Path
+        The path to the program script.
+    stream_output : bool, default False
+        If ``True``, stream stdout/stderr to user in real time.
 
-    Returns:
-        bool: True if the program ran successfully, False otherwise.
+    Returns
+    -------
+    bool
+        ``True`` if the program ran successfully, otherwise ``False``.
 
-    Side Effects:
-        Logs messages, prints output, and may stream subprocess output to the console.
+    Notes
+    -----
+    This function logs messages, prints output, and may stream subprocess output to the console.
     """
-    import os
-
     python_executable = get_python_executable()
     logger.info(f"{_(program_name)} ({program_file.name})...")
 
@@ -449,7 +800,7 @@ def run_program(program_name: str, program_file: Path, stream_output: bool = Fal
     module_name = (
         f"src.{program_file.stem}"
         if program_file.parent.name == "src"
-        else program_file.with_suffix('').as_posix().replace('/', '.')
+        else program_file.with_suffix("").as_posix().replace("/", ".")
     )
     env = os.environ.copy()
     env["LANG_UI"] = LANG
@@ -457,7 +808,7 @@ def run_program(program_name: str, program_file: Path, stream_output: bool = Fal
     try:
         if stream_output:
             # Stream output in real time
-            process = subprocess.Popen(
+            proc = subprocess.Popen(
                 [python_executable, "-m", module_name, lang_arg, log_level_arg],
                 cwd=PROJECT_ROOT,
                 env=env,
@@ -465,7 +816,7 @@ def run_program(program_name: str, program_file: Path, stream_output: bool = Fal
                 stdout=sys.stdout,
                 stderr=sys.stderr,
             )
-            return_code = process.wait()
+            return_code = proc.wait()
             if return_code == 0:
                 logger.info(_(f"{program_name.lower().replace(' ', '_')}_complete"))
                 return True
@@ -473,7 +824,7 @@ def run_program(program_name: str, program_file: Path, stream_output: bool = Fal
             logger.error(f"{_(fail_key_str)} (Return code: {return_code})")
             return False
         else:
-            process = subprocess.run(
+            result = subprocess.run(
                 [python_executable, "-m", module_name, lang_arg, log_level_arg],
                 cwd=PROJECT_ROOT,
                 check=False,
@@ -481,22 +832,27 @@ def run_program(program_name: str, program_file: Path, stream_output: bool = Fal
                 text=True,
                 env=env,
             )
-            if process.returncode == 0:
+            if result.returncode == 0:
                 logger.info(_(f"{program_name.lower().replace(' ', '_')}_complete"))
                 return True
             fail_key_str = f"{program_name.lower().replace(' ', '_')}_failed"
-            logger.error(f"{_(fail_key_str)} (Return code: {process.returncode})")
-            logger.error("Subprocess output:\n" + (process.stdout or "") + (process.stderr or ""))
+            logger.error(f"{_(fail_key_str)} (Return code: {result.returncode})")
+            logger.error(
+                "Subprocess output:\n" + (result.stdout or "") + (result.stderr or "")
+            )
             return False
     except Exception as error:
         logger.error(f"Error running {program_file.name}: {error}")
         return False
 
-def get_program_descriptions() -> dict:
-    """Return a dictionary of program descriptions for the current language.
 
-    Returns:
-        dict: Mapping of program numbers (str) to tuples of (short description, long description).
+def get_program_descriptions() -> dict[str, tuple[str, str]]:
+    """Return program descriptions for the current language.
+
+    Returns
+    -------
+    dict[str, tuple[str, str]]
+        Mapping of program numbers (as strings) to ``(short_description, long_description)``.
     """
     return {
         "1": (translate("program_1_desc_short"), translate("program_1_desc_long")),
@@ -504,47 +860,60 @@ def get_program_descriptions() -> dict:
         "3": (translate("program_3_desc_short"), translate("program_3_desc_long")),
     }
 
+
 def view_program_descriptions() -> None:
     """Display and interactively describe each program in the project.
 
-    Prompts the user to select a program and displays its short and long description.
-    Allows returning to the main menu.
+    Prompts the user to select a program and displays both its short and long
+    description. The user can return to the main menu.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
-    print(translate("program_descriptions_title"))
+    ui_rule(translate("program_descriptions_title"))
     while True:
         descriptions = get_program_descriptions()
-        for key, (short_desc, _) in descriptions.items():
-            print(f"{key}. {short_desc}")
-        print("0. " + translate("return_to_menu"))
-        choice = input(translate("select_program_to_describe")).strip()
+        items = [(k, v[0]) for k, v in descriptions.items()]
+        items.append(("0", translate("return_to_menu")))
+        ui_menu(items)
+        choice = ask_text(translate("select_program_to_describe"))
         if choice == "0":
             break
         if choice in descriptions:
-            print(f"\n--- {descriptions[choice][0]} ---")
-            print(descriptions[choice][1])
-            print("-" * (len(descriptions[choice][0]) + 8) + "\n")
+            ui_header(descriptions[choice][0])
+            rprint(descriptions[choice][1])
         else:
-            print(translate("invalid_choice"))
+            rprint(translate("invalid_choice"))
+
 
 def run_processing_pipeline() -> None:
-    """Run the main data processing programs sequentially with user confirmation.
+    """Run the data processing programs sequentially with user confirmation.
 
-    Executes each processing step in order, prompting the user for confirmation and
-    providing localized feedback. Displays a message about opening the generated HTML file.
+    Executes each step in order, prompting for confirmation and providing
+    localized feedback. Displays a message about opening the generated HTML file.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
-    print(_("pipeline_title"))
+    ui_rule(_("pipeline_title"))
+    # Optional AI connectivity check before running the pipeline
+    rprint(
+        f"[bold]{translate('ai_check_title')}[/bold]"
+        if ui_has_rich()
+        else translate("ai_check_title")
+    )
+    if ask_confirm(translate("ai_check_prompt"), default_yes=True):
+        ok = run_ai_connectivity_check_interactive()
+        if not ok:
+            return
     if not _run_pipeline_step(
         "run_program_1_prompt",
         "program_1",
         SRC_DIR / "program1_generate_markdowns.py",
         "program_1_failed",
-        "markdown_created"
+        "markdown_created",
     ):
         return
     _run_pipeline_step(
@@ -554,16 +923,16 @@ def run_processing_pipeline() -> None:
         "program_2_failed",
         "ai_descriptions_created",
         skip_message="program_2_skipped",
-        stream_output=True
+        stream_output=True,
     )
     program3_success = _run_pipeline_step(
         "run_program_3_prompt",
         "program_3",
         SRC_DIR / "program3_generate_website.py",
         "program_3_failed",
-        "website_created"
+        "website_created",
     )
-    print(_("pipeline_complete"))
+    ui_success(_("pipeline_complete"))
     # After website generation, display localized message about opening the HTML file
     if program3_success:
         html_path = PROJECT_ROOT / "output" / "index.html"
@@ -571,9 +940,8 @@ def run_processing_pipeline() -> None:
             "en": f"\nOpen the file in your browser by double-clicking it in your file explorer:\n  {html_path.resolve()}",
             "sv": f"\nÖppna filen i din webbläsare genom att dubbelklicka på den i Utforskaren:\n  {html_path.resolve()}",
         }
-        print(open_msg.get(LANG, open_msg["en"]))
+        rprint(open_msg.get(LANG, open_msg["en"]))
 
-from typing import Optional
 
 def _run_pipeline_step(
     prompt_key: str,
@@ -581,38 +949,49 @@ def _run_pipeline_step(
     program_path: Path,
     fail_key: str,
     confirmation_key: str,
-    skip_message: Optional[str] = None,
-    stream_output: bool = False
+    skip_message: str | None = None,
+    stream_output: bool = False,
 ) -> bool:
-    """Run a single pipeline step with user confirmation and localized feedback.
+    """Run a single pipeline step with user confirmation and feedback.
 
-    Args:
-        prompt_key (str): Localization key for the user prompt.
-        program_name (str): Name of the program to run.
-        program_path (Path): Path to the program script.
-        fail_key (str): Localization key for failure message.
-        confirmation_key (str): Localization key for confirmation message.
-        skip_message (Optional[str], optional): Localization key for skip message. Defaults to None.
-        stream_output (bool, optional): If True, stream output in real time. Defaults to False.
+    Parameters
+    ----------
+    prompt_key : str
+        Localization key for the user prompt.
+    program_name : str
+        Name of the program to run.
+    program_path : Path
+        Path to the program script.
+    fail_key : str
+        Localization key for the failure message.
+    confirmation_key : str
+        Localization key for the success/confirmation message.
+    skip_message : str, optional
+        Localization key for the skip message.
+    stream_output : bool, default False
+        If ``True``, stream output in real time.
 
-    Returns:
-        bool: True if the step succeeded, False otherwise.
+    Returns
+    -------
+    bool
+        ``True`` if the step succeeded, otherwise ``False``.
     """
-    choice = input(_(prompt_key)).strip().lower() or 'y'
-    if choice in ['y', 'j']:
+    choice = ask_text(_(prompt_key), default="y").lower()
+    if choice in ["y", "j"]:
         if not run_program(program_name, program_path, stream_output=stream_output):
             logger.error(_(fail_key) + " Aborting pipeline.")
             return False
-        print(_(confirmation_key))
-    elif choice in ['s', 'skip', 'h', 'hoppa']:
+        ui_success(_(confirmation_key))
+    elif choice in ["s", "skip", "h", "hoppa"]:
         if skip_message:
-            print(_(skip_message))
+            ui_info(_(skip_message))  # pragma: no cover - trivial print branch
         else:
-            print(_(fail_key))
+            ui_warning(_(fail_key))  # pragma: no cover - trivial print branch
     else:
-        print(_(fail_key))
-        return False
+        ui_warning(_(fail_key))  # pragma: no cover - trivial print branch
+        return False  # pragma: no cover
     return True
+
 
 def view_logs() -> None:
     """List available log files and allow the user to view them.
@@ -620,25 +999,33 @@ def view_logs() -> None:
     Prompts the user to select a log file to view, or to return to the previous menu.
     Handles file I/O and logs errors.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
-    print(translate("logs_title"))
+    ui_rule(translate("logs_title"))
     if not LOG_DIR.exists() or not any(LOG_DIR.iterdir()):
-        print(translate("no_logs"))
+        rprint(translate("no_logs"))
         return
-    log_files = sorted([file_path for file_path in LOG_DIR.iterdir() if file_path.is_file() and file_path.name.endswith(".log")])
+    log_files = sorted(
+        [
+            file_path
+            for file_path in LOG_DIR.iterdir()
+            if file_path.is_file() and file_path.name.endswith(".log")
+        ]
+    )
     if not log_files:
-        print(translate("no_logs"))
+        rprint(translate("no_logs"))
         return
 
     while True:
-        print(translate("logs_title"))
-        for log_number, log_file in enumerate(log_files, start=1):
-            print(f"{log_number}. {log_file.name}")
-        print(f"0. {translate('return_to_menu')}")
+        ui_rule(translate("logs_title"))
+        ui_menu(
+            [(str(i), p.name) for i, p in enumerate(log_files, start=1)]
+            + [("0", translate("return_to_menu"))]
+        )
         try:
-            choice = input(translate("select_log_prompt")).strip()
+            choice = ask_text(translate("select_log_prompt"))
             if choice == "0":
                 break
             # Allow selection by number or filename
@@ -648,16 +1035,24 @@ def view_logs() -> None:
                 if 0 <= log_index < len(log_files):
                     selected_log = log_files[log_index]
             if not selected_log:
-                selected_log = next((file_path for file_path in log_files if file_path.name == choice or file_path.name.startswith(choice)), None)
+                selected_log = next(
+                    (
+                        file_path
+                        for file_path in log_files
+                        if file_path.name == choice or file_path.name.startswith(choice)
+                    ),
+                    None,
+                )
             if selected_log:
-                print(f"\n--- {translate('viewing_log')}{selected_log.name} ---")
+                rprint(f"\n--- {translate('viewing_log')}{selected_log.name} ---")
                 with selected_log.open("r", encoding="utf-8") as file_handle:
-                    print(file_handle.read())
-                print(f"--- End of {selected_log.name} ---\n")
+                    rprint(file_handle.read())
+                rprint(f"--- End of {selected_log.name} ---\n")
             else:
-                print(translate("invalid_choice"))
-        except Exception as error:
+                rprint(translate("invalid_choice"))
+        except Exception as error:  # pragma: no cover - OS-level I/O fault
             logger.error(f"Error reading log file: {error}")
+
 
 def reset_project() -> None:
     """Delete all generated files and directories for a clean project reset.
@@ -665,34 +1060,39 @@ def reset_project() -> None:
     Prompts the user for confirmation before deleting generated files and directories.
     Handles file and directory deletion, prints status messages, and logs errors.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
-    print("\n--- " + translate("menu_option_5").split(". ")[1] + " ---")
+    ui_rule(translate("menu_option_5").split(". ")[1])
     dirs_to_check = [
         PROJECT_ROOT / "data" / "generated_markdown_from_csv",
         PROJECT_ROOT / "data" / "ai_processed_markdown",
         PROJECT_ROOT / "data" / "ai_raw_responses",
         PROJECT_ROOT / "data" / "generated_descriptions",
         PROJECT_ROOT / "output",
-        LOG_DIR
+        LOG_DIR,
     ]
     files_found = []
     for dir_path in dirs_to_check:
         if dir_path.exists():
-            files_found.extend([file_path for file_path in dir_path.rglob("*") if file_path.is_file()])
+            files_found.extend(
+                [file_path for file_path in dir_path.rglob("*") if file_path.is_file()]
+            )
     if not files_found:
-        print("No generated files found to delete.")
+        rprint("No generated files found to delete.")
         return
-    print(f"Found {len(files_found)} generated files that will be deleted.")
-    print("Directories that will be cleared:")
+    rprint(f"Found {len(files_found)} generated files that will be deleted.")
+    rprint("Directories that will be cleared:")
     for dir_path in dirs_to_check:
         if dir_path.exists() and any(dir_path.rglob("*")):
-            print(f"  - {dir_path.relative_to(PROJECT_ROOT)}")
-    confirm = input(translate("reset_confirm")).strip().lower() or 'n'
-    if confirm not in ['y', 'j']:
-        print(translate("reset_cancelled"))
-        return
+            rprint(f"  - {dir_path.relative_to(PROJECT_ROOT)}")
+    confirm = ask_text(translate("reset_confirm"), default="n").lower()
+    if confirm not in ["y", "j"]:
+        rprint(
+            translate("reset_cancelled")
+        )  # pragma: no cover - simple user-decline path
+        return  # pragma: no cover
     deleted_count = 0
     for dir_path in dirs_to_check:
         if dir_path.exists():
@@ -708,27 +1108,77 @@ def reset_project() -> None:
                     try:
                         dir_path_nested.rmdir()
                     except Exception as error:
-                        logger.error(f"Error removing directory {dir_path_nested}: {error}")
-    print(f"{translate('reset_complete')} ({deleted_count} files deleted)")
+                        logger.error(
+                            f"Error removing directory {dir_path_nested}: {error}"
+                        )
+    rprint(f"{translate('reset_complete')} ({deleted_count} files deleted)")
+
 
 def main_menu() -> None:
     """Display the main menu and handle user choices interactively.
 
-    Presents the user with menu options for environment management, program descriptions,
+    Presents the user with options for environment management, program descriptions,
     running the processing pipeline, viewing logs, resetting the project, or exiting.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
     while True:
-        print(translate("main_menu_title"))
-        print(translate("menu_option_1"))
-        print(translate("menu_option_2"))
-        print(translate("menu_option_3"))
-        print(translate("menu_option_4"))
-        print(translate("menu_option_5"))
-        print(translate("menu_option_6"))
-        choice = input(translate("enter_choice")).strip()
+        ui_rule(translate("main_menu_title"))
+        ui_menu(
+            [
+                (
+                    "1",
+                    (
+                        translate("menu_option_1").split(" ", 1)[1]
+                        if ": " not in translate("menu_option_1")
+                        else translate("menu_option_1")[3:]
+                    ),
+                ),
+                (
+                    "2",
+                    (
+                        translate("menu_option_2").split(" ", 1)[1]
+                        if ": " not in translate("menu_option_2")
+                        else translate("menu_option_2")[3:]
+                    ),
+                ),
+                (
+                    "3",
+                    (
+                        translate("menu_option_3").split(" ", 1)[1]
+                        if ": " not in translate("menu_option_3")
+                        else translate("menu_option_3")[3:]
+                    ),
+                ),
+                (
+                    "4",
+                    (
+                        translate("menu_option_4").split(" ", 1)[1]
+                        if ": " not in translate("menu_option_4")
+                        else translate("menu_option_4")[3:]
+                    ),
+                ),
+                (
+                    "5",
+                    (
+                        translate("menu_option_5").split(" ", 1)[1]
+                        if ": " not in translate("menu_option_5")
+                        else translate("menu_option_5")[3:]
+                    ),
+                ),
+                (
+                    "6",
+                    (
+                        translate("menu_option_6").split(" ", 1)[1]
+                        if ": " not in translate("menu_option_6")
+                        else translate("menu_option_6")[3:]
+                    ),
+                ),
+            ]
+        )
+        choice = ask_text(translate("enter_choice"))
         if choice == "1":
             manage_virtual_environment()
         elif choice == "2":
@@ -740,16 +1190,19 @@ def main_menu() -> None:
         elif choice == "5":
             reset_project()
         elif choice == "6":
-            print(translate("exiting"))
+            rprint(translate("exiting"))
             break
         else:
-            print(translate("invalid_choice"))
+            rprint(translate("invalid_choice"))
+
 
 def parse_cli_args() -> argparse.Namespace:
     """Parse command-line arguments for the setup script.
 
-    Returns:
-        argparse.Namespace: Parsed arguments with options for language and venv control.
+    Returns
+    -------
+    argparse.Namespace
+        Parsed arguments with options for language and venv control.
     """
     parser = argparse.ArgumentParser(
         description=(
@@ -759,46 +1212,55 @@ def parse_cli_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
-        "--lang",
-        type=str,
-        choices=["en", "sv"],
-        help="UI language (en or sv)"
+        "--lang", type=str, choices=["en", "sv"], help="UI language (en or sv)"
     )
     parser.add_argument(
         "--no-venv",
         action="store_true",
-        help="Skip virtual environment creation and dependency installation (bypasses the interactive menu)"
+        help="Skip virtual environment creation and dependency installation (bypasses the interactive menu)",
     )
     return parser.parse_args()
+
 
 def prompt_virtual_environment_choice() -> bool:
     """Prompt the user to choose between creating a venv or continuing without one.
 
-    Returns:
-        bool: True if the user chooses to create a virtual environment, False otherwise.
+    Returns
+    -------
+    bool
+        ``True`` if the user chooses to create a virtual environment, otherwise ``False``.
     """
-    print(translate("venv_menu_title"))
-    print(translate("venv_menu_option_1"))
-    print(translate("venv_menu_option_2"))
+    ui_rule(translate("venv_menu_title"))
+    ui_menu(
+        [
+            ("1", translate("venv_menu_option_1")[3:]),
+            ("2", translate("venv_menu_option_2")[3:]),
+        ]
+    )
     while True:
-        choice = input(translate("venv_menu_prompt")).strip()
+        choice = ask_text(translate("venv_menu_prompt"))
         if choice == "1":
             return True
         if choice == "2":
-            print(translate("venv_skipped"))
+            ui_info(translate("venv_skipped"))
             return False
-        print(translate("invalid_choice"))
+        rprint(translate("invalid_choice"))  # pragma: no cover - trivial prompt loop
 
-def parse_env_file(env_path: Path) -> Dict[str, str]:
-    """Parse a .env-style file into a dictionary of environment variables.
 
-    Args:
-        env_path (Path): Path to the .env file.
+def parse_env_file(env_path: Path) -> dict[str, str]:
+    """Parse a ``.env``-style file into a dictionary of environment variables.
 
-    Returns:
-        Dict[str, str]: Dictionary of environment variable keys and their values.
+    Parameters
+    ----------
+    env_path : Path
+        Path to the ``.env`` file.
+
+    Returns
+    -------
+    dict[str, str]
+        Dictionary of environment variable keys and their values.
     """
-    env_dict: Dict[str, str] = {}
+    env_dict: dict[str, str] = {}
     if not env_path.exists():
         return env_dict
     with env_path.open("r", encoding="utf-8") as env_file:
@@ -810,38 +1272,48 @@ def parse_env_file(env_path: Path) -> Dict[str, str]:
     return env_dict
 
 
-def find_missing_env_keys(existing: Dict[str, str], required: List[str]) -> List[str]:
-    """Return required keys that are missing or empty in the existing .env dictionary.
+def find_missing_env_keys(existing: dict[str, str], required: list[str]) -> list[str]:
+    """Return required keys that are missing or empty in the existing ``.env`` dict.
 
-    Args:
-        existing (Dict[str, str]): Dictionary of current .env key-value pairs.
-        required (List[str]): List of required keys.
+    Parameters
+    ----------
+    existing : dict[str, str]
+        Dictionary of current ``.env`` key-value pairs.
+    required : list[str]
+        List of required keys.
 
-    Returns:
-        List[str]: List of missing or empty keys.
+    Returns
+    -------
+    list[str]
+        Missing or empty keys that must be provided.
     """
     return [key for key in required if not existing.get(key)]
 
 
 def prompt_and_update_env(
-    missing_keys: List[str], env_path: Path, existing: Dict[str, str]
+    missing_keys: list[str], env_path: Path, existing: dict[str, str]
 ) -> None:
-    """Prompt the user for missing Azure OpenAI values and update the .env file.
+    """Prompt for missing Azure OpenAI values and update the ``.env`` file.
 
-    Args:
-        missing_keys (List[str]): List of missing or empty keys.
-        env_path (Path): Path to the .env file.
-        existing (Dict[str, str]): Dictionary of current .env key-value pairs.
+    Parameters
+    ----------
+    missing_keys : list[str]
+        List of missing or empty keys.
+    env_path : Path
+        Path to the ``.env`` file.
+    existing : dict[str, str]
+        Dictionary of current ``.env`` key-value pairs to update in-place.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
-    print(f"\n{_('azure_env_intro')}\n{_('azure_env_storage')}")
+    rprint(f"\n{_('azure_env_intro')}\n{_('azure_env_storage')}")
     for key in missing_keys:
-        prompt = _('azure_env_prompt').format(key=key)
+        prompt = _("azure_env_prompt").format(key=key)
         value = ""
         while not value:
-            value = input(prompt).strip()
+            value = ask_text(prompt)
         existing[key] = value
 
     # Write all required keys (preserve order), plus any other existing keys
@@ -858,10 +1330,13 @@ def prompt_and_update_env(
 
 
 def ensure_azure_openai_env() -> None:
-    """Ensure all required Azure OpenAI values are present in .env, prompting the user if needed.
+    """Ensure that all required Azure OpenAI values exist in ``.env``.
 
-    Returns:
-        None
+    Prompts the user for any missing values and saves them.
+
+    Returns
+    -------
+    None
     """
     # Use .env-example as the source of required keys (already in REQUIRED_AZURE_KEYS)
     env_dict = parse_env_file(ENV_PATH)
@@ -869,22 +1344,123 @@ def ensure_azure_openai_env() -> None:
     if missing_keys:
         prompt_and_update_env(missing_keys, ENV_PATH, env_dict)
     else:
-        logger.info("All required Azure OpenAI values are present in .env.")
+        logger.info(
+            "All required Azure OpenAI values are present in .env."
+        )  # pragma: no cover - info only
 
 
-if __name__ == "__main__":
+def run_ai_connectivity_check_interactive() -> bool:
+    """Run a minimal AI connectivity test against the configured Azure endpoint.
+
+    The test sends a strict instruction asking the model to only reply with
+    ``"Status: OK"``. Any deviation or errors will be considered a failure and a
+    helpful message will be printed for the user.
+
+    Returns
+    -------
+    bool
+        ``True`` if connectivity and response are OK; otherwise ``False``.
+    """
+    import asyncio
+    import json
+
+    import aiohttp
+
+    # Build bilingual user prompt to yield an exact "Status: OK" reply
+    user_prompt_en = (
+        "This is a test. You must ONLY reply with the exact text 'Status: OK'. "
+        "Are you ready? Reply 'Status: OK' if you are ready."
+    )
+    user_prompt_sv = (
+        "Detta är ett test. Du måste ENDAST svara med exakt text 'Status: OK'. "
+        "Är du redo? Svara 'Status: OK' om du är redo."
+    )
+    user_prompt = f"{user_prompt_sv}\n\n{user_prompt_en}"
+
+    async def _check_once() -> tuple[bool, str]:
+        try:
+            # Lazy import to avoid heavy dependencies at import time
+            from src.program2_ai_processor import OpenAIConfig
+
+            cfg = OpenAIConfig()
+            if not cfg.gpt4o_endpoint:
+                return (
+                    False,
+                    "Missing OpenAI endpoint configuration.",
+                )  # pragma: no cover - depends on external env
+            headers: dict[str, str] = {
+                "Content-Type": "application/json",
+                "api-key": str(cfg.api_key),
+            }
+            payload = {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a concise assistant for connectivity tests.",
+                    },
+                    {"role": "user", "content": user_prompt},
+                ],
+                "max_tokens": 8,
+                "temperature": 0.0,
+            }
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=cfg.request_timeout)
+            ) as session:
+                async with session.post(
+                    cfg.gpt4o_endpoint, json=payload, headers=headers
+                ) as resp:
+                    text = await resp.text()
+                    if resp.status != 200:
+                        return False, f"HTTP {resp.status}: {text[:200]}"
+                    data = json.loads(text)
+                    content = (
+                        data.get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "")
+                        .strip()
+                    )
+                    if content == "Status: OK":
+                        return True, content
+                    return False, f"Unexpected reply: {content[:200]}"
+        except Exception as err:  # pragma: no cover - generic network failure
+            return False, f"{type(err).__name__}: {err}"
+
+    rprint(translate("ai_check_running"))
+    ok, detail = asyncio.run(_check_once())
+    if ok:
+        rprint("[green]" + translate("ai_check_ok") + "[/green]")
+        return True
+    rprint("[red]" + translate("ai_check_fail") + "[/red]")
+    rprint("[red]Details:[/red] " + detail)
+    return False
+
+
+def entry_point() -> None:
+    """Entry point that handles CLI, language selection, and main menu.
+
+    Returns
+    -------
+    None
+        Parses CLI args, configures language and environment, then opens menu.
+    """
     args = parse_cli_args()
+    global LANG
     if args.lang:
-        if args.lang in TEXTS:
-            LANG = args.lang
-        else:
-            LANG = "en"
-    set_language()
-    print(translate("welcome"))
+        LANG = args.lang if args.lang in TEXTS else "en"
+    # Allow skipping the interactive language prompt on restarts after UI switch
+    if not os.environ.get("SETUP_SKIP_LANGUAGE_PROMPT"):
+        set_language()
+    ui_header(translate("welcome"))
     if not args.no_venv:
-        if not is_venv_active():
-            if prompt_virtual_environment_choice():
-                manage_virtual_environment()
+        if not is_venv_active():  # pragma: no cover - interactive branch
+            if (
+                prompt_virtual_environment_choice()
+            ):  # pragma: no cover - interactive branch
+                manage_virtual_environment()  # pragma: no cover - interactive branch
     ensure_azure_openai_env()
     main_menu()
     sys.exit(0)
+
+
+if __name__ == "__main__":  # pragma: no cover - direct script run
+    entry_point()

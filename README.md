@@ -1,6 +1,22 @@
 # 📊 Datapipeline för Skolbeskrivningar
 
-Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik (CSV) till AI-förbättrade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
+[![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
+![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
+![ruff](https://img.shields.io/badge/lint-ruff-informational)
+![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
+![Bandit](https://img.shields.io/badge/security-bandit-informational)
+![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
+![gitleaks](https://img.shields.io/badge/protected%20by-gitleaks-blue)
+
+Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI-genererade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
+
+> Pipeline-demo: Realtidsvideo på under en minut som visar hur `setup_project.py` startas, och sedan körs hela piplinen tills öppning av de färdiga webbsidorna (`output/index.html`).
+>
+> ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
 
 ## 🗂️ Innehållsförteckning
 
@@ -13,6 +29,7 @@ Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik (CSV) t
 - [🔧 Driftsdetaljer](#driftsdetaljer)
 - [📝 Loggning](#loggning)
 - [📦 Beroenden](#beroenden)
+- [🧪 Testning](#testning)
 - [🤖 Byta till en annan LLM](#byta-till-en-annan-llm)
 - [🪪 Licens](#licens)
 
@@ -29,6 +46,7 @@ Denna pipeline bearbetar svensk skolstatistik genom tre huvudsteg:
 ### 🚀 Rådata till webbplats på mindre än 5 minuter 🚀
 
 Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, endpoint och modellnamn tillgängliga, kan du nu förvänta dig att köra hela pipelinen inom de närmaste fem minuterna, med hjälp av det guidande `setup_project.py`-programmet, som guidar dig genom processen:
+
 - Konfigurera programmet med rätt värden (valfritt, kan göras manuellt).
 - Skapa en virtuell miljö för Python (valfritt - tar 2-3 minuter, men rekommenderas).
 - Ta dig tid att läsa korta sammanfattningar för programmen (valfritt).
@@ -44,10 +62,10 @@ Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, e
 ## 🧩 Huvudkomponenter
 
 - **📊 Data & Mallar**
-  - `data/database_data/database_school_data.csv`: Huvudsaklig indata-CSV med skolstatistik, identifierare och enkätresultat.
-  - `data/templates/school_description_template.md`: Markdown-mall för rapporter per skola.
-  - `data/templates/ai_prompt_template.txt`: Promptmall för Azure OpenAI, specificerar krav för AI-genererade beskrivningar.
-  - `data/templates/website_template.html`: Responsiv HTML-mall för den genererade webbplatsen.
+  - [`database_school_data.csv`](data/database_data/database_school_data.csv): Huvudsaklig indata-CSV med skolstatistik, identifierare och enkätresultat.
+  - [`school_description_template.md`](data/templates/school_description_template.md): Markdown-mall för rapporter per skola.
+  - [`ai_prompt_template.txt`](data/templates/ai_prompt_template.txt): Promptmall för Azure OpenAI, specificerar krav för AI-genererade beskrivningar.
+  - [`website_template.html`](data/templates/website_template.html): Responsiv HTML-mall för den genererade webbplatsen.
 
 - **🧠 Källkod (`src/`)**
   - [`src/config.py`](src/config.py): Centraliserar alla konstanter, sökvägar och konfiguration.
@@ -56,32 +74,24 @@ Om du redan har en Azure OpenAI-endpoint och har dina tre värden för nyckel, e
   - [`src/program3_generate_website.py`](src/program3_generate_website.py): Genererar den interaktiva HTML-webbplatsen.
 
 - **🛠️ Orkestrering & Installation**
-  - `setup_project.py`: Interaktiv, menybaserad CLI för att hantera pipelinen, stödjer språkval, miljöhantering, installation av beroenden, pipelinekörning, loggvisning och återställning av filer.
+  - [`setup_project.py`](setup_project.py): Interaktiv, menybaserad CLI för att hantera pipelinen, stödjer språkval, miljöhantering, installation av beroenden, pipelinekörning, loggvisning och återställning av filer.
 
 - **📃 Konfiguration & Miljö**
-  - `.env-example`: Mall för nödvändiga Azure OpenAI-miljövariabler.
-  - `.gitignore`: Utesluter känslig data, byggartefakter och genererade utdata.
+  - [`.env-example`](.env-example): Mall för nödvändiga Azure OpenAI-miljövariabler.
+  - [`.gitignore`](.gitignore): Utesluter känslig data, byggartefakter och genererade utdata.
 
 ## 📁 Projektstruktur
 
 ```
-school-description-processor/
+skoltexter-by-ai/
 │
 ├── data/
 │   ├── database_data/
 │   │   └── database_school_data.csv
-│   ├── templates/
-│   │   ├── school_description_template.md
-│   │   ├── ai_prompt_template.txt
-│   │   └── website_template.html
-│   ├── generated_markdown_from_csv/
-│   ├── ai_processed_markdown/
-│   └── ai_raw_responses/
-│
-├── logs/
-│
-├── output/
-│   └── index.html
+│   └── templates/
+│       ├── school_description_template.md
+│       ├── ai_prompt_template.txt
+│       └── website_template.html
 │
 ├── src/
 │   ├── config.py
@@ -95,11 +105,21 @@ school-description-processor/
 └── README.md
 ```
 
+Observera: Under körning skapas resultatmappar och filer, bland annat:
+
+- `data/generated_markdown_from_csv/` (markdown från CSV)
+- `data/ai_processed_markdown/` (AI‑förädlade markdown)
+- `data/ai_raw_responses/` (råa AI‑svar och fel)
+- `output/index.html` (genererad webbplats)
+- `logs/` (körloggar)
+
+Mappen `tests/` innehåller en testsvit om 138 tester (100% täckning) som körs med `pytest`.
+
 ## ⚙️ Förutsättningar
 
-- 🐍 Python 3.7+
+- 🐍 Python 3.11+
 - 🔑 Azure OpenAI API-åtkomst (GPT-4o-distribution)
-- 📈 Skolstatistik-CSV i förväntat format
+- 📈 Skolstatistik-CSV i förväntat format (inkluderad)
 - 🌐 Internetuppkoppling
 
 ## 🚀 Installation
@@ -111,6 +131,10 @@ Kör det interaktiva installationsskriptet och följ menyvalen (stöd för engel
 ```bash
 python setup_project.py
 ```
+
+När installationsskriptet har installerat beroenden (t.ex. `rich` och `questionary`)
+startar det om sig självt inuti den virtuella miljön för att aktivera det förbättrade
+gränssnittet automatiskt.
 
 ### 🔧 Manuell installation
 1. Kopiera `.env-example` till `.env` och fyll i Azure-uppgifterna.
@@ -134,6 +158,8 @@ Använd installationsskriptets meny för att köra hela pipelinen:
 ```bash
 python setup_project.py
 ```
+
+När du startar pipelinen får du först ett val om att köra ett snabbt AI‑anslutningstest. Det skickar en minimal förfrågan och verifierar att din `.env` och nätverkskonfiguration fungerar. Vid lyckat test fortsätter pipelinen, annars får du ett tydligt felmeddelande och kan åtgärda innan du kör om.
 
 ### 🛠️ Manuell
 
@@ -186,8 +212,26 @@ Från `requirements.txt`:
 - tqdm
 - Jinja2
 - markdown2
+- rich
+- questionary
 
 🧰 Ytterligare standardbibliotek som används: argparse, csv, logging, pathlib, json, re, os, asyncio, typing
+
+För testning och kodkontroll:
+
+- black
+- ruff
+- mypy
+- bandit
+- pip-audit
+- cyclonedx-bom
+- pip-licenses
+- pre-commit
+- pytest
+- pytest-cov
+- xdoctest
+- pytest-mock
+- pytest-asyncio
 
 Installera alla beroenden med:
 
@@ -195,17 +239,72 @@ Installera alla beroenden med:
 pip install -r requirements.txt
 ```
 
+## 🧪 Testning
+
+- Kör hela testsuiten (snabbt läge):
+
+  ```bash
+  pytest -q
+  ```
+
+- Kör tester med coverage-rapport (visar otäckta rader):
+
+  ```bash
+  pytest --cov=src --cov=setup_project --cov-report=term-missing --cov-report=xml
+  ```
+
+- Täckningsgrind i CI: 100%.
+- Typkontroll och lint körs i CI. Lokalt kan du köra:
+
+  ```bash
+  ruff check .
+  mypy --strict src setup_project.py
+  ```
+
+- Pre-commit (format, lint, säkerhetskontroller):
+
+  ```bash
+  pip install -r requirements.txt
+  pre-commit install
+  pre-commit run --all-files
+  ```
+
 ## Byta till en annan LLM
 
 Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för att använda en annan LLM, se [BYTA_LLM.md](./BYTA_LLM.md).
 
+## 🔐 Säkerhet & Tillförlitlighet
+
+- Lint & Typer: `ruff` (inga varningar) och `mypy --strict` i CI.
+- Säkerhetsskanning: `bandit` (MEDIUM+), `pip-audit` för sårbarheter, och secrets‑skanning via Gitleaks.
+- SBOM: Genereras med CycloneDX i CI (`sbom.json`).
+- Tester: `pytest` med coverage‑grind i CI; async‑tester med nätverksfakes; timeouter/backoff i runtime.
+- Rate limiting & retries: Alla AI‑anrop har limiter + exponentiell backoff; timeouts via `aiohttp.ClientTimeout`.
+- Logg‑hygien: Inga API‑nycklar/PII i loggar. Fil‑logg avstängd under tester.
+ - Reproducerbarhet: Alla verktyg finns i `requirements.txt`. Pre-commit‑hooks upprätthåller stil och grundläggande säkerhet lokalt.
+
+Gitleaks körs vid push/PR och dagligen (04:00 UTC). För organisations‑repo behöver du lägga till en hemlighet `GITLEAKS_LICENSE` under repo/organisationens “Secrets and variables → Actions → Secrets”. För personliga repo behövs ingen licens.
+
+Licens‑allowlist
+
+- Tillåtna: MIT, BSD‑2/3‑Clause, Apache‑2.0, ISC, MPL‑2.0, PSF/Python och liknande permissiva licenser.
+- Vi normaliserar licenstexter (t.ex. “MIT License”, “Apache Software License”) till SPDX‑liknande ID:n och hanterar kombinationer som “Apache‑2.0 AND MIT”.
+- Kända paket med oklara/varierande licenstexter har explicita overrides (se koden för lista), och meta‑paketet `pre-commit-placeholder-package` ignoreras.
+- För att undvika GPL‑beroenden används den icke‑GPL:ade varianten av jsonschema: `jsonschema[format-nongpl]>=4.18` i `requirements.txt`.
+- Policyn upprätthålls via pre‑commit och i CI; se `tools/policy/check_licenses.py`.
+
+Kör lokalt:
+
+```bash
+pip install -r requirements.txt
+pre-commit install
+pre-commit run --all-files
+# eller endast licenskollen
+python tools/policy/check_licenses.py
+```
+
 ## 🪪 Licens
 
-Detta projekt är licensierat under MIT-licensen, med ett tilläggskrav:
+Detta projekt är licensierat under MIT-licensen.
 
-> Om du återanvänder **VÄSENTLIGA DELAR AV KODEN ELLER DESS STRUKTUR** i en kommersiell produkt eller i en offentligt distribuerad eller publicerad tjänst, måste du ge tydlig attribution såsom:  
-> _"Baserat på arbete av Carl O. Mattsson / Roadlake Analytics AB"_
-
-- I praktiken innebär detta att du inte får påstå att du skrev det i det skick som det återfinns häri.
-
-Se filen [LICENSE](./LICENSE.txt) för fullständiga detaljer.
+Se filen [LICENSE](./LICENSE) för fullständiga detaljer.

@@ -1,6 +1,6 @@
 # Byt LLM-leverantör: Konfigurationsguide
 
-Denna fil beskriver steg-för-steg hur du anpassar projektets AI-processor (`program2_ai_processor.py`) för att använda olika LLM-leverantörer istället för Azure OpenAI (GPT‑4o), enligt CHATGPT. 
+Denna fil beskriver steg-för-steg hur du anpassar projektets AI-processor (`program2_ai_processor.py`) för att använda olika LLM-leverantörer istället för Azure OpenAI (GPT‑4o), enligt CHATGPT.
 
 >Jag föreställer mig att om du har en API nyckel så har du också möjlighet att klistra in all kod i lämplig chatt för eventuell felsökning och ytterligare inställningar. Det är sannolikt inte mycket som kommer behöva ändras i de flesta fall :)
 
@@ -27,12 +27,12 @@ Denna fil beskriver steg-för-steg hur du anpassar projektets AI-processor (`pro
 
     ```python
     import openai
-    
+
     class OpenAIConfig:
         def __init__(self):
             self.api_key = os.getenv("OPENAI_API_KEY")
             openai.api_key = self.api_key
-    
+
     async def call_openai_api(...):
         response = openai.ChatCompletion.create(
             model="gpt-4",

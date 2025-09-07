@@ -104,17 +104,21 @@ OUTPUT_HTML_DIR: Path = PROJECT_ROOT / "output"
 OUTPUT_HTML_FILE: Path = OUTPUT_HTML_DIR / "index.html"
 WEBSITE_TEMPLATE_PATH: Path = DATA_DIR / "templates" / "website_template.html"
 FALLBACK_SCHOOL_NAME_FORMAT: str = "School (Code: {school_code})"
-FALLBACK_DESCRIPTION_HTML: str = "<p><em>Description not available for this school.</em></p>"
+FALLBACK_DESCRIPTION_HTML: str = (
+    "<p><em>Description not available for this school.</em></p>"
+)
 ERROR_DESCRIPTION_HTML: str = "<p><em>Error loading description.</em></p>"
 NO_DATA_HTML: str = (
-    "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\">"
+    '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
     "<title>School Information</title>"
     "<style>body{font-family: sans-serif; text-align: center; padding: 50px;}</style></head>"
     "<body><h1>School Information</h1><p>No school data is available to display.</p></body></html>"
 )
 
 # --- Logging ---
-LOG_FORMAT: str = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+LOG_FORMAT: str = (
+    "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+)
 LOG_FILENAME_GENERATE_MARKDOWNS: str = "generate_markdowns.log"
 LOG_FILENAME_AI_PROCESSOR: str = "ai_processor.log"
 LOG_FILENAME_GENERATE_WEBSITE: str = "generate_website.log"

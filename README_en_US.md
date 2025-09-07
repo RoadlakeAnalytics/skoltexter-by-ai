@@ -1,5 +1,11 @@
 # 📊 School Description Data Pipeline
 
+> 1 Minute Demo
+>
+> - Pipeline demo: shows launching `setup_project.py`, the guided menu flow, venv management, running steps 1–3, and opening `output/index.html` with the search field.
+>
+>   ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
+
 This project is a data processing pipeline that transforms raw Swedish school statistics (CSV) into AI-enhanced descriptions and generates a modern, interactive website for browsing school information. The primary goal is to make complex school data accessible and useful for parents choosing schools, while also serving as a robust foundation for advanced AI text generation use cases.
 
 ## 🗂️ Table of Contents
@@ -13,6 +19,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 - [🔧 Operational Details](#operational-details)
 - [📝 Logging](#logging)
 - [📦 Dependencies](#dependencies)
+- [🧪 Testing](#testing)
 - [🤖 Switching to a different LLM](#switching-to-a-different)
 - [🪪 License](#license)
 
@@ -58,6 +65,17 @@ If you already have an Azure OpenAI endpoint and have your three values for key,
 - **🛠️ Orchestration & Setup**
   - `setup_project.py`: Interactive, menu-driven CLI for managing the pipeline, supporting language selection, environment management, dependency installation, pipeline execution, log viewing, and file resets.
 
+### 🏷️ CI/Badges
+
+[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
+![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
+![ruff](https://img.shields.io/badge/lint-ruff-informational)
+![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
+![Bandit](https://img.shields.io/badge/security-bandit-informational)
+![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
+
 - **📃 Configuration & Environment**
   - `.env-example`: Template for required Azure OpenAI environment variables.
   - `.gitignore`: Excludes sensitive data, build artifacts, and generated outputs.
@@ -65,23 +83,15 @@ If you already have an Azure OpenAI endpoint and have your three values for key,
 ## 📁 Project Structure
 
 ```
-school-description-processor/
+skoltexter-by-ai/
 │
 ├── data/
 │   ├── database_data/
 │   │   └── database_school_data.csv
-│   ├── templates/
-│   │   ├── school_description_template.md
-│   │   ├── ai_prompt_template.txt
-│   │   └── website_template.html
-│   ├── generated_markdown_from_csv/
-│   ├── ai_processed_markdown/
-│   └── ai_raw_responses/
-│
-├── logs/
-│
-├── output/
-│   └── index.html
+│   └── templates/
+│       ├── school_description_template.md
+│       ├── ai_prompt_template.txt
+│       └── website_template.html
 │
 ├── src/
 │   ├── config.py
@@ -95,11 +105,20 @@ school-description-processor/
 └── README.md
 ```
 
+Note: During execution, additional result folders and files are created, including:
+- `data/generated_markdown_from_csv/` (markdown generated from CSV)
+- `data/ai_processed_markdown/` (AI‑enhanced markdown)
+- `data/ai_raw_responses/` (raw AI responses and failures)
+- `output/index.html` (generated website)
+- `logs/` (runtime logs)
+
+The `tests/` folder contains a test suite of 138 tests (100% coverage) which is run with `pytest`.
+
 ## ⚙️ Prerequisites
 
-- 🐍 Python 3.7+
+- 🐍 Python 3.11+
 - 🔑 Azure OpenAI API access (GPT-4o deployment)
-- 📈 School statistics CSV in the expected format
+- 📈 School statistics CSV in the expected format (included)
 - 🌐 Internet connection
 
 ## 🚀 Setup
@@ -111,6 +130,10 @@ Run the interactive setup script and follow the menu prompts (supports English/S
 ```bash
 python setup_project.py
 ```
+
+Once dependencies (e.g., `rich` and `questionary`) are installed, the setup
+program automatically restarts inside the virtual environment to enable the
+enhanced UI without extra steps.
 
 ### 🔧 Manual Setup
 1. Copy `.env-example` to `.env` and fill in Azure credentials.
@@ -134,6 +157,8 @@ Use the setup script's menu to run the full pipeline:
 ```bash
 python setup_project.py
 ```
+
+When starting the pipeline, you will first be prompted to run a quick AI connectivity test. It sends a minimal request to verify that your `.env` and network configuration are working. If it passes, the pipeline continues; otherwise, you get a clear error message so you can fix issues before re‑running.
 
 ### 🛠️ Manual
 
@@ -189,11 +214,57 @@ From `requirements.txt`:
 
 🧰 Additional standard library modules used: argparse, csv, logging, pathlib, json, re, os, asyncio, typing
 
+For testing and code control:
+
+- black
+- ruff
+- mypy
+- bandit
+- pip-audit
+- cyclonedx-bom
+- pip-licenses
+- pre-commit
+- pytest
+- pytest-cov
+- xdoctest
+- pytest-mock
+- pytest-asyncio
+
 Install all dependencies with:
 
 ```bash
 pip install -r requirements.txt
 ```
+
+## 🧪 Testing
+
+- Run full test suite (quiet):
+
+  ```bash
+  pytest -q
+  ```
+
+- Run with coverage and show missing lines:
+
+  ```bash
+  pytest --cov=src --cov=setup_project --cov-report=term-missing --cov-report=xml
+  ```
+
+- Coverage gate in CI: 100%.
+- Type checking and lint run in CI. Locally:
+
+  ```bash
+  ruff check .
+  mypy --strict src setup_project.py
+  ```
+
+- Pre-commit (format, lint, security checks):
+
+  ```bash
+  pip install -r requirements.txt
+  pre-commit install
+  pre-commit run --all-files
+  ```
 
 ## Switching to a different LLM
 
@@ -201,11 +272,34 @@ I have provided a brief file regarding configuration options for other LLM model
 
 ## 🪪 License
 
-This project is licensed under the MIT License, with an added requirement:
+This project is licensed under the MIT License.
 
-> If you reuse **SUBSTANTIAL PORTIONS OF THE CODE OR ITS STRUCTURE** in a commercial product or in a publicly deployed or published service, you must provide clear attribution such as: 
-> _"Based on work by Carl O. Mattsson / Roadlake Analytics AB"_
+See the [LICENSE](./LICENSE) file for full details.
 
-- Essentially, you can not claim you wrote the program as is.
+## 🔐 Security & Reliability
 
-See the [LICENSE](./LICENSE.txt) file for full details.
+- Lint & Types: `ruff` (no warnings) and `mypy --strict` in CI.
+- Security scanning: `bandit` (MEDIUM+), `pip-audit` for CVEs, and secret scanning via Gitleaks.
+- SBOM: Generated with CycloneDX in CI (`sbom.json`).
+- Tests: `pytest` with coverage gating in CI; async tests with network fakes; timeouts/backoff in runtime code.
+- Rate limiting & retries: All AI calls use limiter + exponential backoff; request timeouts via `aiohttp.ClientTimeout`.
+- Logging hygiene: No API keys or PII in logs. File logging is disabled in tests.
+ - Reproducibility: All tooling is listed in `requirements.txt`. Pre-commit hooks enforce style and common security checks locally.
+
+License allowlist
+
+- Allowed: MIT, BSD‑2/3‑Clause, Apache‑2.0, ISC, MPL‑2.0, PSF/Python, and similar permissive licenses.
+- The policy normalizes common license strings (e.g., “MIT License”, “Apache Software License”) to SPDX‑like IDs and supports combinations such as “Apache‑2.0 AND MIT”.
+- Known packages with ambiguous or varying license strings are handled through explicit overrides (see the script), and the meta‑package `pre-commit-placeholder-package` is ignored.
+- To avoid GPL dependencies, we use the non‑GPL jsonschema extra: `jsonschema[format-nongpl]>=4.18` in `requirements.txt`.
+- The allowlist is enforced via pre‑commit and in CI; see `tools/policy/check_licenses.py`.
+
+Local usage:
+
+```bash
+pip install -r requirements.txt
+pre-commit install
+pre-commit run --all-files
+# or just the license check
+python tools/policy/check_licenses.py
+```
