@@ -140,8 +140,15 @@ async def test_api_rate_limit_429(monkeypatch, tmp_path):
         slept.append(t)
 
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)
-    ok, content, _ = await proc.call_openai_api(session, {"x": 1}, "S1", FakeLimiter())
+    ok, content, raw_response = await proc.call_openai_api(
+        session, {"x": 1}, "S1", FakeLimiter()
+    )
     assert ok is True and content == "OK" and slept[0] == 1
+    # The successful raw response JSON should be preserved and include the choice content.
+    assert isinstance(raw_response, dict)
+    assert (
+        raw_response.get("choices", [{}])[0].get("message", {}).get("content") == "OK"
+    )
 
 
 @pytest.mark.asyncio
@@ -232,10 +239,14 @@ async def test_empty_choices_and_content(monkeypatch, tmp_path):
     import json
 
     session1 = FakeSession([FakeResponse(200, json.dumps({"choices": []}))])
+    # Ensure no automatic retry so we get the raw parsed JSON response back.
+    proc.config.max_retries = 0
     ok, content, err = await proc.call_openai_api(
         session1, {"x": 1}, "S1", FakeLimiter()
     )
+    # No content should be returned and the raw error should be the parsed JSON body.
     assert ok is False and content is None
+    assert isinstance(err, dict) and err.get("choices") == []
     bad = json.dumps({"choices": [{"message": {"content": ""}}]})
     session2 = FakeSession([FakeResponse(200, bad)])
     monkeypatch.setattr(proc.config, "max_retries", 0)
@@ -243,6 +254,35 @@ async def test_empty_choices_and_content(monkeypatch, tmp_path):
         session2, {"x": 1}, "S1", FakeLimiter()
     )
     assert ok2 is False and content2 is None
+
+
+@pytest.mark.asyncio
+async def test_api_empty_choices_retry_then_success(monkeypatch, tmp_path: Path):
+    """Simulate empty 'choices' on first 200 response, then success on retry.
+
+    Ensures the branch that sleeps with exponential backoff when the parsed
+    JSON has an empty 'choices' array is exercised.
+    """
+    proc = make_processor(tmp_path)
+    import json
+
+    first = json.dumps({"choices": []})
+    second = json.dumps({"choices": [{"message": {"content": "OK"}}]})
+    session = FakeSession([FakeResponse(200, first), FakeResponse(200, second)])
+    slept: list[float] = []
+
+    async def fake_sleep(t):
+        slept.append(t)
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    ok, content, raw = await proc.call_openai_api(
+        session, {"x": 1}, "S1", FakeLimiter()
+    )
+    assert ok is True and content == "OK"
+    # Backoff factor from make_processor is 2.0, attempt_number == 0 => 2.0**0 == 1
+    assert slept and slept[0] == 1
+    assert isinstance(raw, dict)
+    assert raw.get("choices", [{}])[0].get("message", {}).get("content") == "OK"
 
 
 # --- From payload/clean tests ---
@@ -512,8 +552,15 @@ async def test_call_openai_api_empty_content_then_success(monkeypatch, tmp_path:
             """Exit async context (test stub)."""
             return False
 
-    ok, content, err = await proc.call_openai_api(S(), {"x": 1}, "S1", Limiter2())
+    ok, content, raw_response = await proc.call_openai_api(
+        S(), {"x": 1}, "S1", Limiter2()
+    )
     assert ok is True and content == "OK"
+    # Ensure the raw JSON from the successful attempt is returned and contains the expected content.
+    assert isinstance(raw_response, dict)
+    assert (
+        raw_response.get("choices", [{}])[0].get("message", {}).get("content") == "OK"
+    )
 
 
 @pytest.mark.asyncio
@@ -584,8 +631,15 @@ async def test_call_openai_api_exception_then_success(monkeypatch, tmp_path: Pat
             """Exit async context (test stub)."""
             return False
 
-    ok, content, err = await proc.call_openai_api(S(), {"x": 1}, "S1", Limiter4())
+    ok, content, raw_response = await proc.call_openai_api(
+        S(), {"x": 1}, "S1", Limiter4()
+    )
     assert ok is True and content == "OK"
+    # Ensure the raw JSON from the successful attempt is returned and contains the expected content.
+    assert isinstance(raw_response, dict)
+    assert (
+        raw_response.get("choices", [{}])[0].get("message", {}).get("content") == "OK"
+    )
 
 
 @pytest.mark.asyncio
@@ -881,9 +935,7 @@ async def test_call_openai_api_no_endpoint(tmp_path: Path):
         temperature=0.0,
     )
     proc = SchoolDescriptionProcessor(cfg, tmp_path, tmp_path)
-    ok, content, err = await proc.call_openai_api(
-        object(), {"x": 1}, "S1", FakeLimiter()
-    )
+    ok, _, err = await proc.call_openai_api(object(), {"x": 1}, "S1", FakeLimiter())
     assert ok is False and err.get("error_type") == "ConfigurationError"
 
 
