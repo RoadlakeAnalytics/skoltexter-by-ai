@@ -313,9 +313,11 @@ Vår kvalitetsstrategi bygger på principen att fånga fel så tidigt som möjli
 
 1.  Snabba kontroller (vid Pull Request & Push): För varje kodändring körs ett jobb som exakt speglar vår lokala `pre-commit`-konfiguration. Detta verifierar linting, typning, säkerhet och tester i en neutral miljö och ger feedback inom några minuter.
 
+    - Branch‑push (före PR): En snabb Ubuntu‑matris (Python 3.11–3.14 dev) körs med en enda pytest‑seed för att snabbt ge feedback innan PR öppnas.
+
 2.  Nattlig & Veckovis "Canary"-körning:
-    - Dagligen: Den fullständiga testsviten körs mot Linux och Windows på alla Python-versioner från 3.11 till 3.14 (dev).
-    - Veckovis: Samma fullständiga matris körs mot macOS för att säkerställa plattformsoberoende kompatibilitet och samtidigt spara på kostsamma CI-resurser.
+    - Dagligen (02:00 UTC): Den fullständiga testsviten körs mot Linux och Windows på alla Python-versioner från 3.11 till 3.14 (dev).
+    - Veckovis (måndagar 03:00 UTC): Samma fullständiga matris körs mot macOS för att säkerställa plattformsoberoende kompatibilitet och samtidigt spara på kostsamma CI-resurser.
 
     - Syfte: Dessa schemalagda jobb är designade för att proaktivt upptäcka problem som uppstår över tid, såsom regressioner i beroenden och framtida inkompatibiliteter.
 
@@ -413,7 +415,7 @@ Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för 
 - Logg‑hygien: Inga API‑nycklar/PII i loggar. Fil‑logg avstängd under tester.
  - Reproducerbarhet: Hash‑låsta installationer från `requirements.lock` med `--require-hashes`. Pre‑commit‑hooks upprätthåller stil och säkerhet lokalt.
 
-Gitleaks körs vid push/PR och dagligen (04:00 UTC). För organisations‑repo behöver du lägga till en hemlighet `GITLEAKS_LICENSE` under repo/organisationens “Secrets and variables → Actions → Secrets”. För personliga repo behövs ingen licens.
+Gitleaks körs vid push/PR och schemalagt dagligen (02:00 UTC) samt veckovis (måndagar 03:00 UTC) i samband med de schemalagda körningarna. För organisations‑repo behöver du lägga till en hemlighet `GITLEAKS_LICENSE` under repo/organisationens “Secrets and variables → Actions → Secrets”. För personliga repo behövs ingen licens.
 
 Licens‑allowlist
 

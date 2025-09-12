@@ -322,9 +322,11 @@ Our quality strategy is built on the principle of catching errors as early as po
 
 1.  Fast Checks (on Pull Request & Push): For every code change, a job runs that exactly mirrors our local `pre-commit` configuration. This verifies linting, typing, security, and tests in a neutral environment, providing feedback within a few minutes.
 
+    - Branch push (pre‑PR): A quick Ubuntu matrix (Python 3.11–3.14 dev) runs with a single pytest seed to provide fast feedback before opening a PR.
+
 2.  Nightly & Weekly Canary Builds:
-    - Daily: The full test suite is executed against Linux and Windows across all Python versions from 3.11 to 3.14 (dev).
-    - Weekly: The same full matrix runs against macOS to ensure cross-platform compatibility while conserving costly CI resources.
+    - Daily (02:00 UTC): The full test suite is executed against Linux and Windows across all Python versions from 3.11 to 3.14 (dev).
+    - Weekly (Mondays 03:00 UTC): The same full matrix runs against macOS to ensure cross-platform compatibility while conserving costly CI resources.
 
     - Purpose: These scheduled jobs are designed to proactively detect issues that emerge over time, such as dependency regressions and future incompatibilities.
 
