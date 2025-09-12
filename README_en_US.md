@@ -352,8 +352,13 @@ This pipeline is locked down and reproducible. Key CI gates (and how to run them
   - Generated in CI from the environment and uploaded as an artifact.
   - Also generated locally in pre-commit/pre-push from `requirements.lock` as `sbom.json`.
   - Note: SBOM generation can modify the tracked `sbom.json` file. To avoid
-    noisy changes during local pre-commit runs, generation is limited to the
-    pre-push stage; CI still regenerates the SBOM artifact.
+    noisy changes during local pre-commit runs, generation is performed in a
+    non-modifying "check" mode locally and enforced in CI. The local pre-push
+    hook runs a comparison between a generated temporary SBOM and the checked-in
+    `sbom.json` and only prints instructions for updating when they differ.
+    CI will regenerate the SBOM and fail the build if the tracked file is out of
+    date. This prevents pre-commit/pre-push hooks from rewriting tracked files
+    during developer workflows while ensuring CI enforces correctness.
 
 Note: We avoid GPL/LGPL in the project's own dependencies. Semgrep is executed via a dedicated pre-commit environment/CI action and does not affect runtime dependencies.
 

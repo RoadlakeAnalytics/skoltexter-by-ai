@@ -343,8 +343,14 @@ Den här pipelinen är hårt säkrad och reproducerbar. Nedan summeras de viktig
   - Genereras i CI från miljön och laddas upp som artefakt.
   - Genereras lokalt i pre-commit/pre‑push från `requirements.lock` som `sbom.json`.
   - Observera: SBOM-generering kan ändra den spårade filen `sbom.json`. För att
-    undvika brusiga ändringar vid lokala pre-commit-körningar begränsas
-    genereringen till pre-push-steget; CI regenererar fortfarande SBOM-artefakten.
+    undvika brusiga ändringar vid lokala pre-commit-körningar utförs genereringen
+    lokalt i ett icke‑modifierande kontrollläge och är ett krav i CI. Den lokala
+    pre-push‑hooken skapar en temporär SBOM och jämför med den incheckade
+    `sbom.json`; om det finns skillnader skrivs instruktioner ut för hur
+    utvecklaren kan regenerera och committa SBOM. I CI regenereras SBOM och
+    bygget fälls om den incheckade filen inte är uppdaterad. Detta förhindrar
+    att pre-commit/pre-push automatiskt skriver över spårade filer under
+    utveckling, samtidigt som CI säkerställer korrekthet.
 
 Observera: Vi undviker GPL/LGPL i projektets egna beroenden. Semgrep körs via dedikerad pre‑commit‑miljö/CI‑action och påverkar inte runtime‑beroenden.
 
