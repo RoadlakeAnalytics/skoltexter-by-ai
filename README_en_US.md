@@ -18,6 +18,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
+[![Python 3.14 (dev)](https://img.shields.io/badge/python-3.14%20(dev)-orange)](.github/workflows/ci.yml)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
@@ -37,6 +38,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 - [📝 Logging](#logging)
 - [📦 Dependencies](#dependencies)
 - [🧪 Testing](#testing)
+- [CI Strategy: Local Gating with Remote Verification](#ci-strategy-local-gating-with-remote-verification)
 - [🔒 CI/CD: Extreme Strict Mode](#cicd-extreme-strict-mode)
 - [🧷 Pre-commit: Local Quality Gates](#pre-commit-local-quality-gates)
 - [🤖 Switching to a different LLM](#switching-to-a-different)
@@ -131,7 +133,7 @@ Note: During execution, additional result folders and files are created, includi
 - `output/index.html` (generated website)
 - `logs/` (runtime logs)
 
-The `tests/` folder contains a test suite of 139 tests (100% coverage) which is run with `pytest`.
+The `tests/` folder contains a test suite of 143 tests (100% coverage) which is run with `pytest`.
 
 ## ⚙️ Prerequisites
 
@@ -313,6 +315,20 @@ pip install --require-hashes -r requirements.lock
   pre-commit install
   pre-commit run --all-files
   ```
+
+### CI Strategy: Local Gating with Remote Verification
+
+Our quality strategy is built on the principle of catching errors as early as possible. We use a comprehensive `pre-commit` suite that runs a full local CI/CD pipeline before code can be pushed. GitHub Actions then serves to verify these checks in a clean environment and to run tests that are impractical locally.
+
+1.  Fast Checks (on Pull Request & Push): For every code change, a job runs that exactly mirrors our local `pre-commit` configuration. This verifies linting, typing, security, and tests in a neutral environment, providing feedback within a few minutes.
+
+2.  Nightly & Weekly Canary Builds:
+    - Daily: The full test suite is executed against Linux and Windows across all Python versions from 3.11 to 3.14 (dev).
+    - Weekly: The same full matrix runs against macOS to ensure cross-platform compatibility while conserving costly CI resources.
+
+    - Purpose: These scheduled jobs are designed to proactively detect issues that emerge over time, such as dependency regressions and future incompatibilities.
+
+    - Expected Failures: As this job tests against bleeding-edge environments (especially Python 3.14), it is expected to fail occasionally. A failure here does not block development but serves as an early warning and a maintenance task to investigate and resolve.
 
 ## 🔒 CI/CD: Extreme Strict Mode
 

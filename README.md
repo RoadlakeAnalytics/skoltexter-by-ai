@@ -10,6 +10,7 @@
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
+[![Python 3.14 (dev)](https://img.shields.io/badge/python-3.14%20(dev)-orange)](.github/workflows/ci.yml)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
@@ -35,6 +36,7 @@ Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI
 - [📝 Loggning](#loggning)
 - [📦 Beroenden](#beroenden)
 - [🧪 Testning](#testning)
+- [CI-strategi: Lokal validering med fjärrverifiering](#ci-strategi-lokal-validering-med-fjärrverifiering)
 - [🔒 CI/CD: Extremt strikt läge](#cicd-extremt-strikt-läge)
 - [🧷 Pre-commit: lokala kvalitetsgrindar](#pre-commit-lokala-kvalitetsgrindar)
 - [🤖 Byta till en annan LLM](#byta-till-en-annan-llm)
@@ -120,7 +122,7 @@ Observera: Under körning skapas resultatmappar och filer, bland annat:
 - `output/index.html` (genererad webbplats)
 - `logs/` (körloggar)
 
-Mappen `tests/` innehåller en testsvit om 139 tester (100% täckning) som körs med `pytest`.
+Mappen `tests/` innehåller en testsvit om 143 tester (100% täckning) som körs med `pytest`.
 
 ## ⚙️ Förutsättningar
 
@@ -304,6 +306,20 @@ pip install --require-hashes -r requirements.lock
   pre-commit install
   pre-commit run --all-files
   ```
+
+### CI-strategi: Lokal validering med fjärrverifiering
+
+Vår kvalitetsstrategi bygger på principen att fånga fel så tidigt som möjligt. Därför använder vi en omfattande `pre-commit`-svit som kör en fullständig lokal CI/CD-pipeline innan kod kan pushas. GitHub Actions används sedan för att verifiera detta i en ren miljö och för att köra tester som är opraktiska lokalt.
+
+1.  Snabba kontroller (vid Pull Request & Push): För varje kodändring körs ett jobb som exakt speglar vår lokala `pre-commit`-konfiguration. Detta verifierar linting, typning, säkerhet och tester i en neutral miljö och ger feedback inom några minuter.
+
+2.  Nattlig & Veckovis "Canary"-körning:
+    - Dagligen: Den fullständiga testsviten körs mot Linux och Windows på alla Python-versioner från 3.11 till 3.14 (dev).
+    - Veckovis: Samma fullständiga matris körs mot macOS för att säkerställa plattformsoberoende kompatibilitet och samtidigt spara på kostsamma CI-resurser.
+
+    - Syfte: Dessa schemalagda jobb är designade för att proaktivt upptäcka problem som uppstår över tid, såsom regressioner i beroenden och framtida inkompatibiliteter.
+
+    - Förväntade fel: Eftersom vi testar mot "bleeding edge"-miljöer (särskilt Python 3.14), förväntas det jobbet ibland misslyckas. Ett misslyckande här blockerar inte utvecklingen, utan fungerar som en tidig varning och en underhållsuppgift att åtgärda.
 
 ## 🔒 CI/CD: Extremt strikt läge
 
