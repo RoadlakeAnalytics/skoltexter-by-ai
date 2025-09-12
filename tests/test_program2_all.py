@@ -254,6 +254,12 @@ async def test_empty_choices_and_content(monkeypatch, tmp_path):
         session2, {"x": 1}, "S1", FakeLimiter()
     )
     assert ok2 is False and content2 is None
+    # The raw response for this failure should be the parsed JSON that contains
+    # an explicit empty content string in the first choice message. Validate
+    # that shape here to avoid unused-variable lint warnings and to be explicit
+    # about the expected API contract.
+    assert isinstance(err2, dict)
+    assert err2.get("choices", [{}])[0].get("message", {}).get("content", "") == ""
 
 
 @pytest.mark.asyncio
