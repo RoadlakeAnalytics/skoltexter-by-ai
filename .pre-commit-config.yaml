@@ -57,15 +57,10 @@ repos:
         pass_filenames: false
         stages: [pre-commit, pre-push]
       - id: sbom-generate
-        name: SBOM (CycloneDX from requirements.lock)
-        entry: python -m cyclonedx_py requirements -i requirements.lock -o sbom.json --output-format json
-        language: python
-        additional_dependencies:
-          - cyclonedx-bom
+        name: SBOM (CycloneDX from requirements.lock) (check only)
+        entry: python tools/ci/check_sbom.py
+        language: system
         pass_filenames: false
-        # Generate SBOM only on pre-push to avoid pre-commit auto-fixes
-        # modifying tracked files during local pre-commit runs. CI and
-        # pre-push will still regenerate the artifact.
         stages: [pre-push]
       - id: pip-check
         name: pip check (installed deps)
