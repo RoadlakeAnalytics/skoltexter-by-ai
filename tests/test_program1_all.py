@@ -171,6 +171,21 @@ def test_get_value_from_row_and_survey_helpers():
     assert determine_survey_year_for_report(row3, placeholders) == "2023/2024"
 
 
+def test_determine_survey_year_for_report_all_missing():
+    """When all survey values are missing, return the placeholder marker.
+
+    This exercises the false branch of the inner condition to achieve full
+    branch coverage in ``determine_survey_year_for_report``.
+    """
+    placeholders = ["SurveyAnswerCategory_Science", "SchoolCode"]
+    row = {
+        "SurveyAnswerCategory_Science_2023/2024": "",
+        "SurveyAnswerCategory_Science_2022/2023": "",
+    }
+    out = determine_survey_year_for_report(row, placeholders)
+    assert out == p1.MISSING_DATA_PLACEHOLDER
+
+
 def write_file(path: Path, text: str) -> None:
     """Write helper that ensures parent directory exists.
 

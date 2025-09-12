@@ -41,6 +41,7 @@ from src.config import (
     LOG_DIR,
     PROJECT_ROOT,
     REQUIREMENTS_FILE,
+    REQUIREMENTS_LOCK_FILE,
     SRC_DIR,
     VENV_DIR,
 )
@@ -375,6 +376,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu_option_4": "4. View Logs",
         "menu_option_5": "5. Reset Project",
         "menu_option_6": "6. Exit",
+        "menu_option_q": "Run Full Local Quality Suite",
+        "menu_option_qq": "Run EXTREME Quality Suite (100x pytest + mutmut)",
         "enter_choice": "Enter your choice: ",
         "program_descriptions_title": "\n--- Program Descriptions ---",
         "program_1_desc_short": "Program 1 (Generate Markdowns from CSV)",
@@ -429,6 +432,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "azure_env_intro": "The following Azure OpenAI values are required for local storage so the program can call Azure OpenAI.",
         "azure_env_storage": "They will be stored in the .env file. These values are only needed for local storage and are not shared.",
         "azure_env_prompt": "Enter value for {key}: ",
+        "quality_suite_ok": "All local quality checks passed.",
+        "quality_suite_fail": "One or more local quality checks failed.",
     },
     "sv": {
         "welcome": "Välkommen till installationsprogrammet för skoldata!",
@@ -457,6 +462,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu_option_4": "4. Visa loggar",
         "menu_option_5": "5. Återställ projekt",
         "menu_option_6": "6. Avsluta",
+        "menu_option_q": "Kör full lokal kvalitetssvit",
+        "menu_option_qq": "Kör EXTREM kvalitetssvit (100x pytest + mutmut)",
         "enter_choice": "Ange ditt val: ",
         "program_descriptions_title": "\n--- Programbeskrivningar ---",
         "program_1_desc_short": "Program 1 (Generera markdown från CSV)",
@@ -511,6 +518,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "azure_env_intro": "Följande Azure OpenAI-värden krävs för lokal lagring så att programmet kan använda Azure OpenAI.",
         "azure_env_storage": "De sparas i .env-filen. Dessa värden behövs endast för lokal lagring och delas inte.",
         "azure_env_prompt": "Ange värde för {key}: ",
+        "quality_suite_ok": "Alla lokala kvalitetskontroller passerade.",
+        "quality_suite_fail": "En eller flera lokala kvalitetskontroller misslyckades.",
     },
 }
 LANG = DEFAULT_LANG
@@ -678,7 +687,28 @@ def manage_virtual_environment() -> None:
     if not is_venv_active() and not VENV_DIR.exists():
         ui_info(_("creating_venv"))
         try:
-            venv.create(VENV_DIR, with_pip=True)
+            # Prefer creating venv with Python 3.13 when available to use the
+            # latest stable runtime by default. During tests, fall back to
+            # stdlib venv.create to keep tests deterministic.
+            created = False
+            if not os.environ.get("PYTEST_CURRENT_TEST"):
+                try:
+                    if sys.platform == "win32":
+                        if shutil.which("py") is not None:
+                            subprocess.check_call(
+                                ["py", "-3.13", "-m", "venv", str(VENV_DIR)]
+                            )
+                            created = True
+                    else:
+                        py313 = shutil.which("python3.13")
+                        if py313:
+                            subprocess.check_call([py313, "-m", "venv", str(VENV_DIR)])
+                            created = True
+                except Exception:
+                    created = False
+            if not created:
+                venv.create(VENV_DIR, with_pip=True)
+
             pip_executable = get_venv_pip_executable(VENV_DIR)
             python_executable = get_venv_python_executable(VENV_DIR)
         except Exception as error:
@@ -704,13 +734,53 @@ def manage_virtual_environment() -> None:
         pip_python = sys.executable
 
     try:
-        with ui_status(_("installing_deps")):
-            # Use python -m pip instead of direct pip to avoid Windows issues
+        # Use a static message instead of a live spinner to avoid
+        # visual artifacts when pip renders its own progress output.
+        ui_info(_("installing_deps"))
+        # Use python -m pip instead of direct pip to avoid Windows issues and
+        # disable progress bar/version check to keep the output clean.
+        subprocess.check_call(
+            [
+                pip_python,
+                "-m",
+                "pip",
+                "install",
+                "--upgrade",
+                "pip",
+                "--disable-pip-version-check",
+            ]
+        )
+        # Prefer reproducible, hash-locked installation when requirements.lock exists.
+        if REQUIREMENTS_LOCK_FILE.exists():
             subprocess.check_call(
-                [pip_python, "-m", "pip", "install", "--upgrade", "pip"]
+                [
+                    pip_python,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--require-hashes",
+                    "-r",
+                    str(REQUIREMENTS_LOCK_FILE),
+                    "--progress-bar",
+                    "off",
+                    "--no-input",
+                    "--disable-pip-version-check",
+                ]
             )
+        else:
             subprocess.check_call(
-                [pip_python, "-m", "pip", "install", "-r", str(REQUIREMENTS_FILE)]
+                [
+                    pip_python,
+                    "-m",
+                    "pip",
+                    "install",
+                    "-r",
+                    str(REQUIREMENTS_FILE),
+                    "--progress-bar",
+                    "off",
+                    "--no-input",
+                    "--disable-pip-version-check",
+                ]
             )
         rprint(
             f"[green]✓[/green] {_('deps_installed')}"
@@ -1169,6 +1239,14 @@ def main_menu() -> None:
                     ),
                 ),
                 (
+                    "Q",
+                    translate("menu_option_q"),
+                ),
+                (
+                    "QQ",
+                    translate("menu_option_qq"),
+                ),
+                (
                     "6",
                     (
                         translate("menu_option_6").split(" ", 1)[1]
@@ -1189,11 +1267,74 @@ def main_menu() -> None:
             view_logs()
         elif choice == "5":
             reset_project()
+        elif choice.lower() == "q":
+            run_full_quality_suite()
+        elif choice.lower() == "qq":
+            run_extreme_quality_suite()
         elif choice == "6":
             rprint(translate("exiting"))
             break
         else:
             rprint(translate("invalid_choice"))
+
+
+def run_full_quality_suite() -> None:
+    """Run the full local quality suite (mirrors CI gates).
+
+    Runs a helper script that executes pre-commit checks, pytest with strict
+    settings (warnings as errors, randomized order), docstring coverage gate,
+    mutation testing, and Semgrep via the pre-commit push-stage hook.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> # Example invocation (non-interactive):  # doctest: +SKIP
+    >>> run_full_quality_suite()  # doctest: +SKIP
+    """
+    python_executable = get_python_executable()
+    helper = PROJECT_ROOT / "tools" / "run_all_checks.py"
+    try:
+        res = subprocess.run([python_executable, str(helper)], cwd=PROJECT_ROOT)
+        if res.returncode == 0:
+            ui_success(translate("quality_suite_ok"))
+        else:
+            ui_error(translate("quality_suite_fail"))
+    except Exception as err:
+        logger.error(f"Error running quality suite: {err}")
+
+
+def run_extreme_quality_suite() -> None:
+    """Run the EXTREME local quality suite (100 randomized pytest passes + mutation).
+
+    This variant mirrors :func:`run_full_quality_suite` but uses an intensive mode
+    that runs the tests with 100 different random seeds to stress order
+    independence, then executes mutation testing, plus the same static analysis
+    gates as the regular suite.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> # Example invocation (non-interactive):  # doctest: +SKIP
+    >>> run_extreme_quality_suite()  # doctest: +SKIP
+    """
+    python_executable = get_python_executable()
+    helper = PROJECT_ROOT / "tools" / "run_all_checks.py"
+    try:
+        res = subprocess.run(
+            [python_executable, str(helper), "--extreme"], cwd=PROJECT_ROOT
+        )
+        if res.returncode == 0:
+            ui_success(translate("quality_suite_ok"))
+        else:
+            ui_error(translate("quality_suite_fail"))
+    except Exception as err:
+        logger.error(f"Error running quality suite: {err}")
 
 
 def parse_cli_args() -> argparse.Namespace:

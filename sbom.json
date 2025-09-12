@@ -1,0 +1,615 @@
+{
+  "components": [
+    {
+      "bom-ref": "requirements-L10",
+      "description": "requirements line 10: Jinja2",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/Jinja2/"
+        }
+      ],
+      "name": "Jinja2",
+      "purl": "pkg:pypi/jinja2",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L6",
+      "description": "requirements line 6: aiohttp>=3.9",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/aiohttp/"
+        }
+      ],
+      "name": "aiohttp",
+      "purl": "pkg:pypi/aiohttp",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L7",
+      "description": "requirements line 7: aiolimiter",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/aiolimiter/"
+        }
+      ],
+      "name": "aiolimiter",
+      "purl": "pkg:pypi/aiolimiter",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L24",
+      "description": "requirements line 24: bandit",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/bandit/"
+        }
+      ],
+      "name": "bandit",
+      "purl": "pkg:pypi/bandit",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L21",
+      "description": "requirements line 21: black",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/black/"
+        }
+      ],
+      "name": "black",
+      "purl": "pkg:pypi/black",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L16",
+      "description": "requirements line 16: charset-normalizer>=3",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/charset-normalizer/"
+        }
+      ],
+      "name": "charset-normalizer",
+      "purl": "pkg:pypi/charset-normalizer",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L43",
+      "description": "requirements line 43: interrogate",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/interrogate/"
+        }
+      ],
+      "name": "interrogate",
+      "purl": "pkg:pypi/interrogate",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L14",
+      "description": "requirements line 14: jsonschema[format-nongpl]>=4.18",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/jsonschema/"
+        }
+      ],
+      "name": "jsonschema",
+      "properties": [
+        {
+          "name": "cdx:python:package:required-extra",
+          "value": "format-nongpl"
+        }
+      ],
+      "purl": "pkg:pypi/jsonschema",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L11",
+      "description": "requirements line 11: markdown2",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/markdown2/"
+        }
+      ],
+      "name": "markdown2",
+      "purl": "pkg:pypi/markdown2",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L42",
+      "description": "requirements line 42: mutmut",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/mutmut/"
+        }
+      ],
+      "name": "mutmut",
+      "purl": "pkg:pypi/mutmut",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L23",
+      "description": "requirements line 23: mypy",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/mypy/"
+        }
+      ],
+      "name": "mypy",
+      "purl": "pkg:pypi/mypy",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L5",
+      "description": "requirements line 5: openpyxl",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/openpyxl/"
+        }
+      ],
+      "name": "openpyxl",
+      "purl": "pkg:pypi/openpyxl",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L4",
+      "description": "requirements line 4: pandas",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pandas/"
+        }
+      ],
+      "name": "pandas",
+      "purl": "pkg:pypi/pandas",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L25",
+      "description": "requirements line 25: pip-audit",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pip-audit/"
+        }
+      ],
+      "name": "pip-audit",
+      "purl": "pkg:pypi/pip-audit",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L26",
+      "description": "requirements line 26: pip-licenses",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pip-licenses/"
+        }
+      ],
+      "name": "pip-licenses",
+      "purl": "pkg:pypi/pip-licenses",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L48",
+      "description": "requirements line 48: pip-tools",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pip-tools/"
+        }
+      ],
+      "name": "pip-tools",
+      "purl": "pkg:pypi/pip-tools",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L27",
+      "description": "requirements line 27: pre-commit",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pre-commit/"
+        }
+      ],
+      "name": "pre-commit",
+      "purl": "pkg:pypi/pre-commit",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L32",
+      "description": "requirements line 32: pytest",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pytest/"
+        }
+      ],
+      "name": "pytest",
+      "purl": "pkg:pypi/pytest",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L36",
+      "description": "requirements line 36: pytest-asyncio",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pytest-asyncio/"
+        }
+      ],
+      "name": "pytest-asyncio",
+      "purl": "pkg:pypi/pytest-asyncio",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L33",
+      "description": "requirements line 33: pytest-cov",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pytest-cov/"
+        }
+      ],
+      "name": "pytest-cov",
+      "purl": "pkg:pypi/pytest-cov",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L35",
+      "description": "requirements line 35: pytest-mock",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pytest-mock/"
+        }
+      ],
+      "name": "pytest-mock",
+      "purl": "pkg:pypi/pytest-mock",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L37",
+      "description": "requirements line 37: pytest-randomly",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/pytest-randomly/"
+        }
+      ],
+      "name": "pytest-randomly",
+      "purl": "pkg:pypi/pytest-randomly",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L8",
+      "description": "requirements line 8: python-dotenv",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/python-dotenv/"
+        }
+      ],
+      "name": "python-dotenv",
+      "purl": "pkg:pypi/python-dotenv",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L13",
+      "description": "requirements line 13: questionary",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/questionary/"
+        }
+      ],
+      "name": "questionary",
+      "purl": "pkg:pypi/questionary",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L15",
+      "description": "requirements line 15: requests>=2.32",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/requests/"
+        }
+      ],
+      "name": "requests",
+      "purl": "pkg:pypi/requests",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L12",
+      "description": "requirements line 12: rich",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/rich/"
+        }
+      ],
+      "name": "rich",
+      "purl": "pkg:pypi/rich",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L22",
+      "description": "requirements line 22: ruff",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/ruff/"
+        }
+      ],
+      "name": "ruff",
+      "purl": "pkg:pypi/ruff",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L9",
+      "description": "requirements line 9: tqdm",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/tqdm/"
+        }
+      ],
+      "name": "tqdm",
+      "purl": "pkg:pypi/tqdm",
+      "type": "library"
+    },
+    {
+      "bom-ref": "requirements-L34",
+      "description": "requirements line 34: xdoctest",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "requirements.lock/xdoctest/"
+        }
+      ],
+      "name": "xdoctest",
+      "purl": "pkg:pypi/xdoctest",
+      "type": "library"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "requirements-L10"
+    },
+    {
+      "ref": "requirements-L11"
+    },
+    {
+      "ref": "requirements-L12"
+    },
+    {
+      "ref": "requirements-L13"
+    },
+    {
+      "ref": "requirements-L14"
+    },
+    {
+      "ref": "requirements-L15"
+    },
+    {
+      "ref": "requirements-L16"
+    },
+    {
+      "ref": "requirements-L21"
+    },
+    {
+      "ref": "requirements-L22"
+    },
+    {
+      "ref": "requirements-L23"
+    },
+    {
+      "ref": "requirements-L24"
+    },
+    {
+      "ref": "requirements-L25"
+    },
+    {
+      "ref": "requirements-L26"
+    },
+    {
+      "ref": "requirements-L27"
+    },
+    {
+      "ref": "requirements-L32"
+    },
+    {
+      "ref": "requirements-L33"
+    },
+    {
+      "ref": "requirements-L34"
+    },
+    {
+      "ref": "requirements-L35"
+    },
+    {
+      "ref": "requirements-L36"
+    },
+    {
+      "ref": "requirements-L37"
+    },
+    {
+      "ref": "requirements-L4"
+    },
+    {
+      "ref": "requirements-L42"
+    },
+    {
+      "ref": "requirements-L43"
+    },
+    {
+      "ref": "requirements-L48"
+    },
+    {
+      "ref": "requirements-L5"
+    },
+    {
+      "ref": "requirements-L6"
+    },
+    {
+      "ref": "requirements-L7"
+    },
+    {
+      "ref": "requirements-L8"
+    },
+    {
+      "ref": "requirements-L9"
+    }
+  ],
+  "metadata": {
+    "timestamp": "2025-09-12T22:00:24.818407+00:00",
+    "tools": {
+      "components": [
+        {
+          "description": "CycloneDX Software Bill of Materials (SBOM) generator for Python projects and environments",
+          "externalReferences": [
+            {
+              "type": "build-system",
+              "url": "https://github.com/CycloneDX/cyclonedx-python/actions"
+            },
+            {
+              "type": "distribution",
+              "url": "https://pypi.org/project/cyclonedx-bom/"
+            },
+            {
+              "type": "documentation",
+              "url": "https://cyclonedx-bom-tool.readthedocs.io/"
+            },
+            {
+              "type": "issue-tracker",
+              "url": "https://github.com/CycloneDX/cyclonedx-python/issues"
+            },
+            {
+              "type": "license",
+              "url": "https://github.com/CycloneDX/cyclonedx-python/blob/main/LICENSE"
+            },
+            {
+              "type": "release-notes",
+              "url": "https://github.com/CycloneDX/cyclonedx-python/blob/main/CHANGELOG.md"
+            },
+            {
+              "type": "vcs",
+              "url": "https://github.com/CycloneDX/cyclonedx-python/"
+            },
+            {
+              "type": "website",
+              "url": "https://github.com/CycloneDX/cyclonedx-python/#readme"
+            }
+          ],
+          "group": "CycloneDX",
+          "licenses": [
+            {
+              "license": {
+                "acknowledgement": "declared",
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "name": "cyclonedx-py",
+          "type": "application",
+          "version": "7.1.0"
+        },
+        {
+          "description": "Python library for CycloneDX",
+          "externalReferences": [
+            {
+              "type": "build-system",
+              "url": "https://github.com/CycloneDX/cyclonedx-python-lib/actions"
+            },
+            {
+              "type": "distribution",
+              "url": "https://pypi.org/project/cyclonedx-python-lib/"
+            },
+            {
+              "type": "documentation",
+              "url": "https://cyclonedx-python-library.readthedocs.io/"
+            },
+            {
+              "type": "issue-tracker",
+              "url": "https://github.com/CycloneDX/cyclonedx-python-lib/issues"
+            },
+            {
+              "type": "license",
+              "url": "https://github.com/CycloneDX/cyclonedx-python-lib/blob/main/LICENSE"
+            },
+            {
+              "type": "release-notes",
+              "url": "https://github.com/CycloneDX/cyclonedx-python-lib/blob/main/CHANGELOG.md"
+            },
+            {
+              "type": "vcs",
+              "url": "https://github.com/CycloneDX/cyclonedx-python-lib"
+            },
+            {
+              "type": "website",
+              "url": "https://github.com/CycloneDX/cyclonedx-python-lib/#readme"
+            }
+          ],
+          "group": "CycloneDX",
+          "licenses": [
+            {
+              "license": {
+                "acknowledgement": "declared",
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "name": "cyclonedx-python-lib",
+          "type": "library",
+          "version": "11.1.0"
+        }
+      ]
+    }
+  },
+  "serialNumber": "urn:uuid:d6b4f870-bab6-44b3-af5b-47a6749195fe",
+  "version": 1,
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6"
+}

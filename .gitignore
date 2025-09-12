@@ -90,6 +90,8 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+.ruff_cache/
+mutants/
 
 # Jupyter Notebook
 .ipynb_checkpoints

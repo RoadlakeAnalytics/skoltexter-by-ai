@@ -791,6 +791,308 @@ def test_main_menu_choices(monkeypatch):
     assert calls == {"env": 1, "desc": 1, "pipe": 1, "logs": 1, "reset": 1}
 
 
+def test_main_menu_quality_suite_success(monkeypatch):
+    """Select the full quality suite option and then exit (success path)."""
+    import setup_project as sp_local
+
+    class R:
+        def __init__(self, code: int):
+            self.returncode = code
+
+    seq = iter(["q", "6"])  # run quality suite, then exit
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt: next(seq))
+    monkeypatch.setattr(sp_local, "get_python_executable", lambda: sys.executable)
+    monkeypatch.setattr(sp_local.subprocess, "run", lambda *a, **k: R(0))
+    sp_local.main_menu()
+
+
+def test_main_menu_quality_suite_failure(monkeypatch):
+    """Select the full quality suite option and then exit (failure path)."""
+    import setup_project as sp_local
+
+    class R:
+        def __init__(self, code: int):
+            self.returncode = code
+
+    seq = iter(["q", "6"])  # run quality suite, then exit
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt: next(seq))
+    monkeypatch.setattr(sp_local, "get_python_executable", lambda: sys.executable)
+    monkeypatch.setattr(sp_local.subprocess, "run", lambda *a, **k: R(1))
+    sp_local.main_menu()
+
+
+def test_main_menu_quality_suite_exception(monkeypatch):
+    """Force an exception during quality suite run to cover except path."""
+    import setup_project as sp_local
+
+    seq = iter(["q", "6"])  # run quality suite, then exit
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt: next(seq))
+    monkeypatch.setattr(sp_local, "get_python_executable", lambda: sys.executable)
+
+    def boom(*a, **k):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(sp_local.subprocess, "run", boom)
+    sp_local.main_menu()
+
+
+def test_main_menu_extreme_quality_suite_success(monkeypatch):
+    """Select the extreme quality suite (QQ) option and then exit (success path)."""
+    import setup_project as sp_local
+
+    class R:
+        def __init__(self, code: int):
+            self.returncode = code
+
+    seq = iter(["qq", "6"])  # run extreme quality suite, then exit
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt: next(seq))
+    monkeypatch.setattr(sp_local, "get_python_executable", lambda: sys.executable)
+    monkeypatch.setattr(sp_local.subprocess, "run", lambda *a, **k: R(0))
+    sp_local.main_menu()
+
+
+def test_main_menu_extreme_quality_suite_failure(monkeypatch):
+    """Select the extreme quality suite (QQ) option and then exit (failure path)."""
+    import setup_project as sp_local
+
+    class R:
+        def __init__(self, code: int):
+            self.returncode = code
+
+    seq = iter(["qq", "6"])  # run extreme quality suite, then exit
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt: next(seq))
+    monkeypatch.setattr(sp_local, "get_python_executable", lambda: sys.executable)
+    monkeypatch.setattr(sp_local.subprocess, "run", lambda *a, **k: R(1))
+    sp_local.main_menu()
+
+
+def test_main_menu_extreme_quality_suite_exception(monkeypatch):
+    """Force an exception during extreme quality suite run to cover except path."""
+    import setup_project as sp_local
+
+    seq = iter(["qq", "6"])  # run extreme quality suite, then exit
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt: next(seq))
+    monkeypatch.setattr(sp_local, "get_python_executable", lambda: sys.executable)
+
+    def boom(*a, **k):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(sp_local.subprocess, "run", boom)
+    sp_local.main_menu()
+
+
+def test_manage_virtual_environment_install_fallback_when_no_lock(
+    monkeypatch, tmp_path: Path
+):
+    """When requirements.lock is missing, fallback to requirements.txt install path is used."""
+    import setup_project as sp_local
+
+    # Prepare venv dir and paths
+    monkeypatch.setattr(sp_local, "VENV_DIR", tmp_path / "venv_fb")
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+    # Ensure lock file path is non-existent
+    monkeypatch.setattr(sp_local, "REQUIREMENTS_LOCK_FILE", tmp_path / "no.lock")
+
+    # Create fake python/pip inside venv when created
+    def create_with_python(path, with_pip=True):
+        bindir = sp_local.get_venv_bin_dir(sp_local.VENV_DIR)
+        bindir.mkdir(parents=True, exist_ok=True)
+        (bindir / ("python.exe" if sys.platform == "win32" else "python")).write_text(
+            "", encoding="utf-8"
+        )
+        (bindir / ("pip.exe" if sys.platform == "win32" else "pip")).write_text(
+            "", encoding="utf-8"
+        )
+
+    monkeypatch.setattr(sp_local.venv, "create", create_with_python)
+
+    calls = []
+
+    def record(args):
+        calls.append(tuple(map(str, args)))
+
+    monkeypatch.setattr(sp_local.subprocess, "check_call", record)
+    sp_local.manage_virtual_environment()
+    # The second call should be the install command using requirements.txt fallback
+    assert any("-r" in c and str(sp_local.REQUIREMENTS_FILE) in c for c in calls)
+
+
+def test_manage_virtual_environment_prefer_python313(monkeypatch, tmp_path: Path):
+    """Prefer python3.13 for venv creation when available (non-pytest path).
+
+    Simulate presence of a python3.13 interpreter and ensure the creation
+    path uses it instead of stdlib venv.create.
+    """
+    import setup_project as sp_local
+
+    vdir = tmp_path / "v313"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+
+    # Simulate non-test environment so the code chooses the python3.13 branch
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+
+    # Provide a fake python3.13 path
+    monkeypatch.setattr(
+        sp_local.shutil,
+        "which",
+        lambda name: "/usr/bin/python3.13" if name == "python3.13" else None,
+    )
+
+    created = {"ok": False}
+
+    def fake_check_call(args):
+        # On venv creation, create minimal venv structure for later steps
+        if "-m" in args and "venv" in args:
+            bindir = sp_local.get_venv_bin_dir(vdir)
+            bindir.mkdir(parents=True, exist_ok=True)
+            (
+                bindir / ("python.exe" if sys.platform == "win32" else "python")
+            ).write_text("", encoding="utf-8")
+            (bindir / ("pip.exe" if sys.platform == "win32" else "pip")).write_text(
+                "", encoding="utf-8"
+            )
+            created["ok"] = True
+        # No exception to simulate success for pip commands
+
+    monkeypatch.setattr(sp_local.subprocess, "check_call", fake_check_call)
+    # venv.create should not be called when python3.13 is available
+    monkeypatch.setattr(
+        sp_local.venv,
+        "create",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("should not call")),
+    )
+    sp_local.manage_virtual_environment()
+    assert created["ok"] is True
+
+
+def test_manage_virtual_environment_win_py_success(monkeypatch, tmp_path: Path):
+    """On Windows, prefer 'py -3.13 -m venv' when available (success path)."""
+    import setup_project as sp_local
+
+    vdir = tmp_path / "w313"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(sp_local.sys, "platform", "win32")
+    monkeypatch.setattr(
+        sp_local.shutil,
+        "which",
+        lambda name: "C:/Windows/py.exe" if name == "py" else None,
+    )
+
+    called = {"venv": False}
+
+    def fake_check_call(args):
+        if args and args[0] == "py":
+            bindir = sp_local.get_venv_bin_dir(vdir)
+            bindir.mkdir(parents=True, exist_ok=True)
+            (bindir / "python.exe").write_text("", encoding="utf-8")
+            (bindir / "pip.exe").write_text("", encoding="utf-8")
+            called["venv"] = True
+
+    monkeypatch.setattr(sp_local.subprocess, "check_call", fake_check_call)
+    monkeypatch.setattr(
+        sp_local.venv,
+        "create",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("should not call")),
+    )
+    sp_local.manage_virtual_environment()
+    assert called["venv"] is True
+
+
+def test_manage_virtual_environment_win_py_fail_fallback(monkeypatch, tmp_path: Path):
+    """Windows py launcher path raises, ensure fallback to venv.create occurs."""
+    import setup_project as sp_local
+
+    vdir = tmp_path / "wfb"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(sp_local.sys, "platform", "win32")
+    monkeypatch.setattr(
+        sp_local.shutil,
+        "which",
+        lambda name: "C:/Windows/py.exe" if name == "py" else None,
+    )
+
+    def boom(args):
+        # Only fail the venv creation via 'py -3.13'; let subsequent pip calls succeed
+        if args and args[0] == "py":
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(sp_local.subprocess, "check_call", boom)
+
+    def create_with_python(path, with_pip=True):
+        bindir = sp_local.get_venv_bin_dir(vdir)
+        bindir.mkdir(parents=True, exist_ok=True)
+        (bindir / "python.exe").write_text("", encoding="utf-8")
+        (bindir / "pip.exe").write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(sp_local.venv, "create", create_with_python)
+    sp_local.manage_virtual_environment()
+
+
+def test_manage_virtual_environment_win_no_py_fallback(monkeypatch, tmp_path: Path):
+    """On Windows, when 'py' is not found, fallback to venv.create."""
+    import setup_project as sp_local
+
+    vdir = tmp_path / "wfb2"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(sp_local.sys, "platform", "win32")
+    monkeypatch.setattr(sp_local.shutil, "which", lambda name: None)
+
+    created = {"ok": False}
+
+    def create_with_python(path, with_pip=True):
+        bindir = sp_local.get_venv_bin_dir(vdir)
+        bindir.mkdir(parents=True, exist_ok=True)
+        (bindir / "python.exe").write_text("", encoding="utf-8")
+        (bindir / "pip.exe").write_text("", encoding="utf-8")
+        created["ok"] = True
+
+    monkeypatch.setattr(sp_local.venv, "create", create_with_python)
+    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
+    sp_local.manage_virtual_environment()
+    assert created["ok"] is True
+
+
+def test_manage_virtual_environment_no_py313_non_test_fallback(
+    monkeypatch, tmp_path: Path
+):
+    """On non-Windows without python3.13 in PATH and not in test-mode, fallback to venv.create."""
+    import setup_project as sp_local
+
+    vdir = tmp_path / "fb313"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(sp_local.sys, "platform", "linux")
+    monkeypatch.setattr(sp_local.shutil, "which", lambda name: None)
+
+    created = {"ok": False}
+
+    def create_with_python(path, with_pip=True):
+        bindir = sp_local.get_venv_bin_dir(vdir)
+        bindir.mkdir(parents=True, exist_ok=True)
+        (bindir / "python").write_text("", encoding="utf-8")
+        (bindir / "pip").write_text("", encoding="utf-8")
+        created["ok"] = True
+
+    monkeypatch.setattr(sp_local.venv, "create", create_with_python)
+    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
+    sp_local.manage_virtual_environment()
+    assert created["ok"] is True
+
+
 def test_main_menu_invalid_then_exit(monkeypatch):
     seq = iter(["x", "6"])  # invalid then exit
     monkeypatch.setattr(sp, "ask_text", lambda prompt: next(seq))
