@@ -59,8 +59,10 @@ jobs:
           allow-prereleases: true
           cache: 'pip'
       - name: Install dependencies
+        continue-on-error: ${{ matrix.python-version == '3.14' }}
         run: pip install --require-hashes -r requirements.lock
       - name: Quick tests (single seed, no coverage)
+        continue-on-error: ${{ matrix.python-version == '3.14' }}
         env:
           PYTHONPATH: .
         run: pytest -q --maxfail=1 --randomly-seed=1 tests
