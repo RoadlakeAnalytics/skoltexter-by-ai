@@ -367,16 +367,9 @@ This pipeline is locked down and reproducible. Key CI gates (and how to run them
   - Locally: `interrogate -v --fail-under 100 src/`.
 
 - SBOM (CycloneDX):
-  - Generated in CI from the environment and uploaded as an artifact.
-  - Also generated locally in pre-commit/pre-push from `requirements.lock` as `sbom.json`.
-  - Note: SBOM generation can modify the tracked `sbom.json` file. To avoid
-    noisy changes during local pre-commit runs, generation is performed in a
-    non-modifying "check" mode locally and enforced in CI. The local pre-push
-    hook runs a comparison between a generated temporary SBOM and the checked-in
-    `sbom.json` and only prints instructions for updating when they differ.
-    CI will regenerate the SBOM and fail the build if the tracked file is out of
-    date. This prevents pre-commit/pre-push hooks from rewriting tracked files
-    during developer workflows while ensuring CI enforces correctness.
+  - Generated in CI (from the environment) and uploaded as an artifact. We do not version-control the SBOM file to avoid noise and merge conflicts.
+  - Locally: the pre-commit hook performs a non-modifying generation check from `requirements.lock` to a temporary file. No repository diffing is performed.
+  - In the `validate-local-checks` job, the SBOM hook is skipped to avoid flaky comparisons; the actual SBOM is published in the `security` job.
 
 Note: We avoid GPL/LGPL in the project's own dependencies. Semgrep is executed via a dedicated pre-commit environment/CI action and does not affect runtime dependencies.
 

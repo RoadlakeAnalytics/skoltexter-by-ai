@@ -1,12 +1,17 @@
-"""Check that the generated SBOM matches the tracked `sbom.json`.
+"""SBOM generation and optional comparison.
 
-This script generates a temporary SBOM from `requirements.lock` and
-compares it to the checked-in `sbom.json`. It exits non-zero in CI to
-enforce that the SBOM is kept up-to-date. Locally it prints an
-informative message and returns success to avoid pre-commit rewriting
-the tracked file during developer runs.
+This tool generates a temporary Software Bill of Materials (CycloneDX JSON)
+from ``requirements.lock`` using ``cyclonedx_py``. When a tracked
+``sbom.json`` is present in the repository, the script compares the generated
+SBOM with the tracked file and signals a mismatch in CI. When no tracked
+SBOM exists (current policy), the script treats successful generation as a
+pass and skips comparison. Designed for use in pre-commit and CI.
 
-Usage: python tools/ci/check_sbom.py
+Usage
+-----
+Run from the repository root or via pre-commit:
+
+    python tools/ci/check_sbom.py
 """
 
 from __future__ import annotations
@@ -20,11 +25,19 @@ from pathlib import Path
 
 
 def main() -> int:
-    """Generate and compare a temporary SBOM against tracked `sbom.json`.
+    """Generate a temporary SBOM and optionally compare with a tracked file.
 
-    Returns 0 when the SBOM matches or when running locally and a
-    mismatch occurred (the user will be instructed how to regenerate and
-    commit). Returns non-zero in CI to enforce SBOM updates.
+    The function always attempts SBOM generation from ``requirements.lock``.
+    If a tracked ``sbom.json`` is present, the generated document is parsed and
+    compared to the tracked one. In CI, a mismatch results in a non-zero exit
+    code. When no tracked SBOM is present, comparison is skipped and the check
+    passes provided generation succeeded.
+
+    Returns
+    -------
+    int
+        ``0`` on success (generation succeeded and comparison passed or was
+        skipped), otherwise ``1`` when generation or comparison fails in CI.
     """
     root = Path(__file__).resolve().parents[2]
     req_lock = root / "requirements.lock"
@@ -56,6 +69,14 @@ def main() -> int:
             # In CI we should fail; locally prefer to inform the user.
             if os.environ.get("CI"):
                 return 1
+            return 0
+
+        # If there is no tracked SBOM in the repository, do not enforce a diff.
+        # We only validate that generation succeeds. CI publishes SBOM as an artifact.
+        if not tracked.exists():
+            print(
+                "[sbom-check] No tracked SBOM found; skipping diff. CI publishes artifact."
+            )
             return 0
 
         # Read and compare JSON normalized

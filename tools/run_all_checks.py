@@ -41,17 +41,44 @@ def _run(cmd: list[str]) -> bool:
 
 
 def run_precommit_all() -> bool:
-    """Run pre-commit for all files (commit-stage checks)."""
+    """Run pre-commit for all files (commit-stage checks).
+
+    Runs the configured pre-commit hooks against the entire repository,
+    typically including formatters, linters and lightweight security checks.
+
+    Returns
+    -------
+    bool
+        ``True`` if hooks completed successfully, otherwise ``False``.
+    """
     return _run(["pre-commit", "run", "--all-files"])  # Formats, lint, bandit, audit
 
 
 def run_precommit_push_stage() -> bool:
-    """Run pre-commit push-stage hooks on all files."""
+    """Run push-stage hooks on all files via pre-commit.
+
+    Executes hooks configured for the ``push`` stage, which generally include
+    heavier gates like mutation testing or additional security scanning.
+
+    Returns
+    -------
+    bool
+        ``True`` if all hooks succeed, otherwise ``False``.
+    """
     return _run(["pre-commit", "run", "--hook-stage", "push", "--all-files"])
 
 
 def run_tests_with_coverage() -> bool:
-    """Run pytest with randomized order (seed=1) and full coverage gating."""
+    """Run pytest with randomized order (seed=1) and coverage gate.
+
+    Executes tests with branch coverage, XML/terminal reports and a hard
+    coverage threshold of 100% to enforce comprehensive test coverage.
+
+    Returns
+    -------
+    bool
+        ``True`` if tests and coverage gate pass, otherwise ``False``.
+    """
     cmd = [
         "pytest",
         "-q",
@@ -69,7 +96,16 @@ def run_tests_with_coverage() -> bool:
 
 
 def run_tests_seed_2() -> bool:
-    """Run pytest again with a different seed to catch order issues."""
+    """Run pytest again with a different seed to catch order issues.
+
+    Uses random seed ``2`` to surface order-dependent tests by running the
+    suite a second time.
+
+    Returns
+    -------
+    bool
+        ``True`` if tests pass, otherwise ``False``.
+    """
     return _run(["pytest", "-q", "--maxfail=1", "--randomly-seed=2", "tests"])
 
 
@@ -102,12 +138,27 @@ def run_tests_many_random(iterations: int = 100) -> bool:
 
 
 def run_docstrings_gate() -> bool:
-    """Run interrogate to enforce docstring coverage == 100%."""
+    """Enforce 100% docstring coverage using interrogate.
+
+    Returns
+    -------
+    bool
+        ``True`` if the coverage threshold is met, otherwise ``False``.
+    """
     return _run(["interrogate", "-v", "--fail-under", "100", "src/"])
 
 
 def run_mutation_gate() -> bool:
-    """Run mutation tests and fail if any survivors remain."""
+    """Run mutation tests and fail if any survivors remain.
+
+    Invokes the dedicated mutation gate script which executes ``mutmut`` and
+    asserts that no mutants survive. See ``tools/ci/mutmut_gate.py``.
+
+    Returns
+    -------
+    bool
+        ``True`` if the mutation gate passes, otherwise ``False``.
+    """
     exe = [sys.executable, str(Path("tools/ci/mutmut_gate.py"))]
     return _run(exe)
 

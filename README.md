@@ -358,17 +358,9 @@ Den här pipelinen är hårt säkrad och reproducerbar. Nedan summeras de viktig
   - Lokalt: `interrogate -v --fail-under 100 src/`.
 
 - SBOM (CycloneDX):
-  - Genereras i CI från miljön och laddas upp som artefakt.
-  - Genereras lokalt i pre-commit/pre‑push från `requirements.lock` som `sbom.json`.
-  - Observera: SBOM-generering kan ändra den spårade filen `sbom.json`. För att
-    undvika brusiga ändringar vid lokala pre-commit-körningar utförs genereringen
-    lokalt i ett icke‑modifierande kontrollläge och är ett krav i CI. Den lokala
-    pre-push‑hooken skapar en temporär SBOM och jämför med den incheckade
-    `sbom.json`; om det finns skillnader skrivs instruktioner ut för hur
-    utvecklaren kan regenerera och committa SBOM. I CI regenereras SBOM och
-    bygget fälls om den incheckade filen inte är uppdaterad. Detta förhindrar
-    att pre-commit/pre-push automatiskt skriver över spårade filer under
-    utveckling, samtidigt som CI säkerställer korrekthet.
+  - Genereras i CI (från miljön) och laddas upp som artefakt. Vi versionshanterar inte SBOM i repo för att undvika brus och merge‑konflikter.
+  - Lokalt: pre‑commit‑hooken provgenererar en temporär SBOM från `requirements.lock` för att verifiera att generationen fungerar. Ingen diff mot repo sker och inga filer skrivs om.
+  - I CI:s jobb `validate-local-checks` hoppas SBOM‑hooken för att undvika flakiga jämförelser; själva SBOM:en publiceras i `security`‑jobbet.
 
 Observera: Vi undviker GPL/LGPL i projektets egna beroenden. Semgrep körs via dedikerad pre‑commit‑miljö/CI‑action och påverkar inte runtime‑beroenden.
 

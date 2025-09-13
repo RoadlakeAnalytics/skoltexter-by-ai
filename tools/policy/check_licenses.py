@@ -102,10 +102,21 @@ def normalize(license_str: str) -> list[str]:
 
 
 def is_permissive(licenses: Iterable[str]) -> bool:
-    """Return True if the set of licenses is permissive and contains no GPL.*.
+    """Determine whether a set of licenses is permissive.
 
-    Accepts when there is at least one permissive license and none match the
-    disallowed GPL/AGPL/LGPL patterns.
+    A set is considered permissive when at least one identifier belongs to the
+    allowlist and none match the disallowed GPL/AGPL/LGPL patterns.
+
+    Parameters
+    ----------
+    licenses : Iterable[str]
+        Normalized license identifiers to evaluate.
+
+    Returns
+    -------
+    bool
+        ``True`` if the set is permissive and free from copyleft patterns,
+        otherwise ``False``.
     """
     saw_allowed = False
     for lic in licenses:
@@ -117,7 +128,18 @@ def is_permissive(licenses: Iterable[str]) -> bool:
 
 
 def get_pip_licenses() -> list[dict]:
-    """Return pip-licenses data as a JSON-parsed list of dicts."""
+    """Return pip-licenses data as a JSON-parsed list of dictionaries.
+
+    Returns
+    -------
+    list[dict]
+        The parsed JSON output from ``pip-licenses``.
+
+    Raises
+    ------
+    subprocess.CalledProcessError
+        If the ``pip-licenses`` subprocess fails.
+    """
     cmd = [
         "pip-licenses",
         "--format=json",
@@ -130,7 +152,16 @@ def get_pip_licenses() -> list[dict]:
 
 
 def main() -> int:
-    """Run pip-licenses, normalize results, and enforce the allowlist policy."""
+    """Run pip-licenses, normalize results, and enforce the allowlist policy.
+
+    The command prints a concise summary of any violations and exits with a
+    non-zero status when disallowed or unknown licenses are detected.
+
+    Returns
+    -------
+    int
+        ``0`` when all dependencies conform to policy, otherwise ``1``.
+    """
     try:
         data = get_pip_licenses()
     except Exception as exc:  # pragma: no cover - tool/runtime environment issue

@@ -36,7 +36,7 @@ def _mutmut_cmd_prefix(project_root: Path, env: dict[str, str]) -> list[str]:
     ----------
     project_root : Path
         Project root directory.
-    env : Dict[str, str]
+    env : dict[str, str]
         Environment variables mapping used for subprocesses.
 
     Returns

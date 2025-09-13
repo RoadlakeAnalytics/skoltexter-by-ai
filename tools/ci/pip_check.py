@@ -17,11 +17,17 @@ from pathlib import Path
 
 
 def find_venv_python() -> str | None:
-    """Return the path to a venv's Python executable if present.
+    """Locate a project virtualenv's Python executable.
 
-    The function checks `venv/` and `.venv/` directories relative to the
-    repository root. If one exists and contains a `bin/python` executable,
-    its path is returned. Otherwise ``None`` is returned.
+    The function checks conventional virtual environment locations (``venv/``
+    and ``.venv/``) at the repository root and returns the absolute path to
+    the embedded ``python`` interpreter when found.
+
+    Returns
+    -------
+    str or None
+        The path to the virtual environment's Python interpreter, or ``None``
+        when no suitable environment is detected.
     """
     root = Path(__file__).resolve().parents[2]
     for name in ("venv", ".venv"):

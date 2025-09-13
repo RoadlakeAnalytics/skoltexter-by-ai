@@ -141,3 +141,9 @@ repomix*
 # Roo Code, CC, Codex
 .roo/rules/rules.md
 AGENTS.md
+# SBOM artifacts (generated in CI)
+sbom.json
+sbom-*.json
+.sbomenv/
+.sbomvenv/
+cyclonedx*.json
