@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>School List</title>
+  </head>
+  <body>
+    <h1>Schools</h1>
+    <script>
+      // The pipeline will inject a JSON payload here.
+      const schools = {school_list_json};
+      // Render basic list for tests
+      const out = document.createElement('div');
+      out.textContent = JSON.stringify(schools);
+      document.body.appendChild(out);
+    </script>
+  </body>
+</html>
+

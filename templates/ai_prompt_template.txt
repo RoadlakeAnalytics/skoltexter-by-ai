@@ -1,0 +1,3 @@
+SYSTEM: system
+USER: Please generate a concise description for the following school data:\n{school_data}
+
