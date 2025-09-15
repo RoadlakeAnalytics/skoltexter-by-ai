@@ -26,6 +26,10 @@ def _safe_rmtree(path: Path) -> None:
     path : Path
         Directory to remove.
     """
+    # Do not perform deletions unless an explicit CI environment variable
+    # is present. This avoids accidental deletion when running locally.
+    if not os.environ.get("CI_CLEANUP_ALLOWED"):
+        return
     try:
         if path.exists():
             shutil.rmtree(path, ignore_errors=True)

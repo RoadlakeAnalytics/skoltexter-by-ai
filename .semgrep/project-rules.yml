@@ -1,0 +1,34 @@
+rules:
+  - id: no-direct-destructive-calls
+    languages: [python]
+    message: >-
+      Direct calls to destructive filesystem functions are forbidden.
+      Use the hardened utility function from 'src.setup.fs_utils' instead.
+      This prevents accidental deletion of project files.
+    severity: ERROR
+    paths:
+      exclude:
+        - src/setup/fs_utils.py
+    pattern-either:
+      - pattern: shutil.rmtree(...)
+      - pattern: os.remove(...)
+      - pattern: os.unlink(...)
+      - pattern: os.rmdir(...)
+      - pattern: $X.unlink(...)
+      - pattern: $X.rmdir(...)
+
+  - id: unsafe-test-path-usage
+    languages: [python]
+    message: >-
+      A test is calling a potentially destructive function with an unsafe, static path
+      like 'Path(".")'. Tests that modify the filesystem MUST use pytest's 'tmp_path' fixture
+      to ensure operations are performed in an isolated, temporary directory.
+    severity: ERROR
+    paths:
+      include:
+        - tests/
+    pattern-either:
+      - pattern: manage_virtual_environment(..., pathlib.Path("."), ...)
+      - pattern: reset_project(..., pathlib.Path("."), ...)
+      - pattern: safe_rmtree(pathlib.Path("."))
+

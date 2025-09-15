@@ -75,9 +75,23 @@ def create_safe_path(path_to_validate: Path) -> _ValidatedPath:
         _config.PROJECT_ROOT / "data" / "ai_processed_markdown",
         _config.PROJECT_ROOT / "data" / "ai_raw_responses",
         _config.PROJECT_ROOT / "data" / "generated_descriptions",
+        # Allow removal of common CI/test caches and mutation testing artifacts
+        _config.PROJECT_ROOT / "mutants",
+        _config.PROJECT_ROOT / ".pytest_cache",
+        _config.PROJECT_ROOT / ".mypy_cache",
+        _config.PROJECT_ROOT / ".ruff_cache",
     ]
 
     whitelisted_roots_resolved = [p.resolve() for p in whitelisted_roots]
+
+    # Special-case: allow deleting __pycache__ directories anywhere under
+    # the project root (they are generated artifacts and safe to remove).
+    if target_path.name == "__pycache__":
+        try:
+            if target_path.is_relative_to(project_root):
+                return _ValidatedPath(target_path)
+        except Exception:
+            pass
 
     is_safe_path = any(
         target_path == safe_root or target_path.is_relative_to(safe_root)

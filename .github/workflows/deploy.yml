@@ -1,0 +1,61 @@
+name: Deploy Website
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip --disable-pip-version-check
+          pip install --require-hashes -r requirements.lock --progress-bar off --no-input --disable-pip-version-check
+
+      - name: Run Program 1 - Generate Markdowns
+        run: |
+          python -m src.program1_generate_markdowns --log-level=INFO --lang=en
+
+      - name: Run Program 2 - AI Processor
+        env:
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+          AZURE_ENDPOINT_BASE: ${{ secrets.AZURE_ENDPOINT_BASE }}
+          GPT4O_DEPLOYMENT_NAME: ${{ secrets.GPT4O_DEPLOYMENT_NAME }}
+          AZURE_API_VERSION: ${{ secrets.AZURE_API_VERSION }}
+        run: |
+          python -m src.program2_ai_processor --log-level=INFO --lang=en
+
+      - name: Run Program 3 - Generate Website
+        run: |
+          python -m src.program3_generate_website --log-level=INFO --lang=en
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

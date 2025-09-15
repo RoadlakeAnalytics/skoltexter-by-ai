@@ -1,0 +1,6 @@
+[bandit]
+targets: src
+exclude: tests
+severity: MEDIUM
+confidence: MEDIUM
+skips: B101

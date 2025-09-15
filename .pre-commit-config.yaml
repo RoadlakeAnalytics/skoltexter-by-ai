@@ -1,0 +1,126 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        args: ["--line-length=88"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.8
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: detect-private-key
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        args: ["--strict", "src", "setup_project.py"]
+        pass_filenames: false
+
+  - repo: https://github.com/returntocorp/semgrep
+    rev: v1.99.0
+    hooks:
+      - id: semgrep
+        args: [
+            "--config", "p/ci",
+            "--config", ".semgrep/project-rules.yml",
+            "--severity", "ERROR"
+          ]
+        stages: [pre-commit, pre-push]
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-r", "src", "-x", "tests", "-ll"]
+        pass_filenames: false
+
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.7.3
+    hooks:
+      - id: pip-audit
+        args: ["--requirement", "requirements.lock", "--strict", "--ignore-vuln", "PYSEC-2022-42969"]
+        pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: cleanup-caches
+        name: Cleanup mutants and caches
+        entry: python tools/ci/cleanup_caches.py
+        language: python
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+      - id: sbom-generate
+        name: SBOM (CycloneDX from requirements.lock) (check only)
+        entry: python tools/ci/check_sbom.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: pip-check
+        name: pip check (installed deps)
+        entry: python tools/ci/pip_check.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+      - id: license-check
+        name: License Allowlist Check
+        entry: python tools/policy/check_licenses.py
+        language: python
+        additional_dependencies:
+          - pip-licenses
+        pass_filenames: false
+      - id: pytest-seed-1
+        name: Pytest (seed=1, coverage 100%, branch)
+        entry: pytest
+        language: system
+        args: [
+          "-q",
+          "--maxfail=1",
+          "--randomly-seed=1",
+          "--cov=src",
+          "--cov=setup_project",
+          "--cov-branch",
+          "--cov-report=term-missing",
+          "--cov-report=xml",
+          "--cov-fail-under=100",
+          "tests"
+        ]
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+      - id: pytest-seed-2
+        name: Pytest (seed=2, order-independence)
+        entry: pytest
+        language: system
+        args: ["-q", "--maxfail=1", "--randomly-seed=2", "tests"]
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+      - id: interrogate
+        name: Interrogate (docstring coverage 100%)
+        entry: interrogate
+        language: system
+        args: ["-v", "--fail-under", "100", "src/"]
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+      - id: mutmut-gate
+        name: Mutmut (no surviving mutants)
+        entry: python tools/ci/mutmut_gate.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+        args: ["--no-banner", "protect", "--verbose", "--redact"]
+        stages: [pre-commit, pre-push]

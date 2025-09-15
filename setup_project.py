@@ -1744,23 +1744,19 @@ def reset_project() -> None:
         )  # pragma: no cover - simple user-decline path
         return  # pragma: no cover
     deleted_count = 0
+    from src.setup.fs_utils import create_safe_path, safe_rmtree
     for dir_path in dirs_to_check:
         if dir_path.exists():
-            for file_path in dir_path.rglob("*"):
-                if file_path.is_file():
-                    try:
-                        file_path.unlink()
-                        deleted_count += 1
-                    except Exception as error:
-                        logger.error(f"Error deleting {file_path}: {error}")
-            for dir_path_nested in sorted(dir_path.rglob("*"), reverse=True):
-                if dir_path_nested.is_dir() and not any(dir_path_nested.iterdir()):
-                    try:
-                        dir_path_nested.rmdir()
-                    except Exception as error:
-                        logger.error(
-                            f"Error removing directory {dir_path_nested}: {error}"
-                        )
+            # Attempt to validate and then safely rmtree the entire directory.
+            try:
+                validated = create_safe_path(dir_path)
+                safe_rmtree(validated)
+                # Count removed files as an approximation (directory cleared)
+                deleted_count += 1
+            except PermissionError as e:
+                logger.error(f"Security policy prevented removing directory '{dir_path}': {e}")
+            except Exception as error:
+                logger.error(f"Error removing {dir_path}: {error}")
     rprint(f"{translate('reset_complete')} ({deleted_count} files deleted)")
 
 
