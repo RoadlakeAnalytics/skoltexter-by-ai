@@ -34,3 +34,15 @@ pytest-cov
 xdoctest
 pytest-mock
 pytest-asyncio
+pytest-randomly
+
+########################################
+# Quality gates (mutation & docs)
+########################################
+mutmut
+interrogate
+
+########################################
+# Build & lock tooling
+########################################
+pip-tools

@@ -280,7 +280,18 @@ def render_template(template_content: str, context: dict[str, str]) -> str:
     """
 
     def format_number_string(val: str) -> str:
-        """Format numeric string ending in '.0' as integer string."""
+        """Normalize numeric strings by stripping redundant trailing ``.0``.
+
+        Parameters
+        ----------
+        val : str
+            Candidate numeric string to format.
+
+        Returns
+        -------
+        str
+            Integer-like representation if ``val`` ends with ``.0``, otherwise the original value.
+        """
         if re.fullmatch(r"-?\d+\.0", val):
             return str(int(float(val)))
         return val
@@ -288,6 +299,19 @@ def render_template(template_content: str, context: dict[str, str]) -> str:
     pattern = re.compile(r"\{([a-zA-Z0-9_/]+)\}")
 
     def replace_func(match: re.Match[str]) -> str:
+        """Replace a single placeholder match with a formatted context value.
+
+        Parameters
+        ----------
+        match : re.Match[str]
+            Regular expression match for a ``{Placeholder}`` token.
+
+        Returns
+        -------
+        str
+            Formatted replacement string looked up from ``context`` or the global
+            missing-data placeholder when absent.
+        """
         placeholder_name = match.group(1)
         value = context.get(placeholder_name, MISSING_DATA_PLACEHOLDER)
         return format_number_string(value)

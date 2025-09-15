@@ -12,6 +12,7 @@ import json
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import markdown2
 import pandas as pd
@@ -195,11 +196,12 @@ def get_school_description_html(school_code: str, ai_markdown_dir: Path) -> str:
 
     try:
         markdown_text = markdown_file_path.read_text(encoding="utf-8")
-        description_html = markdown2.markdown(
-            markdown_text, extras=["tables", "fenced-code-blocks"]
+        description_html = cast(
+            str,
+            markdown2.markdown(markdown_text, extras=["tables", "fenced-code-blocks"]),
         )
-        description_html = clean_html_output(description_html)
-        return description_html
+        cleaned_html = clean_html_output(description_html)
+        return cleaned_html
     except Exception as error:
         logger.error(
             f"Error reading or converting markdown for {school_code} from {markdown_file_path.resolve()}: {error}"

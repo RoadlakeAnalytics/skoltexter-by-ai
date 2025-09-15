@@ -70,6 +70,7 @@ DATA_DIR: Path = PROJECT_ROOT / "data"
 LOG_DIR: Path = PROJECT_ROOT / "logs"
 VENV_DIR: Path = PROJECT_ROOT / "venv"
 REQUIREMENTS_FILE: Path = PROJECT_ROOT / "requirements.txt"
+REQUIREMENTS_LOCK_FILE: Path = PROJECT_ROOT / "requirements.lock"
 
 # --- Program 1: Markdown Generation ---
 ORIGINAL_CSV_PATH: Path = DATA_DIR / "database_data" / "database_school_data.csv"

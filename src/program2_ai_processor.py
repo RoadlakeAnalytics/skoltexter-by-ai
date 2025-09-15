@@ -120,7 +120,9 @@ class OpenAIConfig:
             )
 
         # Explicit attribute types for mypy
-        self.api_key: str | None = os.getenv("AZURE_API_KEY") or os.getenv("API_KEY")
+        # Prefer non-Azure API_KEY when present to avoid accidental Azure mode
+        # activation due to ambient AZURE_API_KEY in the environment.
+        self.api_key: str | None = os.getenv("API_KEY") or os.getenv("AZURE_API_KEY")
         self.endpoint_base: str | None = os.getenv("AZURE_ENDPOINT_BASE")
         self.deployment_name: str = os.getenv(
             "GPT4O_DEPLOYMENT_NAME", DEFAULT_DEPLOYMENT_NAME
@@ -134,7 +136,9 @@ class OpenAIConfig:
             raise ValueError(
                 "API_KEY (or AZURE_API_KEY) environment variable is required."
             )
-        if not self.endpoint_base and "AZURE_API_KEY" in os.environ:
+        # Determine Azure mode: only when AZURE_API_KEY is set and non-Azure API_KEY is not.
+        azure_mode = bool(os.getenv("AZURE_API_KEY")) and not bool(os.getenv("API_KEY"))
+        if not self.endpoint_base and azure_mode:
             logger.error(
                 "AZURE_ENDPOINT_BASE environment variable is required for Azure OpenAI but not found."
             )

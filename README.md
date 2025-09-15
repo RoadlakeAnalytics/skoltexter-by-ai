@@ -2,15 +2,21 @@
 
 [![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Mutation Testing](https://img.shields.io/badge/Mutation%20Testing-gated-blueviolet)](.github/workflows/ci.yml)
+[![Docstrings](https://img.shields.io/badge/Docstrings-100%25-success)](.github/workflows/ci.yml)
+[![Semgrep](https://img.shields.io/badge/Semgrep-gated-important)](https://semgrep.dev/docs/semgrep-ci/)
+[![Harden-Runner](https://img.shields.io/badge/Harden--Runner-gated-lightgrey)](https://github.com/step-security/harden-runner)
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows%20%7C%20macos-informational)](.github/workflows/ci.yml)
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
+[![Python 3.14 (dev)](https://img.shields.io/badge/python-3.14%20(dev)-orange)](.github/workflows/ci.yml)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
 ![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
 ![gitleaks](https://img.shields.io/badge/protected%20by-gitleaks-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI-genererade beskrivningar och genererar en modern, interaktiv webbplats för att bläddra bland skolinformation. Huvudmålet är att göra komplex skoldata tillgänglig och användbar för föräldrar som väljer skolor, samtidigt som det fungerar som en robust grund för avancerade AI-textgenereringsfall.
 
@@ -30,6 +36,9 @@ Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI
 - [📝 Loggning](#loggning)
 - [📦 Beroenden](#beroenden)
 - [🧪 Testning](#testning)
+- [CI-strategi: Lokal validering med fjärrverifiering](#ci-strategi-lokal-validering-med-fjärrverifiering)
+- [🔒 CI/CD: Extremt strikt läge](#cicd-extremt-strikt-läge)
+- [🧷 Pre-commit: lokala kvalitetsgrindar](#pre-commit-lokala-kvalitetsgrindar)
 - [🤖 Byta till en annan LLM](#byta-till-en-annan-llm)
 - [🪪 Licens](#licens)
 
@@ -113,7 +122,7 @@ Observera: Under körning skapas resultatmappar och filer, bland annat:
 - `output/index.html` (genererad webbplats)
 - `logs/` (körloggar)
 
-Mappen `tests/` innehåller en testsvit om 139 tester (100% täckning) som körs med `pytest`.
+Mappen `tests/` innehåller en testsvit om 143 tester (100% täckning) som körs med `pytest`.
 
 ## ⚙️ Förutsättningar
 
@@ -143,7 +152,15 @@ gränssnittet automatiskt.
 ```bash
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+# Reproducerbar, säker installation (låst med SHA256)
+pip install --require-hashes -r requirements.lock
+
+# Alternativt, om du behöver uppdatera låsfilen lokalt
+# (kräver pip-tools):
+#   pip install pip-tools
+#   pip-compile --resolver=backtracking --allow-unsafe \
+#     --generate-hashes --no-emit-index-url \
+#     -o requirements.lock requirements.txt
 ```
 3. Placera din CSV på `data/database_data/database_school_data.csv`.
 
@@ -160,6 +177,11 @@ python setup_project.py
 ```
 
 När du startar pipelinen får du först ett val om att köra ett snabbt AI‑anslutningstest. Det skickar en minimal förfrågan och verifierar att din `.env` och nätverkskonfiguration fungerar. Vid lyckat test fortsätter pipelinen, annars får du ett tydligt felmeddelande och kan åtgärda innan du kör om.
+
+I huvudmenyn finns även kvalitetsflöden:
+
+- `Q` – Kör full lokal kvalitetssvit (samma grindar som i CI).
+- `QQ` – Kör EXTREM kvalitetssvit: 100 slumpade pytest‑iterationer, docstrings 100% och mutationstest som grind.
 
 ### 🛠️ Manuell
 
@@ -236,7 +258,8 @@ För testning och kodkontroll:
 Installera alla beroenden med:
 
 ```bash
-pip install -r requirements.txt
+# Föredra hash-låst installation
+pip install --require-hashes -r requirements.lock
 ```
 
 ## 🧪 Testning
@@ -244,16 +267,31 @@ pip install -r requirements.txt
 - Kör hela testsuiten (snabbt läge):
 
   ```bash
-  pytest -q
+  pytest -q --randomly-seed=1
   ```
 
 - Kör tester med coverage-rapport (visar otäckta rader):
 
   ```bash
-  pytest --cov=src --cov=setup_project --cov-report=term-missing --cov-report=xml
+  pytest --randomly-seed=1 \
+    --cov=src --cov=setup_project --cov-branch \
+    --cov-report=term-missing --cov-report=xml --cov-fail-under=100
   ```
 
-- Täckningsgrind i CI: 100%.
+- Kör även en andra gång med annan seed för att upptäcka ordningsberoenden:
+
+  ```bash
+  pytest -q --maxfail=1 --randomly-seed=2
+  ```
+
+- Extrem testning (100 slumpade iterationer) + mutationstest som grind:
+
+  ```bash
+  python tools/run_all_checks.py --extreme
+  ```
+
+- Täckningsgrind i CI: 100% och varningar behandlas som fel (se `pytest.ini`).
+- Pytest samlar endast tester från `tests/` och ignorerar `mutants/` (artefakter från mutationstestning) för stabil insamling.
 - Typkontroll och lint körs i CI. Lokalt kan du köra:
 
   ```bash
@@ -269,6 +307,92 @@ pip install -r requirements.txt
   pre-commit run --all-files
   ```
 
+### CI-strategi: Lokal validering med fjärrverifiering
+
+Vår kvalitetsstrategi bygger på principen att fånga fel så tidigt som möjligt. Därför använder vi en omfattande `pre-commit`-svit som kör en fullständig lokal CI/CD-pipeline innan kod kan pushas. GitHub Actions används sedan för att verifiera detta i en ren miljö och för att köra tester som är opraktiska lokalt.
+
+1.  Snabba kontroller (vid Pull Request & Push): För varje kodändring körs ett jobb som exakt speglar vår lokala `pre-commit`-konfiguration. Detta verifierar linting, typning, säkerhet och tester i en neutral miljö och ger feedback inom några minuter.
+
+    - Branch‑push (före PR): En snabb Ubuntu‑matris (Python 3.11–3.14 dev) körs med en enda pytest‑seed för att snabbt ge feedback innan PR öppnas.
+
+2.  Nattlig & Veckovis "Canary"-körning:
+    - Dagligen (02:00 UTC): Den fullständiga testsviten körs mot Linux och Windows på alla Python-versioner från 3.11 till 3.14 (dev).
+    - Veckovis (måndagar 03:00 UTC): Samma fullständiga matris körs mot macOS för att säkerställa plattformsoberoende kompatibilitet och samtidigt spara på kostsamma CI-resurser.
+
+    - Syfte: Dessa schemalagda jobb är designade för att proaktivt upptäcka problem som uppstår över tid, såsom regressioner i beroenden och framtida inkompatibiliteter.
+
+    - Förväntade fel: Eftersom vi testar mot "bleeding edge"-miljöer (särskilt Python 3.14), förväntas det jobbet ibland misslyckas. Ett misslyckande här blockerar inte utvecklingen, utan fungerar som en tidig varning och en underhållsuppgift att åtgärda.
+
+## 🔒 CI/CD: Extremt strikt läge
+
+Den här pipelinen är hårt säkrad och reproducerbar. Nedan summeras de viktigaste grindarna som körs i CI (och hur du kör dem lokalt):
+
+- Reproducerbara beroenden (hash‑lås):
+  - CI installerar med `pip install --require-hashes -r requirements.lock`.
+  - Lokalt: samma kommando rekommenderas. Regenerera låsfil med pip‑tools vid ändringar i `requirements.txt` (se installation ovan).
+
+- Multi‑OS testmatris:
+  - CI kör tester på `ubuntu`, `windows`, `macos` och Python `3.11–3.13`.
+
+- Pytest hårt läge:
+  - Alla varningar är fel (`pytest.ini: filterwarnings=error`).
+  - Testerna körs i slumpad ordning två gånger: seeds `1` och `2`.
+
+- Mutationstester (mutmut):
+  - CI fäller bygget om någon mutant överlever.
+  - Lokalt: `python tools/ci/mutmut_gate.py` (kör `mutmut` och fäller på överlevare).
+  - CI och pre-commit gör en snabb städning (tar bort `mutants/` och cachemappar) innan körning för att undvika artefakt‑påverkan.
+
+- Härdad CI‑miljö:
+  - Actions är pinnade till commit‑SHA.
+  - `permissions: contents: read` globalt; extra rättigheter endast per jobb vid behov.
+  - `step-security/harden-runner` blockerar all oväntad nätverkstrafik.
+
+- Statisk analys och beroendekontroller:
+  - Semgrep körs i PRs med regeluppsättningen `p/ci` och fäller på hög allvarlighet.
+  - GitHub Dependency Review fäller PR vid sårbara beroenden (hög severitet).
+  - Lokalt: `pre-commit run semgrep --hook-stage push --all-files`.
+
+- Docstring‑täckning (interrogate):
+  - CI kräver 100% docstring‑täckning.
+  - Lokalt: `interrogate -v --fail-under 100 src/`.
+
+- SBOM (CycloneDX):
+  - Genereras i CI (från miljön) och laddas upp som artefakt. Vi versionshanterar inte SBOM i repo för att undvika brus och merge‑konflikter.
+  - Lokalt: pre‑commit‑hooken provgenererar en temporär SBOM från `requirements.lock` för att verifiera att generationen fungerar. Ingen diff mot repo sker och inga filer skrivs om.
+  - I CI:s jobb `validate-local-checks` hoppas SBOM‑hooken för att undvika flakiga jämförelser; själva SBOM:en publiceras i `security`‑jobbet.
+
+Observera: Vi undviker GPL/LGPL i projektets egna beroenden. Semgrep körs via dedikerad pre‑commit‑miljö/CI‑action och påverkar inte runtime‑beroenden.
+
+## 🧷 Pre-commit: lokala kvalitetsgrindar
+
+Installera hooks och aktivera även pre‑push‑steg så att alla tunga grindar körs innan du pushar:
+
+```bash
+pip install --require-hashes -r requirements.lock
+pre-commit install
+pre-commit install --hook-type pre-push
+
+# Fulla grindar på commit-steg (tar längre tid):
+pre-commit run --all-files
+
+# Samma grindar kan köras i pre-push-steg (ekvivalent):
+pre-commit run --hook-stage pre-push --all-files
+
+# Alternativt, kör allt med ett kommando
+python tools/run_all_checks.py
+
+# Extremläge (100x pytest + mutmut)
+python tools/run_all_checks.py --extreme
+```
+
+Tips:
+- Pytest‑körningarna använder `pytest-randomly`; `filterwarnings=error` finns i `pytest.ini`.
+- Mutationstest-grinden kör samma logik som i CI via `tools/ci/mutmut_gate.py`.
+- Semgrep‑hooken använder konfiguration `p/ci` och fäller på hög severitet.
+
+Notera: Som standard skapas den virtuella miljön med Python 3.13 om den finns installerad; annars används aktuell tolk. Detta speglar projektets fokus på senaste stabila version.
+
 ## Byta till en annan LLM
 
 Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för att använda en annan LLM, se [BYTA_LLM.md](./BYTA_LLM.md).
@@ -281,9 +405,9 @@ Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för 
 - Tester: `pytest` med coverage‑grind i CI; async‑tester med nätverksfakes; timeouter/backoff i runtime.
 - Rate limiting & retries: Alla AI‑anrop har limiter + exponentiell backoff; timeouts via `aiohttp.ClientTimeout`.
 - Logg‑hygien: Inga API‑nycklar/PII i loggar. Fil‑logg avstängd under tester.
- - Reproducerbarhet: Alla verktyg finns i `requirements.txt`. Pre-commit‑hooks upprätthåller stil och grundläggande säkerhet lokalt.
+ - Reproducerbarhet: Hash‑låsta installationer från `requirements.lock` med `--require-hashes`. Pre‑commit‑hooks upprätthåller stil och säkerhet lokalt.
 
-Gitleaks körs vid push/PR och dagligen (04:00 UTC). För organisations‑repo behöver du lägga till en hemlighet `GITLEAKS_LICENSE` under repo/organisationens “Secrets and variables → Actions → Secrets”. För personliga repo behövs ingen licens.
+Gitleaks körs vid push/PR och schemalagt dagligen (02:00 UTC) samt veckovis (måndagar 03:00 UTC) i samband med de schemalagda körningarna. För organisations‑repo behöver du lägga till en hemlighet `GITLEAKS_LICENSE` under repo/organisationens “Secrets and variables → Actions → Secrets”. För personliga repo behövs ingen licens.
 
 Licens‑allowlist
 
