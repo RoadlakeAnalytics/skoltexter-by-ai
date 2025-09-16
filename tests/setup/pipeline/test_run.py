@@ -48,12 +48,9 @@ def test_run_program_tui_progress_parsing(monkeypatch, tmp_path: Path):
     class FakeStdout:
         def __iter__(self):
             # Emit tqdm-like percent, fraction, and completed summary
-            yield " 12%|#####      | 12/100 [00:01<00:08]
-"
-            yield "55/100 [00:04<00:03]
-"
-            yield "AI Processing completed: 100
-"
+            yield " 12%|#####      | 12/100 [00:01<00:08]\\n"
+            yield "55/100 [00:04<00:03]\\n"
+            yield "AI Processing completed: 100\\n"
 
     class FakeProc:
         def __init__(self):
@@ -78,8 +75,7 @@ def test_run_program_tui_progress_done_only(monkeypatch, tmp_path: Path):
 
     class FakeStdout:
         def __iter__(self):
-            yield "AI Processing completed: 10
-"
+            yield "AI Processing completed: 10\\n"
 
     class FakeProc:
         def __init__(self):
@@ -104,8 +100,7 @@ def test_run_program_tui_progress_failure(monkeypatch, tmp_path: Path):
 
     class FakeStdout:
         def __iter__(self):
-            yield "noise line
-"
+            yield "noise line\\n"
 
     class FakeProc:
         def __init__(self):

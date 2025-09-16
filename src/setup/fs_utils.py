@@ -105,22 +105,39 @@ def create_safe_path(path_to_validate: Path) -> _ValidatedPath:
     return _ValidatedPath(target_path)
 
 
-def safe_rmtree(safe_path: _ValidatedPath) -> None:
+def safe_rmtree(safe_path: _ValidatedPath | Path) -> None:
     """Remove a directory tree for a previously-validated path.
 
-    The function intentionally performs no additional security checks — the
-    caller must create a ``_ValidatedPath`` via :func:`create_safe_path`.
-    This keeps the runtime cost of the destructive operation small while
-    relying on the static contract enforced by type annotations.
+    The function validates the supplied path using :func:`create_safe_path`
+    before performing the destructive operation. This prevents callers from
+    unintentionally bypassing the validation step and ensures all removals
+    are subject to the same whitelist rules.
+
+    Parameters
+    ----------
+    safe_path : pathlib.Path or _ValidatedPath
+        The path to remove. If a plain ``Path`` is supplied it will be
+        validated prior to removal. A ``PermissionError`` is raised for
+        disallowed paths.
+
+    Raises
+    ------
+    PermissionError
+        If the provided path is not in the allowed whitelist or is the
+        project root.
     """
     target_path = Path(safe_path)
 
-    if target_path.exists():
-        logger.warning(f"Performing safe rmtree on: {target_path}")
-        shutil.rmtree(target_path)
-        logger.info(f"Removed directory: {target_path}")
+    # Validate the path using the central helper. This makes the operation
+    # safe even if callers forget to explicitly call ``create_safe_path``.
+    validated = create_safe_path(target_path)
+
+    if validated.exists():
+        logger.warning(f"Performing safe rmtree on: {validated}")
+        shutil.rmtree(validated)
+        logger.info(f"Removed directory: {validated}")
     else:
-        logger.info(f"Path '{target_path}' does not exist; nothing to remove.")
+        logger.info(f"Path '{validated}' does not exist; nothing to remove.")
 
 
 __all__ = ["create_safe_path", "safe_rmtree"]

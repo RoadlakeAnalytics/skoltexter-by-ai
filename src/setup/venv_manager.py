@@ -14,8 +14,8 @@ import venv
 from pathlib import Path
 from typing import Any
 
-from .fs_utils import safe_rmtree
-from .venv import get_venv_pip_executable, get_venv_python_executable, is_venv_active
+from .fs_utils import create_safe_path, safe_rmtree
+from . import venv as venvmod
 
 
 def manage_virtual_environment(
@@ -35,14 +35,14 @@ def manage_virtual_environment(
     _venv = getattr(ui, "venv", venv)
     _os = getattr(ui, "os", os)
 
-    if is_venv_active():
-        pip_executable = get_venv_pip_executable(Path(_sys.prefix))
-        python_executable = get_venv_python_executable(Path(_sys.prefix))
+    if venvmod.is_venv_active():
+        pip_executable = venvmod.get_venv_pip_executable(Path(_sys.prefix))
+        python_executable = venvmod.get_venv_python_executable(Path(_sys.prefix))
         prompt_text = ui._("activate_venv_prompt")
         default_choice = "y"
     elif venv_dir.exists():
-        pip_executable = get_venv_pip_executable(venv_dir)
-        python_executable = get_venv_python_executable(venv_dir)
+        pip_executable = venvmod.get_venv_pip_executable(venv_dir)
+        python_executable = venvmod.get_venv_python_executable(venv_dir)
         prompt_text = ui._("create_venv_prompt")
         default_choice = "y"
     else:
@@ -54,13 +54,15 @@ def manage_virtual_environment(
         ui.rprint(ui._("venv_skipped"))
         return
 
-    if not is_venv_active() and venv_dir.exists():
+    if not venvmod.is_venv_active() and venv_dir.exists():
         recreate_choice = ui.ask_text(
             ui._("confirm_recreate_venv"), default="n"
         ).lower()
         if recreate_choice in ["y", "j"]:
             try:
-                safe_rmtree(venv_dir)
+                # Ensure the requested venv path is validated before removal.
+                validated = create_safe_path(venv_dir)
+                safe_rmtree(validated)
             except PermissionError as e:
                 ui.logger.error(f"Could not remove venv: {e}")
                 return
@@ -73,7 +75,7 @@ def manage_virtual_environment(
             ui.ui_info(ui._("venv_skipped"))
             return
 
-    if not is_venv_active() and not venv_dir.exists():
+    if not venvmod.is_venv_active() and not venv_dir.exists():
         ui.ui_info(ui._("creating_venv"))
         try:
             created = False
@@ -95,23 +97,23 @@ def manage_virtual_environment(
             if not created:
                 _venv.create(venv_dir, with_pip=True)
 
-            pip_executable = get_venv_pip_executable(venv_dir)
-            python_executable = get_venv_python_executable(venv_dir)
+            pip_executable = venvmod.get_venv_pip_executable(venv_dir)
+            python_executable = venvmod.get_venv_python_executable(venv_dir)
         except Exception as error:
             ui.logger.error(f"Error creating virtual environment: {error}")
             return
 
     if not pip_executable or not pip_executable.exists():
         if venv_dir.exists():
-            pip_executable = get_venv_pip_executable(venv_dir)
+            pip_executable = venvmod.get_venv_pip_executable(venv_dir)
 
     pip_python: str | None = None
     if python_executable and python_executable.exists():
         pip_python = str(python_executable)
-    elif is_venv_active():
+    elif venvmod.is_venv_active():
         pip_python = _sys.executable
     elif venv_dir.exists():
-        venv_python = get_venv_python_executable(venv_dir)
+        venv_python = venvmod.get_venv_python_executable(venv_dir)
         if venv_python.exists():
             pip_python = str(venv_python)
     if not pip_python:
@@ -190,9 +192,9 @@ def manage_virtual_environment(
         )
 
         try:
-            venv_python = get_venv_python_executable(venv_dir)
+            venv_python = venvmod.get_venv_python_executable(venv_dir)
             if (
-                (not is_venv_active())
+                (not venvmod.is_venv_active())
                 and venv_python.exists()
                 and not os.environ.get("SETUP_SWITCHED_UI")
                 and getattr(ui, "ui_has_rich", lambda: False)()

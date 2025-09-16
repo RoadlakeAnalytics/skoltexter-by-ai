@@ -106,21 +106,21 @@ def test_manage_virtual_environment_install_errors(monkeypatch, tmp_path: Path):
     )
 
 
-def test_manage_virtual_environment_dynamic_ui_enable_success(monkeypatch):
+def test_manage_virtual_environment_dynamic_ui_enable_success(monkeypatch, tmp_path: Path):
     ui = _UI
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: True)
     ui.ask_text = staticmethod(lambda prompt, default="y": "y")
     monkeypatch.setattr(ui.subprocess, "check_call", lambda *a, **k: None)
     vm.manage_virtual_environment(
         cfg.PROJECT_ROOT,
-        Path("."),
+        tmp_path,
         cfg.REQUIREMENTS_FILE,
         cfg.REQUIREMENTS_LOCK_FILE,
         ui,
     )
 
 
-def test_manage_virtual_environment_dynamic_ui_enable_excepts(monkeypatch):
+def test_manage_virtual_environment_dynamic_ui_enable_excepts(monkeypatch, tmp_path: Path):
     import builtins as _builtins
     import importlib as _importlib
 
@@ -146,7 +146,7 @@ def test_manage_virtual_environment_dynamic_ui_enable_excepts(monkeypatch):
 
     vm.manage_virtual_environment(
         cfg.PROJECT_ROOT,
-        Path("."),
+        tmp_path,
         cfg.REQUIREMENTS_FILE,
         cfg.REQUIREMENTS_LOCK_FILE,
         ui,
@@ -158,7 +158,7 @@ def test_manage_virtual_environment_dynamic_ui_enable_excepts(monkeypatch):
     monkeypatch.setattr(ui.subprocess, "check_call", raise_fnf)
     vm.manage_virtual_environment(
         cfg.PROJECT_ROOT,
-        Path("."),
+        tmp_path,
         cfg.REQUIREMENTS_FILE,
         cfg.REQUIREMENTS_LOCK_FILE,
         ui,

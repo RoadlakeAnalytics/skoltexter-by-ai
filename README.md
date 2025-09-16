@@ -22,7 +22,7 @@ Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI
 
 > Pipeline-demo: Realtidsvideo på under en minut som visar hur `setup_project.py` startas, och sedan körs hela piplinen tills öppning av de färdiga webbsidorna (`output/index.html`).
 >
-> ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
+> ![Pipeline Demo](docs/assets/sub1min_pipeline_run.gif)
 
 ## 🗂️ Innehållsförteckning
 

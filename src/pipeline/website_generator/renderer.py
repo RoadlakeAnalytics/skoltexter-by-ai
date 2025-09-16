@@ -26,6 +26,22 @@ def get_school_description_html(school_code: str, ai_markdown_dir: Path) -> str:
         return ERROR_DESCRIPTION_HTML
 
 
+def write_html_output(html_content: str, output_file: Path) -> None:
+    try:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_text(html_content, encoding="utf-8")
+    except Exception:
+        pass
+
+
+def write_no_data_html(output_file: Path) -> None:
+    try:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_text("<html><body><h1>No data</h1></body></html>", encoding="utf-8")
+    except Exception:
+        pass
+
+
 def clean_html_output(html_content: str) -> str:
     if not isinstance(html_content, str):
         raise TypeError("Input must be a string.")
@@ -44,4 +60,3 @@ def generate_final_html(schools_data: list[dict], template_path: Path) -> str:
         tpl = fh.read()
     payload = json.dumps(schools_data, ensure_ascii=False)
     return tpl.replace("{school_list_json}", payload)
-

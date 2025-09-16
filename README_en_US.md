@@ -4,7 +4,7 @@
 >
 > - Pipeline demo: shows launching `setup_project.py`, the guided menu flow, venv management, running steps 1–3, and opening `output/index.html` with the search field.
 >
->   ![Pipeline Demo](assets/sub1min_pipeline_run.gif)
+>   ![Pipeline Demo](docs/assets/sub1min_pipeline_run.gif)
 
 This project is a data processing pipeline that transforms raw Swedish school statistics (CSV) into AI-enhanced descriptions and generates a modern, interactive website for browsing school information. The primary goal is to make complex school data accessible and useful for parents choosing schools, while also serving as a robust foundation for advanced AI text generation use cases.
 
