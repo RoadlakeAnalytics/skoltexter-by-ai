@@ -30,7 +30,7 @@ convention = "numpy"
 addopts = "-p no:cacheprovider --xdoctest --cov=src --cov=setup_project --cov-report=term-missing"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 strict = true
 ignore_missing_imports = true
 warn_unused_ignores = true

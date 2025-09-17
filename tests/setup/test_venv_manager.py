@@ -15,6 +15,7 @@ from pathlib import Path
 import src.setup.venv_manager as vm
 from src import config as cfg
 from src.setup import venv as venvmod
+import setup_project as sp
 
 
 class _UI:
@@ -287,13 +288,27 @@ def test_manage_virtual_environment_no_py313_non_test_fallback(
 
 def test_manage_virtual_environment_recreate_existing(monkeypatch, tmp_path: Path):
     """Recreate existing venv when user confirms."""
+    # Ensure the project root used by the filesystem helpers points to tmp_path
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
+    monkeypatch.setattr(cfg, "LOG_DIR", tmp_path / "logs", raising=True)
+
+    monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
     monkeypatch.setattr(sp, "VENV_DIR", tmp_path / "venv")
     sp.VENV_DIR.mkdir()
     seq = iter(["y", "y"])  # yes then confirm recreate
     monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": next(seq))
     monkeypatch.setattr(sp, "is_venv_active", lambda: False)
     removed = {"ok": False}
-    monkeypatch.setattr(sp.shutil, "rmtree", lambda p: removed.__setitem__("ok", True))
+
+    # The top-level setup code delegates removal to src.setup.fs_utils. Patch
+    # both the validator and the destructive helper so the test can observe
+    # the removal attempt without touching the real filesystem.
+    import src.setup.fs_utils as fs_utils
+
+    monkeypatch.setattr(fs_utils, "create_safe_path", lambda p: p)
+    monkeypatch.setattr(fs_utils, "safe_rmtree", lambda validated: removed.__setitem__("ok", True))
+    # Prevent actual pip/subprocess calls during the test run.
+    monkeypatch.setattr(sp.subprocess, "check_call", lambda *a, **k: None)
     sp.manage_virtual_environment()
     assert removed["ok"] is True
 
