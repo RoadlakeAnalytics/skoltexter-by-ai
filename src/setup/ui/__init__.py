@@ -7,7 +7,7 @@ into focused files.
 
 from __future__ import annotations
 
-from src.setup.console_helpers import ui_has_rich
+from src.setup.console_helpers import ui_has_rich as _ui_has_rich
 
 from .basic import (
     ui_error,
@@ -49,3 +49,9 @@ __all__ = [
     "view_logs",
 ]
 __all__.append("ui_has_rich")
+
+# Re-export the helper under the public name so callers can do
+# ``from src.setup.ui import ui_has_rich`` without importing
+# ``src.setup.console_helpers`` directly. The indirection also avoids
+# ruff flagging the import as unused.
+ui_has_rich = _ui_has_rich

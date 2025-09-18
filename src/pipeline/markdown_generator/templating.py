@@ -33,6 +33,27 @@ def extract_placeholders_from_template(content: str) -> list[str]:
 
 
 def render_template(template_content: str, context: dict[str, str]) -> str:
+    """Render the template by replacing placeholders using the provided context.
+
+    This function searches for placeholders of the form ``{Name}`` and
+    replaces each occurrence with the value from ``context``. If a key is
+    missing the global ``MISSING_DATA_PLACEHOLDER`` is used. Numeric strings
+    that look like ``10.0`` are rendered as integers (``10``) to improve
+    readability in generated markdown.
+
+    Parameters
+    ----------
+    template_content : str
+        The template text containing ``{Placeholders}``.
+    context : dict[str, str]
+        Mapping from placeholder names to their string values.
+
+    Returns
+    -------
+    str
+        The rendered template with placeholders substituted.
+    """
+
     def format_number_string(val: str) -> str:
         if re.fullmatch(r"-?\d+\.0", val):
             return str(int(float(val)))
@@ -40,15 +61,11 @@ def render_template(template_content: str, context: dict[str, str]) -> str:
 
     pattern = re.compile(r"\{([a-zA-Z0-9_/]+)\}")
 
-    def replace_func(match: re.Match[str]) -> str:
+    def replace_func(match: re.Match) -> str:
         placeholder_name = match.group(1)
         value = context.get(placeholder_name, MISSING_DATA_PLACEHOLDER)
         return format_number_string(value)
 
-    """Render the template by replacing placeholders using the provided context.
-
-    Missing keys are substituted with the global missing-data placeholder.
-    """
     return pattern.sub(replace_func, template_content)
 
 

@@ -187,23 +187,18 @@ I huvudmenyn finns även kvalitetsflöden:
 
 ### 🛠️ Manuell
 
-Generera markdown:
+Generera markdown, bearbeta med AI och generera webbplats:
+
+Det rekommenderade sättet att köra hela pipelinen är via det interaktiva
+hjälpprogrammet:
 
 ```bash
-python src/program1_generate_markdowns.py
+python setup_project.py
 ```
 
-AI-bearbeta markdown:
-
-```bash
-python src/program2_ai_processor.py
-```
-
-Generera webbplats:
-
-```bash
-python src/program3_generate_website.py
-```
+Du kan också anropa pipeline‑modulerna direkt från Python om du vill
+skapa mer automatiserade flöden (se `src/pipeline/` för tillgängliga
+hjälpfunktioner och runners).
 
 ## 🔧 Driftsdetaljer
 

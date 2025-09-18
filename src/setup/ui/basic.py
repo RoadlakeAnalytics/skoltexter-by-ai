@@ -6,7 +6,7 @@ dashboard logic.
 
 from __future__ import annotations
 
-from typing import ContextManager
+from contextlib import AbstractContextManager
 
 from src.setup.console_helpers import (
     _RICH_CONSOLE,
@@ -36,7 +36,7 @@ def ui_header(title: str) -> None:
         rprint(title)
 
 
-def ui_status(message: str) -> ContextManager[None]:
+def ui_status(message: str) -> AbstractContextManager[None]:
     from contextlib import contextmanager
 
     @contextmanager

@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.program1_generate_markdowns import (
-    load_template_and_placeholders,
-    process_csv_and_generate_markdowns,
-)
-from src.program3_generate_website import generate_html_content, load_school_data
+from src.pipeline.markdown_generator.templating import load_template_and_placeholders
+from src.pipeline.markdown_generator.processor import process_csv_and_generate_markdowns
+from src.pipeline.website_generator.data_aggregator import load_school_data
+from src.pipeline.website_generator.renderer import generate_final_html
+from src.config import WEBSITE_TEMPLATE_PATH
 
 
 def write_file(path: Path, text: str) -> None:
@@ -79,7 +79,7 @@ def test_end_to_end_without_api(tmp_path: Path):
     # Build website content (program3)
     schools = load_school_data(csv_path, ai_dir)
     assert len(schools) == 2
-    html = generate_html_content(json.dumps(schools, ensure_ascii=False))
+    html = generate_final_html(schools, WEBSITE_TEMPLATE_PATH)
     # Smoke assertions that expected names appear in final HTML
     assert "Alpha" in html
     assert "B200" in html or "fallback" in html

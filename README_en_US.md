@@ -196,23 +196,15 @@ The main menu also includes quality flows:
 
 ### 🛠️ Manual
 
-Generate markdown:
+Generate markdown, process with AI and build the website using the
+interactive helper:
 
 ```bash
-python src/program1_generate_markdowns.py
+python setup_project.py
 ```
 
-AI process markdown:
-
-```bash
-python src/program2_ai_processor.py
-```
-
-Generate website:
-
-```bash
-python src/program3_generate_website.py
-```
+You can also call pipeline modules directly from Python for automation
+but the recommended path for end-to-end runs is the setup script above.
 
 ## 🔧 Operational Details
 

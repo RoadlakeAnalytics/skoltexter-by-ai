@@ -2,7 +2,7 @@
 
 import pytest
 
-import src.program3_generate_website as p3
+from src.pipeline.website_generator import renderer as p3
 
 
 def test_clean_html_output_type_error():

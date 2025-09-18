@@ -1,6 +1,6 @@
-"""Tests for data aggregation functions in program3_generate_website."""
+"""Tests for data aggregation functions in website generator package."""
 
-import src.program3_generate_website as p3
+from src.pipeline.website_generator import data_aggregator as p3
 
 
 def test_read_school_csv_bad_columns(tmp_path):

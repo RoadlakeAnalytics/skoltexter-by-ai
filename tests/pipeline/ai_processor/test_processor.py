@@ -12,9 +12,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import logging
 
-import src.program2_ai_processor as p2
-from src.program2_ai_processor import SchoolDescriptionProcessor
+import src.pipeline.ai_processor as p2
+from src.pipeline.ai_processor import SchoolDescriptionProcessor
 
 
 def make_proc(tmp_path: Path) -> SchoolDescriptionProcessor:
@@ -78,7 +79,7 @@ def test_program2_main_invocation(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(p2, "OpenAIConfig", FakeConfig)
     monkeypatch.setattr(p2, "SchoolDescriptionProcessor", FakeProcessor)
     monkeypatch.setattr(
-        p2.asyncio,
+        asyncio,
         "run",
         lambda coro: {
             "total_files_in_input_dir": 0,
@@ -110,14 +111,16 @@ def test_configure_logging_filehandler_error(monkeypatch):
         def __init__(self, *a, **k):
             raise RuntimeError("no file handler")
 
-    monkeypatch.setattr(p2.logging, "FileHandler", BadFH)
+    monkeypatch.setattr(logging, "FileHandler", BadFH)
     p2.configure_logging("INFO", enable_file=True)
 
 
 def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("API_KEY", raising=False)
     monkeypatch.delenv("AZURE_API_KEY", raising=False)
-    monkeypatch.setattr(p2, "PROJECT_ROOT", tmp_path)
+    import types, sys as _sys
+
+    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
     with pytest.raises(ValueError):
         p2.OpenAIConfig()
 
@@ -126,7 +129,9 @@ def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("AZURE_API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
     monkeypatch.delenv("API_KEY", raising=False)
-    monkeypatch.setattr(p2, "PROJECT_ROOT", tmp_path)
+    import types, sys as _sys
+
+    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
     with pytest.raises(ValueError):
         p2.OpenAIConfig()
 
@@ -134,7 +139,9 @@ def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
 def test_openai_config_non_azure_no_endpoint_warning(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
-    monkeypatch.setattr(p2, "PROJECT_ROOT", tmp_path)
+    import types, sys as _sys
+
+    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
     cfg = p2.OpenAIConfig()
     assert cfg.gpt4o_endpoint == ""
 
@@ -499,7 +506,7 @@ def test_log_processing_summary(tmp_path: Path, caplog):
     json_dir = tmp_path / "json"
     md_dir.mkdir()
     json_dir.mkdir()
-    with caplog.at_level(p2.logging.INFO):
+    with caplog.at_level(logging.INFO):
         p2.log_processing_summary(stats, md_dir, json_dir)
 
 
@@ -602,7 +609,9 @@ async def test_call_openai_api_no_endpoint(tmp_path: Path):
 
 
 def test_openai_config_loads_dotenv(monkeypatch, tmp_path: Path):
-    monkeypatch.setattr(p2, "PROJECT_ROOT", tmp_path, raising=True)
+    import types, sys as _sys
+
+    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
     env_text = (
         "AZURE_API_KEY=kkk\n"
         "AZURE_ENDPOINT_BASE=https://example.test\n"

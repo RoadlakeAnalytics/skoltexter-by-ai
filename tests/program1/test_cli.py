@@ -1,6 +1,6 @@
 """CLI and logging tests for program1_generate_markdowns."""
 
-import src.program1_generate_markdowns as p1
+import src.pipeline.markdown_generator.runner as p1
 
 
 def test_configure_logging_filehandler_error(monkeypatch):

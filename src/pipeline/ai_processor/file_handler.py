@@ -6,6 +6,7 @@ It performs only file I/O and does not contact external services.
 
 import json
 from pathlib import Path
+from typing import Any
 
 from src.config import (
     AI_PROCESSED_FILENAME_SUFFIX,

@@ -304,7 +304,13 @@ class SchoolDescriptionProcessor:
                 try:
                     from importlib import import_module
 
-                    p2 = import_module("src.program2_ai_processor")
+                    # Prefer the new pipeline package module if present so that
+                    # tests and callers that import the pipeline package can
+                    # monkeypatch the ``tqdm_asyncio`` compatibility shim.
+                    try:
+                        p2 = import_module("src.pipeline.ai_processor")
+                    except Exception:
+                        p2 = import_module("src.program2_ai_processor")
                     results = await p2.tqdm_asyncio.gather(
                         *tasks, desc="Processing schools with AI"
                     )

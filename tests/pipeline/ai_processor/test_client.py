@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.program2_ai_processor import SchoolDescriptionProcessor
+from src.pipeline.ai_processor import SchoolDescriptionProcessor
 
 
 class FakeLimiter:

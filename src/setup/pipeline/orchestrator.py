@@ -21,6 +21,9 @@ from src.setup.ui.prompts import ask_confirm, ask_text
 
 from ..azure_env import run_ai_connectivity_check_silent
 from .run import run_program
+from src.pipeline.markdown_generator.runner import run_from_config as run_markdown
+from src.pipeline.ai_processor.cli import main as ai_processor_main
+from src.pipeline.website_generator.runner import run_from_config as run_website
 from .status import _render_pipeline_table as _render_table_impl
 from .status import _status_label as _status_label_impl
 
@@ -126,7 +129,25 @@ def _run_pipeline_step(
 ) -> bool:
     choice = ask_text(_(prompt_key), default="y").lower()
     if choice in ["y", "j"]:
-        if not run_program(program_name, program_path, stream_output=stream_output):
+        # Map program names to in-process runner functions instead of
+        # spawning subprocesses for the refactored pipeline.
+        try:
+            if program_name == "program_1":
+                ok = run_markdown()
+            elif program_name == "program_2":
+                # ai_processor_main is a CLI wrapper that calls the processor
+                # directly; it returns None but will raise on critical errors.
+                ai_processor_main()
+                ok = True
+            elif program_name == "program_3":
+                ok = run_website()
+            else:
+                # Fallback to legacy subprocess runner if an unknown program is requested
+                ok = run_program(program_name, program_path, stream_output=stream_output)
+        except Exception:
+            ok = False
+
+        if not ok:
             ui_warning(_(fail_key) + " Aborting pipeline.")
             return False
         ui_success(_(confirmation_key))
@@ -139,6 +160,28 @@ def _run_pipeline_step(
         ui_warning(_(fail_key))
         return False
     return True
+
+
+def run_pipeline_by_name(program_name: str, stream_output: bool = False) -> bool:
+    """Run a pipeline step by its canonical name (program_1/2/3).
+
+    This helper is intended for programmatic consumption (e.g. the TUI) and
+    mirrors the behaviour used by the interactive flows but without
+    prompting. It maps the canonical name to an in-process runner that
+    invokes pipeline code directly.
+    """
+    try:
+        if program_name == "program_1":
+            return run_markdown()
+        if program_name == "program_2":
+            ai_processor_main()
+            return True
+        if program_name == "program_3":
+            return run_website()
+        # Unknown: fall back to subprocess runner (keeps backwards compatibility)
+        return run_program(program_name, Path(PROJECT_ROOT / "src" / f"{program_name}.py"), stream_output=stream_output)
+    except Exception:
+        return False
 
 
 def _run_processing_pipeline_plain() -> None:

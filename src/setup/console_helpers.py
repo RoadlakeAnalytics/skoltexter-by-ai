@@ -33,14 +33,15 @@ except Exception:
     Table: Any = object
     _RICH_CONSOLE = None
 
-    try:
-        import questionary as _questionary
+# Ensure questionary presence is checked regardless of the Rich import
+try:
+    import questionary as _questionary
 
-        questionary: Any = _questionary
-        _HAS_Q = True
-    except Exception:
-        questionary = None
-        _HAS_Q = False
+    questionary: Any = _questionary
+    _HAS_Q = True
+except Exception:
+    questionary = None
+    _HAS_Q = False
 
 
 def ui_has_rich() -> bool:

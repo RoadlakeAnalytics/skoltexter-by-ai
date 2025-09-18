@@ -2302,7 +2302,7 @@ def run_ai_connectivity_check_interactive() -> bool:
     async def _check_once() -> tuple[bool, str]:
         try:
             # Lazy import to avoid heavy dependencies at import time
-            from src.program2_ai_processor import OpenAIConfig
+            from src.pipeline.ai_processor import OpenAIConfig
 
             cfg = OpenAIConfig()
             if not cfg.gpt4o_endpoint:
@@ -2386,7 +2386,7 @@ def run_ai_connectivity_check_silent() -> tuple[bool, str]:
 
     async def _check_once() -> tuple[bool, str]:
         try:
-            from src.program2_ai_processor import OpenAIConfig
+            from src.pipeline.ai_processor import OpenAIConfig
 
             cfg = OpenAIConfig()
             if not cfg.gpt4o_endpoint:
@@ -2448,18 +2448,21 @@ def entry_point() -> None:
     if getattr(args, "ui", "rich") == "textual":
         try:
             # Lazy import so that 'textual' isn't required for non-textual paths
-            from src.ui_textual import DashboardContext, SetupDashboardApp
+            from src.setup.ui.textual_app import DashboardContext, SetupDashboardApp
+            from src.setup.pipeline import orchestrator as _orch
+
+            # Provide a run_program callable that invokes the refactored
+            # pipeline steps directly rather than spawning legacy scripts.
+            def _run_program_adapter(program_name: str, stream_output: bool = False) -> bool:
+                return _orch.run_pipeline_by_name(program_name, stream_output=stream_output)
 
             ctx = DashboardContext(
                 t=translate,
                 get_program_descriptions=get_program_descriptions,
                 run_ai_check=run_ai_connectivity_check_silent,
-                run_program=run_program,
+                run_program=_run_program_adapter,
                 render_pipeline_table=_render_pipeline_table,
                 log_dir=LOG_DIR,
-                program1_path=SRC_DIR / "program1_generate_markdowns.py",
-                program2_path=SRC_DIR / "program2_ai_processor.py",
-                program3_path=SRC_DIR / "program3_generate_website.py",
                 set_tui_mode=set_tui_mode,
                 lang=lambda: LANG,
                 venv_dir=lambda: VENV_DIR,

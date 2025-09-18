@@ -203,4 +203,3 @@ If you want, I can:
 - Run `black` and `ruff` and fix any remaining style issues.
 - Prepare a tidy commit message and a PR description with a file-by-file
   changelog ready for review.
-

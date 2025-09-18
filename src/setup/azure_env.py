@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 from src.config import PROJECT_ROOT
 
@@ -55,7 +56,7 @@ def prompt_and_update_env(
         # `src.setup.ui.prompts.ask_text`) before falling back to any legacy
         # top-level `setup_project` shim that may be present in sys.modules.
         try:
-            from src.setup.ui import prompts as _prompts  # type: ignore
+            from src.setup.ui import prompts as _prompts
 
             ui = _prompts
         except Exception:
@@ -108,7 +109,19 @@ def find_missing_env_keys(existing: dict[str, str], required: list[str]) -> list
 
 
 def run_ai_connectivity_check_silent() -> tuple[bool, str]:
-    from src.pipeline.ai_processor import OpenAIConfig
+    # Prefer the legacy entrypoint export if present in sys.modules so tests
+    # that inject a fake module under ``src.program2_ai_processor`` continue
+    # to work. Fall back to the pipeline package otherwise.
+    try:
+        from importlib import import_module
+
+        try:
+            mod = import_module("src.program2_ai_processor")
+            OpenAIConfig = mod.OpenAIConfig
+        except Exception:
+            from src.pipeline.ai_processor import OpenAIConfig
+    except Exception:
+        from src.pipeline.ai_processor import OpenAIConfig
 
     cfg = OpenAIConfig()
     if not cfg.gpt4o_endpoint:
