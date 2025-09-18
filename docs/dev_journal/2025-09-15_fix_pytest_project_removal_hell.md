@@ -164,4 +164,3 @@ Om du vill kan jag nu:
 - lägga in ett CI‑jobb som kör semgrep och blockerar PRs med dessa mönster.
 
 Säg vilket av följande du vill jag prioriterar härnäst: full testkörning, PR‑förberedelser, eller CI‑konfiguration.
-

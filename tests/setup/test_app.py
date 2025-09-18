@@ -1,5 +1,6 @@
 """Tests for `src/setup/app.py` runner."""
 
+import sys
 from types import SimpleNamespace
 
 import src.setup.app as app

@@ -25,10 +25,8 @@ try:
         LOG_DIR,
         LOG_FILENAME_GENERATE_MARKDOWNS,
         LOG_FORMAT,
-        MISSING_DATA_PLACEHOLDER,
         ORIGINAL_CSV_PATH,
         OUTPUT_MARKDOWN_DIR,
-        SURVEY_YEAR_SUFFIXES_PREFERENCE,
         TEMPLATE_FILE_PATH,
     )
 except ImportError:  # pragma: no cover - import fallback for direct script runs

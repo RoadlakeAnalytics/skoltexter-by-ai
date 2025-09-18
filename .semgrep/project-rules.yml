@@ -31,4 +31,3 @@ rules:
       - pattern: manage_virtual_environment(..., pathlib.Path("."), ...)
       - pattern: reset_project(..., pathlib.Path("."), ...)
       - pattern: safe_rmtree(pathlib.Path("."))
-

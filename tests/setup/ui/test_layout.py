@@ -1,14 +1,9 @@
 """Tests for `src/setup/ui/layout.py`."""
 
-from pathlib import Path
-
 import pytest
 
-import src.setup.i18n as i18n
 from src.setup.console_helpers import Panel, ui_has_rich
 from src.setup.ui.layout import build_dashboard_layout as _build_dashboard_layout
-
-
 
 
 def test_rich_build_dashboard_layout(monkeypatch):

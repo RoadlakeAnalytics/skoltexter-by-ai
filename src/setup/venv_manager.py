@@ -14,8 +14,8 @@ import venv
 from pathlib import Path
 from typing import Any
 
-from .fs_utils import create_safe_path, safe_rmtree
 from . import venv as venvmod
+from .fs_utils import create_safe_path, safe_rmtree
 
 
 def manage_virtual_environment(

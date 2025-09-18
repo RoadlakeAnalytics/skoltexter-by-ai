@@ -1,5 +1,4 @@
-"""Processing logic for markdown generation.
-"""
+"""Processing logic for markdown generation."""
 
 import logging
 from pathlib import Path
@@ -17,10 +16,28 @@ from .templating import render_template
 logger = logging.getLogger(__name__)
 
 
-def build_template_context(row: dict[str, str], template_placeholders: list[str]) -> dict[str, str]:
+def build_template_context(
+    row: dict[str, str], template_placeholders: list[str]
+) -> dict[str, str]:
+    """Build a mapping of template placeholders to values for a CSV row.
+
+    Parameters
+    ----------
+    row : dict[str, str]
+        CSV row mapping column names to values.
+    template_placeholders : list[str]
+        Placeholders present in the template that need values.
+
+    Returns
+    -------
+    dict[str, str]
+        Mapping from placeholder names to string values.
+    """
     context: dict[str, str] = {}
     context["SchoolCode"] = get_value_from_row(row, "SchoolCode")
-    context["SurveySchoolYear"] = determine_survey_year_for_report(row, template_placeholders)
+    context["SurveySchoolYear"] = determine_survey_year_for_report(
+        row, template_placeholders
+    )
     for placeholder in template_placeholders:
         if placeholder in context:
             continue
@@ -31,7 +48,27 @@ def build_template_context(row: dict[str, str], template_placeholders: list[str]
     return context
 
 
-def process_csv_and_generate_markdowns(csv_path: Path, template_content: str, placeholders: list[str], output_dir: Path) -> int:
+def process_csv_and_generate_markdowns(
+    csv_path: Path, template_content: str, placeholders: list[str], output_dir: Path
+) -> int:
+    """Process the CSV file and write one markdown file per school.
+
+    Parameters
+    ----------
+    csv_path : Path
+        Path to the input CSV file.
+    template_content : str
+        The text template used to render each school's markdown.
+    placeholders : list[str]
+        Placeholders to populate in the template.
+    output_dir : Path
+        Directory where generated markdown files are written.
+
+    Returns
+    -------
+    int
+        Number of markdown files successfully generated.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     processed_count = 0
     for row_number, row in enumerate(load_school_rows_from_csv(csv_path), start=2):
@@ -49,4 +86,3 @@ def process_csv_and_generate_markdowns(csv_path: Path, template_content: str, pl
         except OSError as error:
             logger.error(f"Error writing {output_path}: {error}")
     return processed_count
-

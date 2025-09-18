@@ -9,7 +9,7 @@ the rest of the package can be imported in minimal environments.
 from __future__ import annotations
 
 try:  # Lazy import so package import doesn't require Textual to be installed
-    from .textual_app import DashboardContext, SetupDashboardApp  # type: ignore
+    from .textual_app import DashboardContext, SetupDashboardApp
 except Exception:  # pragma: no cover - optional dependency
     # Provide lightweight placeholders with helpful error messages so that
     # callers that actually want to run the Textual app get a clear error

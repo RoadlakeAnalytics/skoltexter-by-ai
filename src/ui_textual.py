@@ -13,10 +13,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 # Textual imports are local to this module to keep dependency surface minimal
-from textual.app import App, ComposeResult
+if TYPE_CHECKING:
+    from textual.app import App, ComposeResult
+else:
+    App = object
+    ComposeResult = Any
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Footer, Input, Label, ListItem, ListView, Static
@@ -70,7 +74,7 @@ class DashboardContext:
     venv_dir: Callable[[], Path]
 
 
-class SetupDashboardApp(App[None]):
+class SetupDashboardApp(App):
     """Textual application implementing the dashboard UI.
 
     Notes
@@ -81,11 +85,11 @@ class SetupDashboardApp(App[None]):
       logic by enabling the TUI adapter provided by :func:`set_tui_mode`.
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[tuple[str, str, str]]] = [
         ("q", "quit", "Quit"),
     ]
 
-    CSS = """
+    CSS: ClassVar[str] = """
     #root {
         height: 100%;
     }
@@ -114,6 +118,13 @@ class SetupDashboardApp(App[None]):
         self._restore_tui: Callable[[], None] | None = None
 
     def compose(self) -> ComposeResult:
+        """Compose the UI layout for the Textual app.
+
+        Returns
+        -------
+        ComposeResult
+            The composed child widgets.
+        """
         header = Static("Skoltexter by AI — Setup", id="header")
         # Left menu
         menu = ListView(

@@ -64,7 +64,7 @@ def create_safe_path(path_to_validate: Path) -> _ValidatedPath:
         # is_relative_to may raise on older Python versions; treat as outside.
         raise PermissionError(
             "SECURITY STOP: Attempt to delete a path outside the project was blocked."
-        )
+        ) from None
 
     # Strict whitelist of directories that may be cleared by the reset logic.
     whitelisted_roots = [
@@ -99,7 +99,9 @@ def create_safe_path(path_to_validate: Path) -> _ValidatedPath:
     )
 
     if not is_safe_path:
-        raise PermissionError(f"SECURITY STOP: Path '{target_path}' is not in the whitelist.")
+        raise PermissionError(
+            f"SECURITY STOP: Path '{target_path}' is not in the whitelist."
+        )
 
     # All checks passed — return the path stamped as validated.
     return _ValidatedPath(target_path)

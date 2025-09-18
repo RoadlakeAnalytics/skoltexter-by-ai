@@ -12,10 +12,10 @@ import sys as _sys
 import venv as _venv
 from pathlib import Path
 
+import setup_project as sp
 import src.setup.venv_manager as vm
 from src import config as cfg
 from src.setup import venv as venvmod
-import setup_project as sp
 
 
 class _UI:
@@ -107,7 +107,9 @@ def test_manage_virtual_environment_install_errors(monkeypatch, tmp_path: Path):
     )
 
 
-def test_manage_virtual_environment_dynamic_ui_enable_success(monkeypatch, tmp_path: Path):
+def test_manage_virtual_environment_dynamic_ui_enable_success(
+    monkeypatch, tmp_path: Path
+):
     ui = _UI
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: True)
     ui.ask_text = staticmethod(lambda prompt, default="y": "y")
@@ -121,7 +123,9 @@ def test_manage_virtual_environment_dynamic_ui_enable_success(monkeypatch, tmp_p
     )
 
 
-def test_manage_virtual_environment_dynamic_ui_enable_excepts(monkeypatch, tmp_path: Path):
+def test_manage_virtual_environment_dynamic_ui_enable_excepts(
+    monkeypatch, tmp_path: Path
+):
     import builtins as _builtins
     import importlib as _importlib
 
@@ -286,6 +290,7 @@ def test_manage_virtual_environment_no_py313_non_test_fallback(
 ):
     pass
 
+
 def test_manage_virtual_environment_recreate_existing(monkeypatch, tmp_path: Path):
     """Recreate existing venv when user confirms."""
     # Ensure the project root used by the filesystem helpers points to tmp_path
@@ -306,17 +311,21 @@ def test_manage_virtual_environment_recreate_existing(monkeypatch, tmp_path: Pat
     import src.setup.fs_utils as fs_utils
 
     monkeypatch.setattr(fs_utils, "create_safe_path", lambda p: p)
-    monkeypatch.setattr(fs_utils, "safe_rmtree", lambda validated: removed.__setitem__("ok", True))
+    monkeypatch.setattr(
+        fs_utils, "safe_rmtree", lambda validated: removed.__setitem__("ok", True)
+    )
     # Prevent actual pip/subprocess calls during the test run.
     monkeypatch.setattr(sp.subprocess, "check_call", lambda *a, **k: None)
     sp.manage_virtual_environment()
     assert removed["ok"] is True
+
 
 def test_manage_virtual_environment_skip(monkeypatch):
     """Skip venv management when user declines."""
     monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": "n")
     monkeypatch.setattr(sp, "is_venv_active", lambda: False)
     sp.manage_virtual_environment()
+
 
 def test_manage_virtual_environment_install_fallback_when_no_lock(
     monkeypatch, tmp_path: Path
@@ -354,6 +363,7 @@ def test_manage_virtual_environment_install_fallback_when_no_lock(
     # The second call should be the install command using requirements.txt fallback
     assert any("-r" in c and str(sp_local.REQUIREMENTS_FILE) in c for c in calls)
 
+
 def test_manage_virtual_environment_no_venvdir_pip_python_fallback(
     monkeypatch, tmp_path: Path
 ):
@@ -381,6 +391,7 @@ def test_manage_virtual_environment_no_venvdir_pip_python_fallback(
     monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
     monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
     sp_local.manage_virtual_environment()
+
 
 def test_manage_virtual_environment_venv_exists_no_python_fallback(
     monkeypatch, tmp_path: Path
@@ -412,6 +423,7 @@ def test_manage_virtual_environment_venv_exists_no_python_fallback(
     )
     monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
     sp_local.manage_virtual_environment()
+
 
 def test_manage_virtual_environment_restart_with_invalid_lang(
     monkeypatch, tmp_path: Path
@@ -446,6 +458,7 @@ def test_manage_virtual_environment_restart_with_invalid_lang(
     sp_local.manage_virtual_environment()
     # Ensure we attempted to execve with --no-venv appended
     assert captured.get("argv") and captured["argv"][-1] == "--no-venv"
+
 
 def test_manage_virtual_environment_vdir_not_created_then_fallback(
     monkeypatch, tmp_path: Path

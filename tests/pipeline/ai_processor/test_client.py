@@ -11,7 +11,6 @@ from types import SimpleNamespace
 
 import pytest
 
-import src.program2_ai_processor as p2
 from src.program2_ai_processor import SchoolDescriptionProcessor
 
 
@@ -213,4 +212,3 @@ async def test_api_empty_choices_retry_then_success(monkeypatch, tmp_path: Path)
     assert slept and slept[0] == 1
     assert isinstance(raw, dict)
     assert raw.get("choices", [{}])[0].get("message", {}).get("content") == "OK"
-

@@ -10,9 +10,14 @@ import asyncio
 import json
 from pathlib import Path
 
+from src.config import PROJECT_ROOT
+
 # Import ``aiohttp`` lazily inside the async helper so tests can inject a
 # fake module into ``sys.modules['aiohttp']`` before the function runs.
 aiohttp = None
+
+# Default .env path (can be monkeypatched by tests)
+ENV_PATH: Path = PROJECT_ROOT / ".env"
 
 
 def parse_env_file(env_path: Path) -> dict[str, str]:
@@ -46,14 +51,22 @@ def prompt_and_update_env(
     import sys
 
     if ui is None:
-        ui = sys.modules.get("setup_project")
-        if ui is None:
-            try:
-                from src.setup import ui as _ui
+        # Prefer the internal UI prompts module (so tests can monkeypatch
+        # `src.setup.ui.prompts.ask_text`) before falling back to any legacy
+        # top-level `setup_project` shim that may be present in sys.modules.
+        try:
+            from src.setup.ui import prompts as _prompts  # type: ignore
 
-                ui = _ui
-            except Exception:
-                ui = None
+            ui = _prompts
+        except Exception:
+            ui = sys.modules.get("setup_project")
+            if ui is None:
+                try:
+                    from src.setup import ui as _ui
+
+                    ui = _ui
+                except Exception:
+                    ui = None
     # Ensure we have required UI callables
     if not hasattr(ui, "rprint") or not hasattr(ui, "_") or not hasattr(ui, "ask_text"):
         from src.setup.console_helpers import rprint as _rprint
@@ -95,7 +108,7 @@ def find_missing_env_keys(existing: dict[str, str], required: list[str]) -> list
 
 
 def run_ai_connectivity_check_silent() -> tuple[bool, str]:
-    from src.program2_ai_processor import OpenAIConfig
+    from src.pipeline.ai_processor import OpenAIConfig
 
     cfg = OpenAIConfig()
     if not cfg.gpt4o_endpoint:
@@ -110,9 +123,9 @@ def run_ai_connectivity_check_silent() -> tuple[bool, str]:
     )
     user_prompt = f"{user_prompt_sv}\n\n{user_prompt_en}"
 
-    async def _check_once():
+    async def _check_once() -> tuple[bool, str]:
         try:
-            import aiohttp  # type: ignore
+            import aiohttp
         except Exception:
             return False, "aiohttp not installed"
         try:
@@ -151,3 +164,30 @@ def run_ai_connectivity_check_silent() -> tuple[bool, str]:
             return False, f"{type(err).__name__}: {err}"
 
     return asyncio.run(_check_once())
+
+
+def ensure_azure_openai_env(ui: Any = None) -> None:
+    """Ensure required Azure/OpenAI environment variables exist.
+
+    This helper reads the configured `.env` file (via :data:`ENV_PATH`),
+    determines which keys are missing and, if any are absent, prompts the
+    user (using `prompt_and_update_env`) to collect them and write an
+    updated `.env` file.
+
+    Parameters
+    ----------
+    ui : optional
+        Optional UI object providing `rprint`, `_` and `ask_text`. If not
+        provided a minimal console-backed UI is used.
+
+    Returns
+    -------
+    None
+    """
+    env_path = globals().get("ENV_PATH", PROJECT_ROOT / ".env")
+    existing = parse_env_file(env_path)
+    missing = find_missing_env_keys(existing, REQUIRED_AZURE_KEYS)
+    if missing:
+        # Call the prompt helper with positional args to remain compatible
+        # with test doubles that accept only the standard three parameters.
+        prompt_and_update_env(missing, env_path, existing)

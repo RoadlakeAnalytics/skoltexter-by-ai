@@ -22,25 +22,25 @@ try:
     _RICH_CONSOLE: Any = Console()
 except Exception:
     # Define stubs for rich types to allow safe imports when rich is absent.
-    Console = object  # type: ignore[assignment]
-    Group = object  # type: ignore[assignment]
-    Layout = object  # type: ignore[assignment]
-    Live = object  # type: ignore[assignment]
-    Markdown = object  # type: ignore[assignment]
-    Panel = object  # type: ignore[assignment]
-    Rule = object  # type: ignore[assignment]
-    Syntax = object  # type: ignore[assignment]
-    Table = object  # type: ignore[assignment]
+    Console: Any = object
+    Group: Any = object
+    Layout: Any = object
+    Live: Any = object
+    Markdown: Any = object
+    Panel: Any = object
+    Rule: Any = object
+    Syntax: Any = object
+    Table: Any = object
     _RICH_CONSOLE = None
 
-try:
-    import questionary as _questionary
+    try:
+        import questionary as _questionary
 
-    questionary: Any = _questionary
-    _HAS_Q = True
-except Exception:
-    questionary = None
-    _HAS_Q = False
+        questionary: Any = _questionary
+        _HAS_Q = True
+    except Exception:
+        questionary = None
+        _HAS_Q = False
 
 
 def ui_has_rich() -> bool:
@@ -51,7 +51,7 @@ def ui_has_rich() -> bool:
     this module was previously imported in a context where `rich` existed.
     """
     try:  # re-check importability under test monkeypatching
-        import rich  # type: ignore  # noqa: F401
+        import rich  # noqa: F401
     except Exception:
         return False
     return _RICH_CONSOLE is not None
@@ -68,7 +68,7 @@ def rprint(
     try:
         if ui_has_rich():
             try:
-                from rich import print as rich_print  # type: ignore
+                from rich import print as rich_print
 
                 rich_print(*objects, sep=sep, end=end, file=file, flush=flush)
                 return

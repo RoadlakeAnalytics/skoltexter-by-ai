@@ -1,12 +1,10 @@
 """Configuration-related tests for program2 AI processor."""
 
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 import src.program2_ai_processor as p2
-from src.program2_ai_processor import SchoolDescriptionProcessor
 
 
 def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
@@ -74,4 +72,3 @@ def test_openai_config_loads_dotenv(monkeypatch, tmp_path: Path):
         "AZURE_API_VERSION",
     ]:
         monkeypatch.delenv(key, raising=False)
-

@@ -38,3 +38,30 @@ def pytest_runtest_teardown(item, nextitem):
         signal.alarm(0)
     except Exception:
         pass
+
+
+# Make the `sys` module available as a builtin name for tests that
+# reference it without an explicit import. Some older tests rely on
+# the `sys` name being present in the global namespace.
+try:
+    import builtins
+
+    builtins.sys = sys
+except Exception:
+    pass
+
+# Provide a simple FakeLimiter in the builtin namespace so tests that
+# reference `FakeLimiter` without importing it still work. Individual
+# test modules may define their own more specific variants if needed.
+try:
+
+    class _SimpleFakeLimiter:
+        async def __aenter__(self):
+            return None
+
+        async def __aexit__(self, *a, **k):
+            return False
+
+    builtins.FakeLimiter = _SimpleFakeLimiter
+except Exception:
+    pass

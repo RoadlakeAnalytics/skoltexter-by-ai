@@ -29,7 +29,9 @@ AI_RAW_RESPONSES_SUBDIR: str = "raw_responses"
 AI_FAILED_RESPONSE_FILENAME_SUFFIX: str = ".failed.json"
 
 # Prompt/template paths (relative to project root)
-AI_PROMPT_TEMPLATE_PATH: str = str(PROJECT_ROOT / "templates" / "ai_prompt_template.txt")
+AI_PROMPT_TEMPLATE_PATH: str = str(
+    PROJECT_ROOT / "templates" / "ai_prompt_template.txt"
+)
 
 # AI payload defaults
 AI_PAYLOAD_MAX_TOKENS: int = 1024
@@ -64,4 +66,3 @@ WEBSITE_TEMPLATE_PATH: Path = PROJECT_ROOT / "templates" / "website_template.htm
 
 # UI defaults
 LANG: str = "en"
-

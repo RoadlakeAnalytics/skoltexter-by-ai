@@ -6,6 +6,8 @@ dashboard logic.
 
 from __future__ import annotations
 
+from typing import ContextManager
+
 from src.setup.console_helpers import (
     _RICH_CONSOLE,
     Panel,
@@ -17,6 +19,7 @@ from src.setup.console_helpers import (
 
 
 def ui_rule(title: str) -> None:
+    """Render a horizontal rule or header line in the UI."""
     if ui_has_rich() and _RICH_CONSOLE:
         _RICH_CONSOLE.print(Rule(title, style="bold blue"))
     else:
@@ -24,6 +27,7 @@ def ui_rule(title: str) -> None:
 
 
 def ui_header(title: str) -> None:
+    """Render a header banner using Rich when available."""
     if ui_has_rich() and _RICH_CONSOLE:
         _RICH_CONSOLE.print(
             Panel.fit(title, style="bold white on blue", border_style="blue")
@@ -32,7 +36,7 @@ def ui_header(title: str) -> None:
         rprint(title)
 
 
-def ui_status(message: str):
+def ui_status(message: str) -> ContextManager[None]:
     from contextlib import contextmanager
 
     @contextmanager
@@ -48,6 +52,7 @@ def ui_status(message: str):
 
 
 def ui_info(message: str) -> None:
+    """Display an informational message to the user."""
     if ui_has_rich():
         rprint(f"[cyan]{message}[/cyan]")
     else:
@@ -55,6 +60,7 @@ def ui_info(message: str) -> None:
 
 
 def ui_success(message: str) -> None:
+    """Display a success message to the user."""
     if ui_has_rich():
         rprint(f"[green]✓ {message}[/green]")
     else:
@@ -62,6 +68,7 @@ def ui_success(message: str) -> None:
 
 
 def ui_warning(message: str) -> None:
+    """Display a warning message to the user."""
     if ui_has_rich():
         rprint(f"[yellow]⚠ {message}[/yellow]")
     else:
@@ -69,6 +76,7 @@ def ui_warning(message: str) -> None:
 
 
 def ui_error(message: str) -> None:
+    """Display an error message to the user."""
     if ui_has_rich():
         rprint(f"[bold red]✗ {message}[/bold red]")
     else:
@@ -76,6 +84,7 @@ def ui_error(message: str) -> None:
 
 
 def ui_menu(items: list[tuple[str, str]]) -> None:
+    """Render a simple selection menu from a list of key/label pairs."""
     if ui_has_rich() and _RICH_CONSOLE:
         table = Table(show_header=True, header_style="bold blue")
         table.add_column("#", style="bold")

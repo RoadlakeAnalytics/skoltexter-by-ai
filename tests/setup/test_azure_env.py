@@ -85,6 +85,7 @@ def test_parse_env_and_find_missing(tmp_path: Path):
     missing = sp.find_missing_env_keys(data, sp.REQUIRED_AZURE_KEYS)
     assert "GPT4O_DEPLOYMENT_NAME" in missing and "AZURE_API_VERSION" in missing
 
+
 def test_ensure_azure_openai_env_triggers_prompt(monkeypatch, tmp_path: Path):
     envp = tmp_path / ".env"
     envp.write_text("", encoding="utf-8")

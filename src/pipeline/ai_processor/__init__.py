@@ -16,4 +16,3 @@ __all__ = [
     "save_processed_files",
     "SchoolDescriptionProcessor",
 ]
-

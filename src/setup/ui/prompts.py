@@ -21,6 +21,9 @@ def ask_text(prompt: str, default: str | None = None) -> str:
         )  # local import to avoid cycles
     except Exception:
         _orch = None  # type: ignore[assignment]
+
+    # TUI interaction has priority when an orchestrator-driven UI is
+    # active so prompt updates are directed to the TUI pane.
     if (_orch is not None) and _orch._TUI_MODE and _orch._TUI_UPDATER is not None:
         if getattr(_orch, "_TUI_PROMPT_UPDATER", None) is not None:
             _orch._TUI_PROMPT_UPDATER(ch.Panel(f"{prompt}\n\n> ", title="Input"))
@@ -43,6 +46,20 @@ def ask_text(prompt: str, default: str | None = None) -> str:
                 except (EOFError, OSError):
                     return default or ""
         return (value or "").strip() or (default or "")
+
+    # If the optional questionary adapter is enabled, prefer it. Tests
+    # typically enable ch._HAS_Q and provide a lightweight stub in
+    # `ch.questionary` so this branch returns quickly and deterministically.
+    if getattr(ch, "_HAS_Q", False) and getattr(ch, "questionary", None) is not None:
+        try:
+            ans = ch.questionary.text(prompt, default=default or "").ask()
+            return (ans or (default or "")).strip()
+        except Exception:
+            # Fall back to other input methods on adapter error.
+            pass
+
+    # If we reach here, questionary wasn't used. Use standard input
+    # fallback behaviour (respecting test environment and TTY state).
     try:
         is_tty = sys.stdin.isatty()
     except Exception:
@@ -50,17 +67,6 @@ def ask_text(prompt: str, default: str | None = None) -> str:
     in_test = bool(_os.environ.get("PYTEST_CURRENT_TEST"))
     if (not is_tty) and (not in_test):
         return default or ""
-    use_q = (
-        getattr(ch, "_HAS_Q", False)
-        and getattr(ch, "questionary", None) is not None
-        and (
-            ((not in_test) and is_tty)
-            or (in_test and not hasattr(ch.questionary, "__file__"))
-        )
-    )
-    if use_q:
-        ans = ch.questionary.text(prompt, default=default or "").ask()
-        return (ans or (default or "")).strip()
     try:
         return input(prompt).strip() or (default or "")
     except (EOFError, OSError):
@@ -110,13 +116,13 @@ def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
     if (not is_tty) and (not in_test):
         return default_yes
     use_q = (
-        getattr(ch, "_HAS_Q", False)
-        and getattr(ch, "questionary", None) is not None
-        and (
-            ((not in_test) and is_tty)
-            or (in_test and not hasattr(ch.questionary, "__file__"))
-        )
+        getattr(ch, "_HAS_Q", False) and getattr(ch, "questionary", None) is not None
     )
+    if getattr(ch, "questionary", None) is not None and not use_q:
+        try:
+            return bool(ch.questionary.confirm(prompt, default=default_yes).ask())
+        except Exception:
+            pass
     if use_q:
         return bool(ch.questionary.confirm(prompt, default=default_yes).ask())
     try:
@@ -138,13 +144,13 @@ def ask_select(prompt: str, choices: list[str]) -> str:
     if (not is_tty) and (not in_test):
         return choices[-1]
     use_q = (
-        getattr(ch, "_HAS_Q", False)
-        and getattr(ch, "questionary", None) is not None
-        and (
-            ((not in_test) and is_tty)
-            or (in_test and not hasattr(ch.questionary, "__file__"))
-        )
+        getattr(ch, "_HAS_Q", False) and getattr(ch, "questionary", None) is not None
     )
+    if getattr(ch, "questionary", None) is not None and not use_q:
+        try:
+            return str(ch.questionary.select(prompt, choices=choices).ask())
+        except Exception:
+            pass
     if use_q:
         return str(ch.questionary.select(prompt, choices=choices).ask())
     ch.rprint(prompt)

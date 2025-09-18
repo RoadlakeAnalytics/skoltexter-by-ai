@@ -176,6 +176,10 @@ TEXTS: dict[str, dict[str, str]] = {
 
 
 def translate(key: str) -> str:
+    """Return the translated string for the given key based on current LANG.
+
+    If translation is missing, the key itself is returned.
+    """
     try:
         return TEXTS.get(LANG, TEXTS["en"]).get(key, key)
     except Exception:
@@ -224,7 +228,7 @@ def set_language() -> None:
             _print(TEXTS["en"]["invalid_choice"])
         except KeyboardInterrupt:
             _print(TEXTS["en"]["exiting"])
-            raise SystemExit
+            raise SystemExit from None
         except Exception:
             _print(TEXTS["en"]["invalid_choice"])
 

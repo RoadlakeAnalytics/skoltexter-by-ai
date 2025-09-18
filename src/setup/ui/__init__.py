@@ -7,6 +7,8 @@ into focused files.
 
 from __future__ import annotations
 
+from src.setup.console_helpers import ui_has_rich
+
 from .basic import (
     ui_error,
     ui_header,
@@ -46,6 +48,4 @@ __all__ = [
     "_view_logs_tui",
     "view_logs",
 ]
-from src.setup.console_helpers import ui_has_rich
-
 __all__.append("ui_has_rich")

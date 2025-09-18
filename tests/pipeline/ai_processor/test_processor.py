@@ -7,6 +7,7 @@ behaviours of SchoolDescriptionProcessor and the program entrypoint.
 
 import asyncio
 import sys
+from builtins import FakeLimiter
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -432,7 +433,13 @@ def test_program2_main_valueerror(monkeypatch, tmp_path: Path, capsys):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["program2_ai_processor.py", "--input", str(tmp_path), "--output", str(tmp_path)],
+        [
+            "program2_ai_processor.py",
+            "--input",
+            str(tmp_path),
+            "--output",
+            str(tmp_path),
+        ],
     )
     p2.main()
 
@@ -447,7 +454,13 @@ def test_program2_main_generic_exception(monkeypatch, tmp_path: Path, capsys):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["program2_ai_processor.py", "--input", str(tmp_path), "--output", str(tmp_path)],
+        [
+            "program2_ai_processor.py",
+            "--input",
+            str(tmp_path),
+            "--output",
+            str(tmp_path),
+        ],
     )
     with pytest.raises(RuntimeError):
         p2.main()
@@ -463,7 +476,13 @@ def test_program2_main_keyboard_interrupt(monkeypatch, tmp_path: Path, capsys):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["program2_ai_processor.py", "--input", str(tmp_path), "--output", str(tmp_path)],
+        [
+            "program2_ai_processor.py",
+            "--input",
+            str(tmp_path),
+            "--output",
+            str(tmp_path),
+        ],
     )
     p2.main()
 
@@ -696,7 +715,9 @@ async def test_process_all_files_limit_and_skips(tmp_path: Path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_process_school_file_failure_saves_failed_json(tmp_path: Path, monkeypatch):
+async def test_process_school_file_failure_saves_failed_json(
+    tmp_path: Path, monkeypatch
+):
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     (input_dir / "Y.md").write_text("Y", encoding="utf-8")
@@ -731,7 +752,9 @@ async def test_process_school_file_failure_saves_failed_json(tmp_path: Path, mon
 
 
 @pytest.mark.asyncio
-async def test_process_school_file_success_without_raw_json(tmp_path: Path, monkeypatch):
+async def test_process_school_file_success_without_raw_json(
+    tmp_path: Path, monkeypatch
+):
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     f = input_dir / "Z.md"
@@ -767,7 +790,9 @@ async def test_process_school_file_success_without_raw_json(tmp_path: Path, monk
 
 
 @pytest.mark.asyncio
-async def test_process_school_file_failure_without_raw_json(tmp_path: Path, monkeypatch):
+async def test_process_school_file_failure_without_raw_json(
+    tmp_path: Path, monkeypatch
+):
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     f = input_dir / "W.md"
@@ -800,4 +825,3 @@ async def test_process_school_file_failure_without_raw_json(tmp_path: Path, monk
         assert ok is False
     failed = proc.json_output_dir / "W_gpt4o_FAILED_response.json"
     assert not failed.exists()
-

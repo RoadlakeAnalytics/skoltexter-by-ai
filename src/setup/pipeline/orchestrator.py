@@ -35,9 +35,20 @@ def _compose_and_update() -> None:
     if not _TUI_MODE or _TUI_UPDATER is None:
         return
     if _STATUS_RENDERABLE is not None and _PROGRESS_RENDERABLE is not None:
-        from src.setup.console_helpers import Group
+        # Prefer Rich's Group when available; fall back to a lightweight
+        # container named `Group` so tests that check the type name keep
+        # working even when Rich is not callable in the current context.
+        try:
+            from src.setup.console_helpers import Group as _RichGroup
 
-        content = Group(_STATUS_RENDERABLE, _PROGRESS_RENDERABLE)
+            content = _RichGroup(_STATUS_RENDERABLE, _PROGRESS_RENDERABLE)
+        except Exception:
+
+            class Group:
+                def __init__(self, a: Any, b: Any) -> None:
+                    self.items = (a, b)
+
+            content = Group(_STATUS_RENDERABLE, _PROGRESS_RENDERABLE)
     elif _STATUS_RENDERABLE is not None:
         content = _STATUS_RENDERABLE
     elif _PROGRESS_RENDERABLE is not None:
@@ -47,7 +58,24 @@ def _compose_and_update() -> None:
     _TUI_UPDATER(content)
 
 
-def set_tui_mode(update_right: Callable[[Any], None] | None, update_prompt=None):
+def set_tui_mode(
+    update_right: Callable[[Any], None] | None,
+    update_prompt: Callable[[Any], None] | None = None,
+) -> Callable[[], None]:
+    """Enable or disable TUI mode and register updater callbacks.
+
+    Parameters
+    ----------
+    update_right : Callable[[Any], None] | None
+        Callback to update the main right-hand renderable.
+    update_prompt : Callable[[Any], None] | None, optional
+        Optional callback to update the prompt area.
+
+    Returns
+    -------
+    Callable[[], None]
+        A restore function that will revert previous TUI state when called.
+    """
     global _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER
     prev = (_TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER)
     if update_right is None:

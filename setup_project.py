@@ -1745,6 +1745,7 @@ def reset_project() -> None:
         return  # pragma: no cover
     deleted_count = 0
     from src.setup.fs_utils import create_safe_path, safe_rmtree
+
     for dir_path in dirs_to_check:
         if dir_path.exists():
             # Attempt to validate and then safely rmtree the entire directory.
@@ -1754,7 +1755,9 @@ def reset_project() -> None:
                 # Count removed files as an approximation (directory cleared)
                 deleted_count += 1
             except PermissionError as e:
-                logger.error(f"Security policy prevented removing directory '{dir_path}': {e}")
+                logger.error(
+                    f"Security policy prevented removing directory '{dir_path}': {e}"
+                )
             except Exception as error:
                 logger.error(f"Error removing {dir_path}: {error}")
     rprint(f"{translate('reset_complete')} ({deleted_count} files deleted)")

@@ -5,6 +5,8 @@ Extracted into a shim-free module under the UI package.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from src.config import LOG_DIR
 from src.setup.console_helpers import (
     Markdown,
@@ -20,6 +22,7 @@ from src.setup.ui.prompts import ask_text
 
 
 def get_program_descriptions() -> dict[str, tuple[str, str]]:
+    """Return mappings of program id to (short, long) descriptions."""
     return {
         "1": (translate("program_1_desc_short"), translate("program_1_desc_long")),
         "2": (translate("program_2_desc_short"), translate("program_2_desc_long")),
@@ -28,6 +31,7 @@ def get_program_descriptions() -> dict[str, tuple[str, str]]:
 
 
 def view_program_descriptions() -> None:
+    """Interactive view showing program descriptions in the console UI."""
     ui_rule(translate("program_descriptions_title"))
     while True:
         descriptions = get_program_descriptions()
@@ -48,8 +52,9 @@ def view_program_descriptions() -> None:
 
 
 def _view_program_descriptions_tui(
-    update_right: callable, update_prompt: callable
+    update_right: Callable[[object], None], update_prompt: Callable[[object], None]
 ) -> None:
+    """Textual/TUI variant that renders program descriptions on the right pane."""
     descriptions = get_program_descriptions()
     items = [(k, v[0]) for k, v in descriptions.items()]
     items.append(("0", translate("return_to_menu")))
@@ -71,7 +76,10 @@ def _view_program_descriptions_tui(
         )
 
 
-def _view_logs_tui(update_right: callable, update_prompt: callable) -> None:
+def _view_logs_tui(
+    update_right: Callable[[object], None], update_prompt: Callable[[object], None]
+) -> None:
+    """Textual/TUI variant that lists log files and allows selection."""
     if not LOG_DIR.exists() or not any(LOG_DIR.iterdir()):
         update_right(Panel(translate("no_logs"), title="Logs"))
         return
@@ -114,6 +122,7 @@ def _view_logs_tui(update_right: callable, update_prompt: callable) -> None:
 
 
 def view_logs() -> None:
+    """Interactive console view to list and display log files."""
     ui_rule(translate("logs_title"))
     if not LOG_DIR.exists() or not any(LOG_DIR.iterdir()):
         rprint(translate("no_logs"))

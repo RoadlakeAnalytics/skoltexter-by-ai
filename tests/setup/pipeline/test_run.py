@@ -32,8 +32,6 @@ def test_run_program_stream_and_capture(monkeypatch, tmp_path: Path):
     pass
 
 
-
-
 def test_run_program_tui_progress_parsing(monkeypatch, tmp_path: Path):
     """Simulate program_2 subprocess with tqdm-like output and ensure updates."""
     # Enable TUI
@@ -63,6 +61,7 @@ def test_run_program_tui_progress_parsing(monkeypatch, tmp_path: Path):
     ok = sp.run_program("program_2", tmp_path / "x.py", stream_output=True)
     assert ok is True and updates, "Expected updates during TUI progress parsing"
 
+
 def test_run_program_tui_progress_done_only(monkeypatch, tmp_path: Path):
     """Cover branch setting total from done line when it was None."""
     updates: list[object] = []
@@ -87,6 +86,7 @@ def test_run_program_tui_progress_done_only(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(sp.subprocess, "Popen", lambda *a, **k: FakeProc())
     ok = sp.run_program("program_2", tmp_path / "x.py", stream_output=True)
     assert ok is True
+
 
 def test_run_program_tui_progress_failure(monkeypatch, tmp_path: Path):
     """Cover failure branch after capturing output (non-zero return code)."""

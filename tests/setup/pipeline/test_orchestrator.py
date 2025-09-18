@@ -5,8 +5,7 @@ from pathlib import Path
 import pytest
 
 import src.setup.pipeline.orchestrator as sp
-import src.setup.ui.menu as menu
-from src.setup.console_helpers import Table, ui_has_rich, Panel
+from src.setup.console_helpers import Panel, Table
 
 
 def test_run_processing_pipeline_abort(monkeypatch):
@@ -75,8 +74,6 @@ def test_run_processing_pipeline_program3_no_success_message(monkeypatch):
     assert calls["n"] == 3
 
 
-
-
 def test_render_pipeline_table_and_status_labels(monkeypatch):
     """Render the status table and verify localized status labels."""
     if not sp.ui_has_rich():
@@ -91,6 +88,7 @@ def test_render_pipeline_table_and_status_labels(monkeypatch):
         sp.LANG = prev
     table = sp._render_pipeline_table("A", "B", "C")
     assert table is not None
+
 
 def test_run_processing_pipeline_rich_all_ok(monkeypatch):
     """Drive Rich pipeline flow with all steps succeeding and AI check ok."""
@@ -109,6 +107,7 @@ def test_run_processing_pipeline_rich_all_ok(monkeypatch):
     # three steps should be executed
     assert calls["n"] == 3
 
+
 def test_run_processing_pipeline_rich_step2_fail(monkeypatch):
     """Ensure Rich pipeline still proceeds to step 3 if step 2 fails."""
     if not sp.ui_has_rich():
@@ -119,6 +118,7 @@ def test_run_processing_pipeline_rich_step2_fail(monkeypatch):
     monkeypatch.setattr(sp, "_run_pipeline_step", lambda *a, **k: next(seq))
     sp._run_processing_pipeline_rich()
 
+
 def test_run_processing_pipeline_plain_ok(monkeypatch):
     """Directly exercise the plain pipeline variant to ensure coverage."""
     monkeypatch.setattr(sp, "ask_confirm", lambda *a, **k: False)  # skip AI check
@@ -126,6 +126,7 @@ def test_run_processing_pipeline_plain_ok(monkeypatch):
     monkeypatch.setattr(sp, "ask_text", lambda *a, **k: next(seq))
     monkeypatch.setattr(sp, "run_program", lambda *a, **k: True)
     sp._run_processing_pipeline_plain()
+
 
 def test_run_processing_pipeline_dispatch_plain(monkeypatch):
     """Force dispatcher to call the plain pipeline branch."""
@@ -137,11 +138,13 @@ def test_run_processing_pipeline_dispatch_plain(monkeypatch):
     sp.run_processing_pipeline()
     assert called["plain"] == 1
 
+
 def test_plain_pipeline_ai_check_decline(monkeypatch):
     """Cover plain pipeline branch where AI check fails and returns early."""
     monkeypatch.setattr(sp, "ask_confirm", lambda *a, **k: True)
     monkeypatch.setattr(sp, "run_ai_connectivity_check_interactive", lambda: False)
     sp._run_processing_pipeline_plain()
+
 
 def test_plain_pipeline_first_step_fail(monkeypatch):
     """Cover early return path after first pipeline step fails (plain)."""
@@ -153,6 +156,7 @@ def test_plain_pipeline_first_step_fail(monkeypatch):
 
     monkeypatch.setattr(sp, "_run_pipeline_step", fail_first)
     sp._run_processing_pipeline_plain()
+
 
 def test_plain_pipeline_ai_check_ok(monkeypatch):
     """Cover plain pipeline branch where AI check passes with confirmation."""
@@ -168,6 +172,7 @@ def test_plain_pipeline_ai_check_ok(monkeypatch):
     sp._run_processing_pipeline_plain()
     assert calls["n"] == 3
 
+
 def test_plain_pipeline_third_step_false(monkeypatch):
     """Cover plain pipeline branch where the third step returns False."""
     monkeypatch.setattr(sp, "ask_confirm", lambda *a, **k: False)
@@ -179,6 +184,7 @@ def test_plain_pipeline_third_step_false(monkeypatch):
 
     monkeypatch.setattr(sp, "_run_pipeline_step", third_false)
     sp._run_processing_pipeline_plain()
+
 
 def test_run_processing_pipeline_rich_updater(monkeypatch):
     """Cover the updater-driven rich pipeline path so output stays in right pane."""
@@ -196,6 +202,7 @@ def test_run_processing_pipeline_rich_updater(monkeypatch):
     sp.run_processing_pipeline(content_updater=updater)
     assert updates, "Expected content updates during rich pipeline"
 
+
 def test_run_processing_pipeline_rich_updater_ai_fail(monkeypatch):
     """Cover updater path when AI connectivity fails after confirmation."""
     if not sp.ui_has_rich():
@@ -210,6 +217,7 @@ def test_run_processing_pipeline_rich_updater_ai_fail(monkeypatch):
     sp.run_processing_pipeline(content_updater=updater)
     assert updates, "Expected at least one AI check update when failing"
 
+
 def test_run_processing_pipeline_rich_updater_program3_false(monkeypatch):
     """Cover updater path with program 3 false (no final path panel)."""
     if not sp.ui_has_rich():
@@ -220,6 +228,7 @@ def test_run_processing_pipeline_rich_updater_program3_false(monkeypatch):
     updates: list[object] = []
     sp.run_processing_pipeline(content_updater=lambda r: updates.append(r))
     assert updates, "Expected pipeline table updates even when step 3 is false"
+
 
 def test_tui_confirm_yes_default(monkeypatch):
     """Cover TUI confirm path with empty input using default yes."""
@@ -235,6 +244,7 @@ def test_tui_confirm_yes_default(monkeypatch):
     sp.run_processing_pipeline(content_updater=lambda r: updates.append(r))
     assert updates, "Expected pipeline updates when using TUI confirm"
 
+
 def test_tui_confirm_no(monkeypatch):
     """Cover TUI confirm path with explicit 'n' response (returns False)."""
     updates: list[object] = []
@@ -242,6 +252,7 @@ def test_tui_confirm_no(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda _="": "n")
     sp.run_processing_pipeline(content_updater=lambda r: updates.append(r))
     assert updates, "Expected at least AI prompt update when declining"
+
 
 def test_compose_and_update_variants(monkeypatch):
     """Cover compose helper branches: both, only progress, empty, TUI off."""

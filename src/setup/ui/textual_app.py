@@ -9,10 +9,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 # Textual imports are local to this module to keep dependency surface minimal
-from textual.app import App, ComposeResult
+if TYPE_CHECKING:
+    from textual.app import App, ComposeResult
+else:  # pragma: no cover - runtime fallback when textual is not installed
+    App = object
+    ComposeResult = Any
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Footer, Input, Label, ListItem, ListView, Static
@@ -36,10 +40,17 @@ class DashboardContext:
     venv_dir: Callable[[], Path]
 
 
-class SetupDashboardApp(App[None]):
-    BINDINGS = [("q", "quit", "Quit")]
+class SetupDashboardApp(App):
+    """Textual dashboard application for the setup TUI.
 
-    CSS = """
+    This application composes a left-hand menu and a right-hand content
+    area consisting of a prompt and output region. It is a thin UI layer
+    that delegates business logic to the supplied :class:`DashboardContext`.
+    """
+
+    BINDINGS: ClassVar[list[tuple[str, str, str]]] = [("q", "quit", "Quit")]
+
+    CSS: ClassVar[str] = """
     #root { height: 100%; }
     #header { background: $accent; color: black; padding: 1 2; }
     #footer { dock: bottom; }
@@ -60,6 +71,13 @@ class SetupDashboardApp(App[None]):
         self._restore_tui: Callable[[], None] | None = None
 
     def compose(self) -> ComposeResult:
+        """Compose the UI layout and yield the root container.
+
+        Returns
+        -------
+        ComposeResult
+            The composed widgets for Textual to render.
+        """
         header = Static("Skoltexter by AI — Setup", id="header")
         menu = ListView(
             ListItem(Label("1. " + self.ctx.t("menu_option_1")[3:])),
@@ -80,12 +98,17 @@ class SetupDashboardApp(App[None]):
         yield Vertical(header, body, footer, id="root")
 
     def on_mount(self) -> None:
+        """Initialize the UI when the application mounts.
+
+        This sets up the footer and displays the initial menu message.
+        """
         self._update_footer()
         self._show_menu_message()
         if self.prompt_input:
             self.set_focus(self.prompt_input)
 
     def _update_footer(self) -> None:
+        """Update the footer and prompt label with current status info."""
         lang_label = "Svenska" if self.ctx.lang() == "sv" else "English"
         venv_status = (
             str(self.ctx.venv_dir().resolve())
@@ -99,6 +122,7 @@ class SetupDashboardApp(App[None]):
             self.prompt_label.update(text)
 
     def _show_menu_message(self) -> None:
+        """Display the initial menu help text in the output area."""
         if not self.output:
             return
         msg = (
@@ -108,6 +132,7 @@ class SetupDashboardApp(App[None]):
         self.output.update(Static(msg, classes="pad"))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle selection in the left-hand menu and switch views."""
         label = (
             event.item.query_one(Label).renderable
             if isinstance(event.item, ListItem)
@@ -133,6 +158,7 @@ class SetupDashboardApp(App[None]):
             self.exit()
 
     def _render_env_unsupported(self) -> None:
+        """Render a short message that Textual-based env setup is not supported."""
         if self.prompt_label:
             self.prompt_label.update(
                 "Environment setup via Textual is not interactive yet."
@@ -143,6 +169,7 @@ class SetupDashboardApp(App[None]):
             )
 
     def _render_reset_info(self) -> None:
+        """Render reset instructions for the reset view."""
         if self.prompt_label:
             self.prompt_label.update("Återställning görs via CLI i detta läge.")
         if self.output:
@@ -151,6 +178,7 @@ class SetupDashboardApp(App[None]):
             )
 
     def _render_descriptions_home(self) -> None:
+        """Render the program descriptions view in the output pane."""
         if not self.output:
             return
         rows = self.ctx.get_program_descriptions()
@@ -163,9 +191,11 @@ class SetupDashboardApp(App[None]):
             self.prompt_input.value = ""
 
     def action_quit(self) -> None:
+        """Quit the application cleanly."""
         self.exit()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle a submitted input value from the prompt line."""
         value = (event.value or "").strip()
         if self.active_view == "descriptions":
             self._handle_desc_input(value)
