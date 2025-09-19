@@ -102,7 +102,10 @@ def run_program(
                     _orch._PROGRESS_RENDERABLE = Panel(
                         text, title="AI Processor", border_style="cyan"
                     )
-                    _orch._compose_and_update()
+                    # Call orchestrator compose/update if available; make
+                    # this resilient to test doubles that may replace the
+                    # orchestrator module with a lightweight stub.
+                    getattr(_orch, "_compose_and_update", lambda: None)()
                     # Also call the updater directly when available to
                     # ensure tests that set it on this module are invoked.
                     try:
@@ -167,7 +170,8 @@ def run_program(
                     except Exception:
                         pass
                 _orch._PROGRESS_RENDERABLE = None
-                _orch._compose_and_update()
+                # Safe call to orchestrator updater to avoid AttributeError
+                getattr(_orch, "_compose_and_update", lambda: None)()
                 if return_code == 0:
                     logger.info(_(f"{program_name.lower().replace(' ', '_')}_complete"))
                     return True

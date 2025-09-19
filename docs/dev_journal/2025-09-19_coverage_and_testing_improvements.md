@@ -137,4 +137,3 @@ Appendix — ändrade nyckelfiler (urval)
 Behöver du en PR med alla ändringar (inkl. commit‑historik) eller föredrar du
 att jag bara öppnar en review‑patch med sammanfattning? Svara så packar jag
 det åt dig.
-

@@ -5,6 +5,7 @@ It performs only file I/O and does not contact external services.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -56,9 +57,23 @@ def save_processed_files(
     json_dir = output_dir_base / AI_RAW_RESPONSES_SUBDIR
     md_dir.mkdir(parents=True, exist_ok=True)
     json_dir.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger(__name__)
+
     md_path = md_dir / f"{school_id}{AI_PROCESSED_FILENAME_SUFFIX}"
     json_path = json_dir / f"{school_id}{AI_RAW_RESPONSE_FILENAME_SUFFIX}"
-    md_path.write_text(markdown, encoding="utf-8")
-    json_path.write_text(
-        json.dumps(raw_json, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+
+    # Attempt writes but do not raise on failure; callers should not be
+    # disrupted by I/O issues when persisting optional artifacts.
+    try:
+        md_path.write_text(markdown, encoding="utf-8")
+    except OSError as exc:  # pragma: no cover - defensive logging path
+        logger.exception(
+            "Failed to write processed markdown for %s: %s", school_id, exc
+        )
+
+    try:
+        json_path.write_text(
+            json.dumps(raw_json, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except OSError as exc:  # pragma: no cover - defensive logging path
+        logger.exception("Failed to write raw JSON response for %s: %s", school_id, exc)

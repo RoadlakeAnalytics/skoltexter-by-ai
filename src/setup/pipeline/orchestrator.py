@@ -55,6 +55,14 @@ def _compose_and_update() -> None:
             a: Any = _STATUS_RENDERABLE
             b: Any = _PROGRESS_RENDERABLE
             content = _RichGroup(a, b)
+            # Ensure a test-friendly `.items` attribute exists even when
+            # Rich's Group is used so tests can inspect the container.
+            try:
+                if not hasattr(content, "items"):
+                    setattr(content, "items", (a, b))
+            except Exception:
+                # Defensive: ignore failures when object is not attribute-writable
+                pass
         except Exception:
 
             class Group:

@@ -51,6 +51,21 @@ def test_questionary_paths(monkeypatch):
 
             return A()
 
+    # Ensure any TUI state does not intercept the questionary path
+    try:
+        from src.setup.pipeline import orchestrator as _orch
+
+        monkeypatch.setattr(_orch, "_TUI_MODE", False, raising=False)
+        monkeypatch.setattr(_orch, "_TUI_UPDATER", None, raising=False)
+    except Exception:
+        pass
+    # Ensure Panel is callable for prompt renderers
+    monkeypatch.setattr(
+        ch,
+        "Panel",
+        lambda *a, **k: __import__("types").SimpleNamespace(),
+        raising=False,
+    )
     monkeypatch.setattr(ch, "_HAS_Q", True)
     monkeypatch.setattr(ch, "questionary", Q)
     assert sp.ask_text("?") == "value"

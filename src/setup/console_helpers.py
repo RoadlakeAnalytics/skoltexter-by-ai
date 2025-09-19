@@ -37,13 +37,27 @@ else:
 
         _RICH_CONSOLE: Any = Console()
     except Exception:
-        # Define stubs for rich types to allow safe imports when rich is absent.
+        # Define simple, callable stubs for rich types to allow safe imports
+        # and deterministic behaviour under tests where the real `rich`
+        # package may be present or monkeypatched. These stubs mimic the
+        # minimal interface used by the rest of the codebase and are
+        # intentionally lightweight.
+        class _FakePanel:
+            def __init__(self, renderable: Any = "", title: str = "") -> None:
+                self.renderable = renderable
+                self.title = title
+
+        class _FakeGroup:
+            def __init__(self, *items: Any) -> None:
+                # Expose `.items` for tests that inspect the container.
+                self.items = tuple(items)
+
         Console: Any = object
-        Group: Any = object
+        Group: Any = _FakeGroup
         Layout: Any = object
         Live: Any = object
         Markdown: Any = object
-        Panel: Any = object
+        Panel: Any = _FakePanel
         Rule: Any = object
         Syntax: Any = object
         Table: Any = object
