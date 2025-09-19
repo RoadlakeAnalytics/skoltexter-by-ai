@@ -9,12 +9,14 @@ from src.setup.console_helpers import Panel, Table
 
 
 def test_run_processing_pipeline_abort(monkeypatch):
+    """Test Run processing pipeline abort."""
     monkeypatch.setattr(sp, "ask_confirm", lambda *a, **k: False)
     monkeypatch.setattr(sp, "_run_pipeline_step", lambda *a, **k: False)
     sp.run_processing_pipeline()
 
 
 def test_run_pipeline_step_skip_without_skip_message(monkeypatch, tmp_path: Path):
+    """Test Run pipeline step skip without skip message."""
     monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": "skip")
     assert (
         sp._run_pipeline_step(
@@ -65,6 +67,7 @@ def test_run_processing_pipeline_program3_no_success_message(monkeypatch):
     calls = {"n": 0}
 
     def step_runner(prompt_key, program_name, program_path, fail_key, ok_key, **kw):
+        """Test Step runner."""
         calls["n"] += 1
         return calls["n"] != 3
 
@@ -99,6 +102,7 @@ def test_run_processing_pipeline_rich_all_ok(monkeypatch):
     calls = {"n": 0}
 
     def step_runner(*a, **k):
+        """Test Step runner."""
         calls["n"] += 1
         return True
 
@@ -152,6 +156,7 @@ def test_plain_pipeline_first_step_fail(monkeypatch):
 
     # fail first step
     def fail_first(prompt_key, program_name, program_path, fail_key, ok_key, **kw):
+        """Test Fail first."""
         return False
 
     monkeypatch.setattr(sp, "_run_pipeline_step", fail_first)
@@ -165,6 +170,7 @@ def test_plain_pipeline_ai_check_ok(monkeypatch):
     calls = {"n": 0}
 
     def all_ok(*a, **k):
+        """Test All ok."""
         calls["n"] += 1
         return True
 
@@ -179,6 +185,7 @@ def test_plain_pipeline_third_step_false(monkeypatch):
     state = {"i": 0}
 
     def third_false(*a, **k):
+        """Test Third false."""
         state["i"] += 1
         return state["i"] < 3
 
@@ -197,6 +204,7 @@ def test_run_processing_pipeline_rich_updater(monkeypatch):
     updates: list[object] = []
 
     def updater(renderable):
+        """Test Updater."""
         updates.append(renderable)
 
     sp.run_processing_pipeline(content_updater=updater)
@@ -212,6 +220,7 @@ def test_run_processing_pipeline_rich_updater_ai_fail(monkeypatch):
     updates: list[object] = []
 
     def updater(renderable):
+        """Test Updater."""
         updates.append(renderable)
 
     sp.run_processing_pipeline(content_updater=updater)

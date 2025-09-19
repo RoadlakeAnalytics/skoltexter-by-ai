@@ -6,6 +6,7 @@ from src.pipeline.markdown_generator.templating import (
 
 
 def test_extract_placeholders_from_template_basic():
+    """Test Extract placeholders from template basic."""
     template = "Hello {SchoolName}! Code: {SchoolCode}. {SurveyAnswerCategory_Math}"
     out = extract_placeholders_from_template(template)
     assert out == ["SchoolCode", "SchoolName", "SurveyAnswerCategory_Math"]

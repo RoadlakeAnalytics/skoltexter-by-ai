@@ -7,27 +7,46 @@ from src.setup import console_helpers as ch
 
 
 def test_questionary_paths(monkeypatch):
+    """Test Questionary paths."""
+
     class Q:
+        """Test Q."""
+
         @staticmethod
         def text(prompt, default=""):
+            """Test Text."""
+
             class A:
+                """Test A."""
+
                 def ask(self):
+                    """Test Ask."""
                     return "value"
 
             return A()
 
         @staticmethod
         def confirm(prompt, default=True):
+            """Test Confirm."""
+
             class A:
+                """Test A."""
+
                 def ask(self):
+                    """Test Ask."""
                     return True
 
             return A()
 
         @staticmethod
         def select(prompt, choices):
+            """Test Select."""
+
             class A:
+                """Test A."""
+
                 def ask(self):
+                    """Test Ask."""
                     return choices[-1]
 
             return A()

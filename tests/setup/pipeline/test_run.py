@@ -9,8 +9,13 @@ from src.setup.console_helpers import Table
 
 
 def test_run_program_stream_fail_and_exception(monkeypatch, tmp_path: Path):
+    """Test Run program stream fail and exception."""
+
     class P:
+        """Test P."""
+
         def wait(self):
+            """Test Wait."""
             return 1
 
     from src.setup import venv as v
@@ -28,6 +33,7 @@ def test_run_program_stream_fail_and_exception(monkeypatch, tmp_path: Path):
 
 
 def test_run_program_stream_and_capture(monkeypatch, tmp_path: Path):
+    """Test Run program stream and capture."""
     # Placeholder; covered in orchestrator TUI tests.
     pass
 
@@ -44,17 +50,24 @@ def test_run_program_tui_progress_parsing(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(orch, "_PROGRESS_RENDERABLE", None, raising=True)
 
     class FakeStdout:
+        """Test FakeStdout."""
+
         def __iter__(self):
+            """Test Iter."""
             # Emit tqdm-like percent, fraction, and completed summary
             yield " 12%|#####      | 12/100 [00:01<00:08]\\n"
             yield "55/100 [00:04<00:03]\\n"
             yield "AI Processing completed: 100\\n"
 
     class FakeProc:
+        """Test FakeProc."""
+
         def __init__(self):
+            """Test Init."""
             self.stdout = FakeStdout()
 
         def wait(self):
+            """Test Wait."""
             return 0
 
     monkeypatch.setattr(sp.subprocess, "Popen", lambda *a, **k: FakeProc())
@@ -73,14 +86,21 @@ def test_run_program_tui_progress_done_only(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(orch, "_PROGRESS_RENDERABLE", None, raising=True)
 
     class FakeStdout:
+        """Test FakeStdout."""
+
         def __iter__(self):
+            """Test Iter."""
             yield "AI Processing completed: 10\\n"
 
     class FakeProc:
+        """Test FakeProc."""
+
         def __init__(self):
+            """Test Init."""
             self.stdout = FakeStdout()
 
         def wait(self):
+            """Test Wait."""
             return 0
 
     monkeypatch.setattr(sp.subprocess, "Popen", lambda *a, **k: FakeProc())
@@ -99,14 +119,21 @@ def test_run_program_tui_progress_failure(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(orch, "_PROGRESS_RENDERABLE", None, raising=True)
 
     class FakeStdout:
+        """Test FakeStdout."""
+
         def __iter__(self):
+            """Test Iter."""
             yield "noise line\\n"
 
     class FakeProc:
+        """Test FakeProc."""
+
         def __init__(self):
+            """Test Init."""
             self.stdout = FakeStdout()
 
         def wait(self):
+            """Test Wait."""
             return 2
 
     monkeypatch.setattr(sp.subprocess, "Popen", lambda *a, **k: FakeProc())

@@ -19,6 +19,7 @@ from src.pipeline.ai_processor import SchoolDescriptionProcessor
 
 
 def make_proc(tmp_path: Path) -> SchoolDescriptionProcessor:
+    """Test Make proc."""
     cfg = SimpleNamespace(
         gpt4o_endpoint="https://x",
         api_key="k",
@@ -58,7 +59,10 @@ def test_program2_main_invocation(monkeypatch, tmp_path: Path):
     called = {}
 
     class FakeConfig:
+        """Test FakeConfig."""
+
         def __init__(self):
+            """Test Init."""
             self.api_key = "x"
             self.gpt4o_endpoint = "https://x"
             self.temperature = 0.0
@@ -70,7 +74,10 @@ def test_program2_main_invocation(monkeypatch, tmp_path: Path):
             self.target_rpm = 100
 
     class FakeProcessor:
+        """Test FakeProcessor."""
+
         def __init__(self, config, input_dir, output_dir_base):
+            """Test Init."""
             called["init"] = (str(input_dir), str(output_dir_base))
             self.markdown_output_dir = tmp_path / "md"
             self.json_output_dir = tmp_path / "json"
@@ -109,8 +116,13 @@ def test_program2_main_invocation(monkeypatch, tmp_path: Path):
 
 
 def test_configure_logging_filehandler_error(monkeypatch):
+    """Test Configure logging filehandler error."""
+
     class BadFH:
+        """Test BadFH."""
+
         def __init__(self, *a, **k):
+            """Test Init."""
             raise RuntimeError("no file handler")
 
     monkeypatch.setattr(logging, "FileHandler", BadFH)
@@ -120,6 +132,7 @@ def test_configure_logging_filehandler_error(monkeypatch):
 
 
 def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
+    """Test Openai config missing api key."""
     monkeypatch.delenv("API_KEY", raising=False)
     monkeypatch.delenv("AZURE_API_KEY", raising=False)
     import src.config as cfg
@@ -130,6 +143,7 @@ def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
 
 
 def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
+    """Test Openai config azure missing endpoint."""
     monkeypatch.setenv("AZURE_API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
     monkeypatch.delenv("API_KEY", raising=False)
@@ -141,6 +155,7 @@ def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
 
 
 def test_openai_config_non_azure_no_endpoint_warning(monkeypatch, tmp_path: Path):
+    """Test Openai config non azure no endpoint warning."""
     monkeypatch.setenv("API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
     import src.config as cfg
@@ -151,6 +166,7 @@ def test_openai_config_non_azure_no_endpoint_warning(monkeypatch, tmp_path: Path
 
 
 def test_parse_prompt_template_missing_markers(tmp_path: Path):
+    """Test Parse prompt template missing markers."""
     cfg = SimpleNamespace(
         api_key="k",
         gpt4o_endpoint="https://x",
@@ -163,6 +179,7 @@ def test_parse_prompt_template_missing_markers(tmp_path: Path):
 
 
 def test_clean_ai_response_partial_fences():
+    """Test Clean ai response partial fences."""
     s = "```markdown\nHello"
     out = SchoolDescriptionProcessor._clean_ai_response(s)
     assert out.startswith("Hello")
@@ -176,6 +193,7 @@ def test_clean_ai_response_partial_fences():
 
 @pytest.mark.asyncio
 async def test_call_openai_api_empty_choices_no_retry(tmp_path: Path):
+    """Test Call openai api empty choices no retry."""
     cfg = SimpleNamespace(
         gpt4o_endpoint="https://x",
         api_key="k",
@@ -190,26 +208,38 @@ async def test_call_openai_api_empty_choices_no_retry(tmp_path: Path):
     import json
 
     class R:
+        """Test R."""
+
         status = 200
 
         async def text(self):
+            """Test Text."""
             return json.dumps({"choices": []})
 
         async def __aenter__(self):
+            """Test Aenter."""
             return self
 
         async def __aexit__(self, et, e, tb):
+            """Test Aexit."""
             return False
 
     class S:
+        """Test S."""
+
         def post(self, *a, **k):
+            """Test Post."""
             return R()
 
     class Limiter:
+        """Test Limiter."""
+
         async def __aenter__(self):
+            """Test Aenter."""
             return None
 
         async def __aexit__(self, *a, **k):
+            """Test Aexit."""
             return False
 
     ok, content, err = await proc.call_openai_api(S(), {"x": 1}, "S1", Limiter())
@@ -218,6 +248,7 @@ async def test_call_openai_api_empty_choices_no_retry(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_call_openai_api_empty_content_then_success(monkeypatch, tmp_path: Path):
+    """Test Call openai api empty content then success."""
     cfg = SimpleNamespace(
         gpt4o_endpoint="https://x",
         api_key="k",
@@ -232,47 +263,66 @@ async def test_call_openai_api_empty_content_then_success(monkeypatch, tmp_path:
     import json
 
     class R1:
+        """Test R1."""
+
         status = 200
 
         async def text(self):
+            """Test Text."""
             return json.dumps({"choices": [{"message": {"content": ""}}]})
 
         async def __aenter__(self):
+            """Test Aenter."""
             return self
 
         async def __aexit__(self, et, e, tb):
+            """Test Aexit."""
             return False
 
     class R2:
+        """Test R2."""
+
         status = 200
 
         async def text(self):
+            """Test Text."""
             return json.dumps({"choices": [{"message": {"content": "OK"}}]})
 
         async def __aenter__(self):
+            """Test Aenter."""
             return self
 
         async def __aexit__(self, et, e, tb):
+            """Test Aexit."""
             return False
 
     class S:
+        """Test S."""
+
         def __init__(self):
+            """Test Init."""
             self._calls = 0
 
         def post(self, *a, **k):
+            """Test Post."""
             self._calls += 1
             return R1() if self._calls == 1 else R2()
 
     async def _noop_sleep(*a, **k):
+        """Test Noop sleep."""
         return None
 
     monkeypatch.setattr(asyncio, "sleep", _noop_sleep)
 
     class Limiter2:
+        """Test Limiter2."""
+
         async def __aenter__(self):
+            """Test Aenter."""
             return None
 
         async def __aexit__(self, *a, **k):
+            """Test Aexit."""
             return False
 
     ok, content, raw_response = await proc.call_openai_api(
@@ -287,6 +337,7 @@ async def test_call_openai_api_empty_content_then_success(monkeypatch, tmp_path:
 
 @pytest.mark.asyncio
 async def test_call_openai_api_exception_then_success(monkeypatch, tmp_path: Path):
+    """Test Call openai api exception then success."""
     cfg = SimpleNamespace(
         gpt4o_endpoint="https://x",
         api_key="k",
@@ -299,12 +350,20 @@ async def test_call_openai_api_exception_then_success(monkeypatch, tmp_path: Pat
     proc = SchoolDescriptionProcessor(cfg, tmp_path, tmp_path)
 
     class Bad:
+        """Test Bad."""
+
         def post(self, *a, **k):
+            """Test Post."""
+
             class Ctx:
+                """Test Ctx."""
+
                 async def __aenter__(self_inner):
+                    """Test Aenter."""
                     raise RuntimeError("boom")
 
                 async def __aexit__(self_inner, et, e, tb):
+                    """Test Aexit."""
                     return False
 
             return Ctx()
@@ -312,39 +371,57 @@ async def test_call_openai_api_exception_then_success(monkeypatch, tmp_path: Pat
     import json
 
     class Good:
+        """Test Good."""
+
         def post(self, *a, **k):
+            """Test Post."""
+
             class Ctx:
+                """Test Ctx."""
+
                 status = 200
 
                 async def text(self):
+                    """Test Text."""
                     return json.dumps({"choices": [{"message": {"content": "OK"}}]})
 
                 async def __aenter__(self_inner):
+                    """Test Aenter."""
                     return self_inner
 
                 async def __aexit__(self_inner, et, e, tb):
+                    """Test Aexit."""
                     return False
 
             return Ctx()
 
     class S:
+        """Test S."""
+
         def __init__(self):
+            """Test Init."""
             self._calls = 0
 
         def post(self, *a, **k):
+            """Test Post."""
             self._calls += 1
             return Bad().post() if self._calls == 1 else Good().post()
 
     async def _noop_sleep2(*a, **k):
+        """Test Noop sleep2."""
         return None
 
     monkeypatch.setattr(asyncio, "sleep", _noop_sleep2)
 
     class Limiter4:
+        """Test Limiter4."""
+
         async def __aenter__(self):
+            """Test Aenter."""
             return None
 
         async def __aexit__(self, *a, **k):
+            """Test Aexit."""
             return False
 
     ok, content, raw_response = await proc.call_openai_api(
@@ -359,6 +436,7 @@ async def test_call_openai_api_exception_then_success(monkeypatch, tmp_path: Pat
 
 @pytest.mark.asyncio
 async def test_process_school_file_skip_if_output_exists(tmp_path: Path):
+    """Test Process school file skip if output exists."""
     input_dir = tmp_path / "in"
     input_dir.mkdir()
     (input_dir / "A.md").write_text("A", encoding="utf-8")
@@ -381,10 +459,14 @@ async def test_process_school_file_skip_if_output_exists(tmp_path: Path):
     async with aiohttp.ClientSession() as session:
 
         class Limiter3:
+            """Test Limiter3."""
+
             async def __aenter__(self):
+                """Test Aenter."""
                 return None
 
             async def __aexit__(self, *a, **k):
+                """Test Aexit."""
                 return False
 
         ok = await proc.process_school_file(
@@ -395,6 +477,7 @@ async def test_process_school_file_skip_if_output_exists(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_process_all_files_gather_exception(monkeypatch, tmp_path: Path):
+    """Test Process all files gather exception."""
     input_dir = tmp_path / "in"
     input_dir.mkdir()
     (input_dir / "A.md").write_text("A", encoding="utf-8")
@@ -412,6 +495,7 @@ async def test_process_all_files_gather_exception(monkeypatch, tmp_path: Path):
     proc = SchoolDescriptionProcessor(cfg, input_dir, tmp_path)
 
     async def fake_proc(*args, **kwargs):
+        """Test Fake proc."""
         return True
 
     monkeypatch.setattr(
@@ -419,6 +503,7 @@ async def test_process_all_files_gather_exception(monkeypatch, tmp_path: Path):
     )
 
     async def boom(*tasks, **kwargs):
+        """Test Boom."""
         for t in tasks:
             try:
                 await t
@@ -435,8 +520,13 @@ async def test_process_all_files_gather_exception(monkeypatch, tmp_path: Path):
 
 
 def test_program2_main_valueerror(monkeypatch, tmp_path: Path, capsys):
+    """Test Program2 main valueerror."""
+
     class BadConfig:
+        """Test BadConfig."""
+
         def __init__(self):
+            """Test Init."""
             raise ValueError("bad env")
 
     monkeypatch.setattr(p2, "OpenAIConfig", BadConfig)
@@ -458,8 +548,13 @@ def test_program2_main_valueerror(monkeypatch, tmp_path: Path, capsys):
 
 
 def test_program2_main_generic_exception(monkeypatch, tmp_path: Path, capsys):
+    """Test Program2 main generic exception."""
+
     class BadConfig2:
+        """Test BadConfig2."""
+
         def __init__(self):
+            """Test Init."""
             raise RuntimeError("boom")
 
     monkeypatch.setattr(p2, "OpenAIConfig", BadConfig2)
@@ -482,8 +577,13 @@ def test_program2_main_generic_exception(monkeypatch, tmp_path: Path, capsys):
 
 
 def test_program2_main_keyboard_interrupt(monkeypatch, tmp_path: Path, capsys):
+    """Test Program2 main keyboard interrupt."""
+
     class CtrlConfig:
+        """Test CtrlConfig."""
+
         def __init__(self):
+            """Test Init."""
             raise KeyboardInterrupt()
 
     monkeypatch.setattr(p2, "OpenAIConfig", CtrlConfig)
@@ -505,6 +605,7 @@ def test_program2_main_keyboard_interrupt(monkeypatch, tmp_path: Path, capsys):
 
 
 def test_log_processing_summary(tmp_path: Path, caplog):
+    """Test Log processing summary."""
     stats = {
         "total_files_in_input_dir": 3,
         "skipped_already_processed": 1,
@@ -524,6 +625,7 @@ def test_log_processing_summary(tmp_path: Path, caplog):
 
 @pytest.mark.asyncio
 async def test_call_openai_api_all_retries_failed(tmp_path: Path, monkeypatch):
+    """Test Call openai api all retries failed."""
     cfg = SimpleNamespace(
         gpt4o_endpoint="https://x",
         api_key="k",
@@ -536,19 +638,27 @@ async def test_call_openai_api_all_retries_failed(tmp_path: Path, monkeypatch):
     proc = SchoolDescriptionProcessor(cfg, tmp_path, tmp_path)
 
     class R:
+        """Test R."""
+
         status = 429
 
         async def text(self):
+            """Test Text."""
             return "rate"
 
         async def __aenter__(self):
+            """Test Aenter."""
             return self
 
         async def __aexit__(self, et, e, tb):
+            """Test Aexit."""
             return False
 
     class S:
+        """Test S."""
+
         def post(self, *a, **k):
+            """Test Post."""
             return R()
 
     ok, content, err = await proc.call_openai_api(S(), {"x": 1}, "SCH", FakeLimiter())
@@ -557,6 +667,7 @@ async def test_call_openai_api_all_retries_failed(tmp_path: Path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_openai_config_env_paths(monkeypatch, tmp_path: Path):
+    """Test Openai config env paths."""
     monkeypatch.setenv("AZURE_API_KEY", "k")
     monkeypatch.setenv("AZURE_ENDPOINT_BASE", "https://api.example.com")
     monkeypatch.setenv("GPT4O_DEPLOYMENT_NAME", "gpt-4o")
@@ -576,6 +687,7 @@ async def test_openai_config_env_paths(monkeypatch, tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_call_openai_api_unexpected_exception(tmp_path: Path):
+    """Test Call openai api unexpected exception."""
     cfg = SimpleNamespace(
         gpt4o_endpoint="https://x",
         api_key="k",
@@ -588,12 +700,20 @@ async def test_call_openai_api_unexpected_exception(tmp_path: Path):
     proc = SchoolDescriptionProcessor(cfg, tmp_path, tmp_path)
 
     class BadSession:
+        """Test BadSession."""
+
         def post(self, *a, **k):
+            """Test Post."""
+
             class Ctx:
+                """Test Ctx."""
+
                 async def __aenter__(self_inner):
+                    """Test Aenter."""
                     raise RuntimeError("boom")
 
                 async def __aexit__(self_inner, et, e, tb):
+                    """Test Aexit."""
                     return False
 
             return Ctx()
@@ -606,6 +726,7 @@ async def test_call_openai_api_unexpected_exception(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_call_openai_api_no_endpoint(tmp_path: Path):
+    """Test Call openai api no endpoint."""
     cfg = SimpleNamespace(
         gpt4o_endpoint="",
         api_key="k",
@@ -621,6 +742,7 @@ async def test_call_openai_api_no_endpoint(tmp_path: Path):
 
 
 def test_openai_config_loads_dotenv(monkeypatch, tmp_path: Path):
+    """Test Openai config loads dotenv."""
     import src.config as cfg
 
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
@@ -643,6 +765,7 @@ def test_openai_config_loads_dotenv(monkeypatch, tmp_path: Path):
 
 
 def test_parse_arguments_all_flags(monkeypatch, tmp_path: Path):
+    """Test Parse arguments all flags."""
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("LANG_UI", "sv")
     monkeypatch.setattr(
@@ -670,6 +793,7 @@ def test_parse_arguments_all_flags(monkeypatch, tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_process_school_file_io_error(tmp_path: Path, monkeypatch):
+    """Test Process school file io error."""
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     f = input_dir / "S.md"
@@ -689,6 +813,7 @@ async def test_process_school_file_io_error(tmp_path: Path, monkeypatch):
     orig_open = Path.open
 
     def bad_open(self, mode="r", *a, **k):
+        """Test Bad open."""
         if self == f:
             raise OSError("io")
         return orig_open(self, mode, *a, **k)
@@ -705,6 +830,7 @@ async def test_process_school_file_io_error(tmp_path: Path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_process_all_files_limit_and_skips(tmp_path: Path, monkeypatch):
+    """Test Process all files limit and skips."""
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     for name in ["A.md", "B.md", "C.md"]:
@@ -726,6 +852,7 @@ async def test_process_all_files_limit_and_skips(tmp_path: Path, monkeypatch):
     proc = SchoolDescriptionProcessor(cfg, input_dir, tmp_path)
 
     async def fake_call(session, payload, school_id, limiter):
+        """Test Fake call."""
         return True, f"DESC {school_id}", {"choices": [{"message": {"content": "x"}}]}
 
     monkeypatch.setattr(
@@ -741,6 +868,7 @@ async def test_process_all_files_limit_and_skips(tmp_path: Path, monkeypatch):
 async def test_process_school_file_failure_saves_failed_json(
     tmp_path: Path, monkeypatch
 ):
+    """Test Process school file failure saves failed json."""
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     (input_dir / "Y.md").write_text("Y", encoding="utf-8")
@@ -758,6 +886,7 @@ async def test_process_school_file_failure_saves_failed_json(
     proc = SchoolDescriptionProcessor(cfg, input_dir, tmp_path)
 
     async def fake_call(self, session, payload, school_id, limiter):
+        """Test Fake call."""
         return False, None, {"error": "bad"}
 
     monkeypatch.setattr(
@@ -778,6 +907,7 @@ async def test_process_school_file_failure_saves_failed_json(
 async def test_process_school_file_success_without_raw_json(
     tmp_path: Path, monkeypatch
 ):
+    """Test Process school file success without raw json."""
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     f = input_dir / "Z.md"
@@ -796,6 +926,7 @@ async def test_process_school_file_success_without_raw_json(
     proc = SchoolDescriptionProcessor(cfg, input_dir, tmp_path)
 
     async def fake_call(self, session, payload, school_id, limiter):
+        """Test Fake call."""
         return True, "OK", None
 
     monkeypatch.setattr(
@@ -816,6 +947,7 @@ async def test_process_school_file_success_without_raw_json(
 async def test_process_school_file_failure_without_raw_json(
     tmp_path: Path, monkeypatch
 ):
+    """Test Process school file failure without raw json."""
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     f = input_dir / "W.md"
@@ -834,6 +966,7 @@ async def test_process_school_file_failure_without_raw_json(
     proc = SchoolDescriptionProcessor(cfg, input_dir, tmp_path)
 
     async def fake_call(self, session, payload, school_id, limiter):
+        """Test Fake call."""
         return False, None, None
 
     monkeypatch.setattr(

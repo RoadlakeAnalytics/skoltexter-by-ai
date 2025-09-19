@@ -9,6 +9,7 @@ import src.setup.ui.menu as menu
 
 
 def test_entry_point_basic(monkeypatch):
+    """Test Entry point basic."""
     # Run entry_point with --lang en and --no-venv to cover the flow
     # Avoid interactive pauses and ensure the app runner receives CLI args.
     monkeypatch.setattr(

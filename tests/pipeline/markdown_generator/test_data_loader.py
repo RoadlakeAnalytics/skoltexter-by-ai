@@ -6,6 +6,7 @@ from src.pipeline.markdown_generator.data_loader import (
 
 
 def test_get_value_from_row_and_survey_helpers():
+    """Test Get value from row and survey helpers."""
     row = {"SchoolCode": "  123  ", "X": "N/A"}
     assert get_value_from_row(row, "SchoolCode") == "123"
     assert get_value_from_row(row, "X") == "[Data Saknas]"

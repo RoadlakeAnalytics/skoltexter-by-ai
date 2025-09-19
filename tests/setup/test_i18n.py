@@ -7,6 +7,7 @@ import src.setup.ui.prompts as pr
 
 
 def test_set_language_invalid_then_ok_consolidated(monkeypatch):
+    """Test Set language invalid then ok consolidated."""
     prev = sp.LANG
     seq = iter(["x", "1"])  # invalid then English
     monkeypatch.setattr(pr, "ask_text", lambda prompt: next(seq))
@@ -18,6 +19,7 @@ def test_set_language_invalid_then_ok_consolidated(monkeypatch):
 
 
 def test_translate_alias_unsupported_language(monkeypatch):
+    """Test Translate alias unsupported language."""
     prev = sp.LANG
     try:
         monkeypatch.setattr(sp, "LANG", "xx")
@@ -28,7 +30,10 @@ def test_translate_alias_unsupported_language(monkeypatch):
 
 
 def test_set_language_exception_then_ok(monkeypatch):
+    """Test Set language exception then ok."""
+
     def raise_once(prompt):
+        """Test Raise once."""
         if getattr(raise_once, "_done", False):
             return "1"
         raise_once._done = True
@@ -81,6 +86,7 @@ def test_set_language_keyboard_interrupt(monkeypatch):
     """KeyboardInterrupt triggers a graceful SystemExit from set_language."""
 
     def raise_kbd():
+        """Test Raise kbd."""
         raise KeyboardInterrupt
 
     monkeypatch.setattr(pr, "ask_text", lambda prompt: raise_kbd())

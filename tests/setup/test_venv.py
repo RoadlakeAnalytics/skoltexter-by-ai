@@ -8,6 +8,7 @@ from src.setup import venv as sp
 
 
 def test_get_venv_exec_on_windows(monkeypatch, tmp_path: Path):
+    """Test Get venv exec on windows."""
     monkeypatch.setattr(sp.sys, "platform", "win32")
     v = tmp_path / "venv"
     assert sp.get_venv_bin_dir(v).name == "Scripts"
@@ -16,6 +17,7 @@ def test_get_venv_exec_on_windows(monkeypatch, tmp_path: Path):
 
 
 def test_get_python_executable_variants(monkeypatch, tmp_path: Path):
+    """Test Get python executable variants."""
     monkeypatch.setattr(sp, "is_venv_active", lambda: True)
     assert sp.get_python_executable() == sys.executable
     monkeypatch.setattr(sp, "is_venv_active", lambda: False)

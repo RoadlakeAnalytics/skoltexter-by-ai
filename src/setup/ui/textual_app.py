@@ -123,7 +123,9 @@ class SetupDashboardApp(AppType):
         ("q", "quit", "Quit"),
     ]
 
-    CSS: ClassVar[str] = """
+    CSS: ClassVar[
+        str
+    ] = """
     #root {
         height: 100%;
     }

@@ -15,6 +15,8 @@ from src.pipeline.ai_processor import SchoolDescriptionProcessor
 
 
 class FakeLimiter:
+    """Test FakeLimiter."""
+
     async def __aenter__(self):
         """Enter async context (test stub)."""
         return None
@@ -25,11 +27,15 @@ class FakeLimiter:
 
 
 class FakeResponse:
+    """Test FakeResponse."""
+
     def __init__(self, status: int, text: str):
+        """Test Init."""
         self.status = status
         self._text = text
 
     async def text(self):
+        """Test Text."""
         return self._text
 
     async def __aenter__(self):
@@ -42,10 +48,14 @@ class FakeResponse:
 
 
 class FakeSession:
+    """Test FakeSession."""
+
     def __init__(self, responses):
+        """Test Init."""
         self._responses = iter(responses)
 
     def post(self, *args, **kwargs):
+        """Test Post."""
         try:
             return next(self._responses)
         except StopIteration:
@@ -53,6 +63,7 @@ class FakeSession:
 
 
 def make_processor(tmp_path: Path) -> SchoolDescriptionProcessor:
+    """Test Make processor."""
     cfg = SimpleNamespace(
         gpt4o_endpoint="https://example.invalid/endpoint",
         api_key="test",
@@ -76,6 +87,7 @@ async def test_api_rate_limit_429(monkeypatch, tmp_path: Path):
     slept = []
 
     async def fake_sleep(t):
+        """Test Fake sleep."""
         slept.append(t)
 
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)
@@ -97,6 +109,7 @@ async def test_api_server_error_500_retries_then_fail(monkeypatch, tmp_path: Pat
     slept = []
 
     async def fake_sleep(t):
+        """Test Fake sleep."""
         slept.append(t)
 
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)
@@ -114,12 +127,16 @@ async def test_client_error(monkeypatch, tmp_path: Path):
     proc = make_processor(tmp_path)
 
     class ErrorSession:
+        """Test ErrorSession."""
+
         def post(self, *args, **kwargs):
+            """Test Post."""
             raise aiohttp.ClientError("network down")
 
     slept = []
 
     async def fake_sleep(t):
+        """Test Fake sleep."""
         slept.append(t)
 
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)
@@ -135,12 +152,20 @@ async def test_timeout_error(monkeypatch, tmp_path: Path):
     proc = make_processor(tmp_path)
 
     class TimeoutSession:
+        """Test TimeoutSession."""
+
         def post(self, *args, **kwargs):
+            """Test Post."""
+
             class Ctx:
+                """Test Ctx."""
+
                 async def __aenter__(self_inner):
+                    """Test Aenter."""
                     raise TimeoutError()
 
                 async def __aexit__(self_inner, exc_type, exc, tb):
+                    """Test Aexit."""
                     return False
 
             return Ctx()
@@ -148,6 +173,7 @@ async def test_timeout_error(monkeypatch, tmp_path: Path):
     slept = []
 
     async def fake_sleep(t):
+        """Test Fake sleep."""
         slept.append(t)
 
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)
@@ -204,6 +230,7 @@ async def test_api_empty_choices_retry_then_success(monkeypatch, tmp_path: Path)
     slept: list[float] = []
 
     async def fake_sleep(t):
+        """Test Fake sleep."""
         slept.append(t)
 
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)

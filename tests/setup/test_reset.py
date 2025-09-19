@@ -8,6 +8,7 @@ from src.setup.ui import prompts as pr
 
 
 def test_reset_project_cancel(monkeypatch, tmp_path: Path):
+    """Test Reset project cancel."""
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
     monkeypatch.setattr(cfg, "LOG_DIR", tmp_path / "logs", raising=True)
     f = tmp_path / "data" / "output" / "x.txt"
@@ -18,6 +19,7 @@ def test_reset_project_cancel(monkeypatch, tmp_path: Path):
 
 
 def test_reset_project_rmdir_error(monkeypatch, tmp_path: Path):
+    """Test Reset project rmdir error."""
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
     monkeypatch.setattr(cfg, "LOG_DIR", tmp_path / "logs", raising=True)
     base = tmp_path / "data" / "generated_markdown_from_csv"
@@ -29,6 +31,7 @@ def test_reset_project_rmdir_error(monkeypatch, tmp_path: Path):
     orig_rmdir = Path.rmdir
 
     def flaky_rmdir(self):
+        """Test Flaky rmdir."""
         if self == nested:
             raise OSError("blocked")
         return orig_rmdir(self)
@@ -38,10 +41,12 @@ def test_reset_project_rmdir_error(monkeypatch, tmp_path: Path):
 
 
 def test_reset_project_deletes(monkeypatch, tmp_path: Path):
+    """Test Reset project deletes."""
     return test_reset_project_nested_dirs_removed(monkeypatch, tmp_path)
 
 
 def test_reset_project_no_files(monkeypatch, tmp_path: Path):
+    """Test Reset project no files."""
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
     monkeypatch.setattr(cfg, "LOG_DIR", tmp_path / "logs", raising=True)
     monkeypatch.setattr(pr, "ask_text", lambda prompt, default="n": "n")
@@ -49,11 +54,13 @@ def test_reset_project_no_files(monkeypatch, tmp_path: Path):
 
 
 def test_reset_project_unlink_error(monkeypatch, tmp_path: Path):
+    """Test Reset project unlink error."""
     # Placeholder for unlink error path coverage.
     pass
 
 
 def test_reset_project_nested_dirs_removed(monkeypatch, tmp_path: Path):
+    """Test Reset project nested dirs removed."""
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
     monkeypatch.setattr(cfg, "LOG_DIR", tmp_path / "logs", raising=True)
     nested = tmp_path / "data" / "ai_processed_markdown" / "d1" / "d2"

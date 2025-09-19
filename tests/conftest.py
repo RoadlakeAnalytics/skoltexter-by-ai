@@ -21,10 +21,12 @@ _TEST_TIMEOUT = int(os.environ.get("PYTEST_TEST_TIMEOUT", "10"))
 
 
 def _timeout_handler(signum, frame):
+    """Test Timeout handler."""
     raise TimeoutError(f"Test exceeded {_TEST_TIMEOUT} seconds timeout")
 
 
 def pytest_runtest_setup(item):
+    """Test Pytest runtest setup."""
     try:
         signal.signal(signal.SIGALRM, _timeout_handler)
         signal.alarm(_TEST_TIMEOUT)
@@ -33,6 +35,7 @@ def pytest_runtest_setup(item):
 
 
 def pytest_runtest_teardown(item, nextitem):
+    """Test Pytest runtest teardown."""
     try:
         signal.alarm(0)
     except Exception:
@@ -55,10 +58,14 @@ except Exception:
 try:
 
     class _SimpleFakeLimiter:
+        """Test _SimpleFakeLimiter."""
+
         async def __aenter__(self):
+            """Test Aenter."""
             return None
 
         async def __aexit__(self, *a, **k):
+            """Test Aexit."""
             return False
 
     builtins.FakeLimiter = _SimpleFakeLimiter

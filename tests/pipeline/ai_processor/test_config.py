@@ -8,6 +8,7 @@ import src.pipeline.ai_processor as p2
 
 
 def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
+    """Test Openai config missing api key."""
     # Clear both API_KEY and AZURE_API_KEY
     monkeypatch.delenv("API_KEY", raising=False)
     monkeypatch.delenv("AZURE_API_KEY", raising=False)
@@ -20,6 +21,7 @@ def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
 
 
 def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
+    """Test Openai config azure missing endpoint."""
     monkeypatch.setenv("AZURE_API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
     monkeypatch.delenv("API_KEY", raising=False)
@@ -31,6 +33,7 @@ def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
 
 
 def test_openai_config_non_azure_no_endpoint_warning(monkeypatch, tmp_path: Path):
+    """Test Openai config non azure no endpoint warning."""
     monkeypatch.setenv("API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
     import src.config as cfg

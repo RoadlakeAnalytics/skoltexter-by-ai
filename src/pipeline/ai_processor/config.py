@@ -34,7 +34,11 @@ class OpenAIConfig:
         env_root = Path(_project_config.PROJECT_ROOT)
         env_path = env_root / ".env"
         if env_path.exists():
-            load_dotenv(env_path, override=True)
+            # Load project .env but do not override existing environment
+            # variables set by the process (e.g. tests using monkeypatch).
+            # This preserves explicit environment values while allowing a
+            # fallback to a local .env for development.
+            load_dotenv(env_path)
         self.api_key: str | None = os.getenv("API_KEY") or os.getenv("AZURE_API_KEY")
         azure_key = os.getenv("AZURE_API_KEY")
         self.endpoint_base: str | None = os.getenv("AZURE_ENDPOINT_BASE")

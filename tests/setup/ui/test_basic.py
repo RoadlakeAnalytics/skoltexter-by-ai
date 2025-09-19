@@ -33,6 +33,7 @@ def test_rich_import_fallback_module_load(monkeypatch):
     orig_import = builtins.__import__
 
     def fake_import(name, *a, **k):
+        """Test Fake import."""
         if name == "rich" or name.startswith("rich."):
             raise ImportError("no rich for this test")
         return orig_import(name, *a, **k)

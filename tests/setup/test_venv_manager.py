@@ -33,14 +33,17 @@ class _UI:
 
     @staticmethod
     def _(key: str) -> str:
+        """Test _."""
         return key
 
     @staticmethod
     def ui_info(msg: str) -> None:
+        """Test Ui info."""
         pass
 
 
 def _make_fake_bin(tmp: Path):
+    """Test Make fake bin."""
     bindir = tmp / ("Scripts" if sys.platform == "win32" else "bin")
     bindir.mkdir(parents=True, exist_ok=True)
     (bindir / ("python.exe" if sys.platform == "win32" else "python")).write_text(
@@ -53,6 +56,7 @@ def _make_fake_bin(tmp: Path):
 
 
 def test_manage_virtual_environment_remove_error(monkeypatch, tmp_path: Path):
+    """Test Manage virtual environment remove error."""
     vdir = tmp_path / "venv"
     vdir.mkdir()
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
@@ -68,6 +72,7 @@ def test_manage_virtual_environment_remove_error(monkeypatch, tmp_path: Path):
 
 
 def test_manage_virtual_environment_create_error(monkeypatch, tmp_path: Path):
+    """Test Manage virtual environment create error."""
     vdir = tmp_path / "venv2"
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
     ui = _UI
@@ -81,12 +86,14 @@ def test_manage_virtual_environment_create_error(monkeypatch, tmp_path: Path):
 
 
 def test_manage_virtual_environment_install_errors(monkeypatch, tmp_path: Path):
+    """Test Manage virtual environment install errors."""
     vdir = tmp_path / "v3"
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
     ui = _UI
     ui.ask_text = staticmethod(lambda prompt, default="y": "y")
 
     def fake_create(*a, **k):
+        """Test Fake create."""
         bindir = vdir / ("Scripts" if sys.platform == "win32" else "bin")
         bindir.mkdir(parents=True, exist_ok=True)
         (bindir / ("python.exe" if sys.platform == "win32" else "python")).write_text(
@@ -98,6 +105,7 @@ def test_manage_virtual_environment_install_errors(monkeypatch, tmp_path: Path):
     calls = {"n": 0}
 
     def raise_cpe(args):
+        """Test Raise cpe."""
         calls["n"] += 1
         raise _sub.CalledProcessError(1, args)
 
@@ -110,6 +118,7 @@ def test_manage_virtual_environment_install_errors(monkeypatch, tmp_path: Path):
 def test_manage_virtual_environment_dynamic_ui_enable_success(
     monkeypatch, tmp_path: Path
 ):
+    """Test Manage virtual environment dynamic ui enable success."""
     ui = _UI
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: True)
     ui.ask_text = staticmethod(lambda prompt, default="y": "y")
@@ -126,6 +135,7 @@ def test_manage_virtual_environment_dynamic_ui_enable_success(
 def test_manage_virtual_environment_dynamic_ui_enable_excepts(
     monkeypatch, tmp_path: Path
 ):
+    """Test Manage virtual environment dynamic ui enable excepts."""
     import builtins as _builtins
     import importlib as _importlib
 
@@ -138,6 +148,7 @@ def test_manage_virtual_environment_dynamic_ui_enable_excepts(
     orig_import = _builtins.__import__
 
     def fake_import(name, *a, **k):
+        """Test Fake import."""
         if name == "rich" or name.startswith("rich."):
             raise ImportError("no rich now")
         return orig_import(name, *a, **k)
@@ -158,6 +169,7 @@ def test_manage_virtual_environment_dynamic_ui_enable_excepts(
     )
 
     def raise_fnf(args):
+        """Test Raise fnf."""
         raise FileNotFoundError("pip not found")
 
     monkeypatch.setattr(ui.subprocess, "check_call", raise_fnf)
@@ -171,6 +183,7 @@ def test_manage_virtual_environment_dynamic_ui_enable_excepts(
 
 
 def test_manage_virtual_environment_create(monkeypatch, tmp_path: Path):
+    """Test Manage virtual environment create."""
     vdir = tmp_path / "venv"
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
     ui = _UI
@@ -178,6 +191,7 @@ def test_manage_virtual_environment_create(monkeypatch, tmp_path: Path):
     ui.ask_text = staticmethod(lambda prompt, default="y": next(seq))
 
     def create_with_python(path, with_pip=True):
+        """Test Create with python."""
         bindir = vdir / ("Scripts" if sys.platform == "win32" else "bin")
         bindir.mkdir(parents=True, exist_ok=True)
         (bindir / ("python.exe" if sys.platform == "win32" else "python")).write_text(
@@ -192,6 +206,7 @@ def test_manage_virtual_environment_create(monkeypatch, tmp_path: Path):
     calls = []
 
     def record(args):
+        """Test Record."""
         calls.append(tuple(map(str, args)))
 
     monkeypatch.setattr(ui.subprocess, "check_call", record)
@@ -206,6 +221,7 @@ def test_manage_virtual_environment_create(monkeypatch, tmp_path: Path):
 
 
 def test_manage_virtual_environment_prefer_python313(monkeypatch, tmp_path: Path):
+    """Test Manage virtual environment prefer python313."""
     vdir = tmp_path / "v313"
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
     ui = _UI
@@ -221,6 +237,7 @@ def test_manage_virtual_environment_prefer_python313(monkeypatch, tmp_path: Path
     created = {"ok": False}
 
     def fake_check_call(args):
+        """Test Fake check call."""
         if "-m" in args and "venv" in args:
             bindir = venvmod.get_venv_bin_dir(vdir)
             bindir.mkdir(parents=True, exist_ok=True)
@@ -245,6 +262,7 @@ def test_manage_virtual_environment_prefer_python313(monkeypatch, tmp_path: Path
 
 
 def test_manage_virtual_environment_win_py_success(monkeypatch, tmp_path: Path):
+    """Test Manage virtual environment win py success."""
     vdir = tmp_path / "w313"
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
     ui = _UI
@@ -258,6 +276,7 @@ def test_manage_virtual_environment_win_py_success(monkeypatch, tmp_path: Path):
     called = {"venv": False}
 
     def fake_check_call(args):
+        """Test Fake check call."""
         if args and args[0] == "py":
             bindir = venvmod.get_venv_bin_dir(vdir)
             bindir.mkdir(parents=True, exist_ok=True)
@@ -278,16 +297,19 @@ def test_manage_virtual_environment_win_py_success(monkeypatch, tmp_path: Path):
 
 
 def test_manage_virtual_environment_win_py_fail_fallback(monkeypatch, tmp_path: Path):
+    """Test Manage virtual environment win py fail fallback."""
     pass
 
 
 def test_manage_virtual_environment_win_no_py_fallback(monkeypatch, tmp_path: Path):
+    """Test Manage virtual environment win no py fallback."""
     pass
 
 
 def test_manage_virtual_environment_no_py313_non_test_fallback(
     monkeypatch, tmp_path: Path
 ):
+    """Test Manage virtual environment no py313 non test fallback."""
     pass
 
 
@@ -342,6 +364,7 @@ def test_manage_virtual_environment_install_fallback_when_no_lock(
 
     # Create fake python/pip inside venv when created
     def create_with_python(path, with_pip=True):
+        """Test Create with python."""
         bindir = sp_local.get_venv_bin_dir(sp_local.VENV_DIR)
         bindir.mkdir(parents=True, exist_ok=True)
         (bindir / ("python.exe" if sys.platform == "win32" else "python")).write_text(
@@ -356,6 +379,7 @@ def test_manage_virtual_environment_install_fallback_when_no_lock(
     calls = []
 
     def record(args):
+        """Test Record."""
         calls.append(tuple(map(str, args)))
 
     monkeypatch.setattr(sp_local.subprocess, "check_call", record)
@@ -407,6 +431,7 @@ def test_manage_virtual_environment_venv_exists_no_python_fallback(
     monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": next(seq))
 
     def fake_create(path, with_pip=True):
+        """Test Fake create."""
         # Create venv directory structure without python executable
         (vdir / ("Scripts" if sys.platform == "win32" else "bin")).mkdir(
             parents=True, exist_ok=True
@@ -438,6 +463,7 @@ def test_manage_virtual_environment_restart_with_invalid_lang(
     monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
 
     def create_with_python(path, with_pip=True):
+        """Test Create with python."""
         bindir = vdir / ("Scripts" if sys.platform == "win32" else "bin")
         bindir.mkdir(parents=True, exist_ok=True)
         (bindir / ("python.exe" if sys.platform == "win32" else "python")).write_text(
@@ -449,6 +475,7 @@ def test_manage_virtual_environment_restart_with_invalid_lang(
     captured = {}
 
     def fake_execve(exe, argv, env):
+        """Test Fake execve."""
         captured["exe"] = exe
         captured["argv"] = argv
         captured["env"] = env
