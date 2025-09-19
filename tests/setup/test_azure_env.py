@@ -46,8 +46,9 @@ def test_ai_connectivity_unexpected_reply(monkeypatch):
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-    fake_mod = types.SimpleNamespace(OpenAIConfig=FakeCfg)
-    monkeypatch.setitem(sys.modules, "src.program2_ai_processor", fake_mod)
+    import src.pipeline.ai_processor.config as cfg_mod
+
+    monkeypatch.setattr(cfg_mod, "OpenAIConfig", FakeCfg, raising=True)
     fake_aiohttp = types.SimpleNamespace(
         ClientSession=FakeSess, ClientTimeout=lambda total=None: None
     )

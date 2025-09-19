@@ -7,13 +7,15 @@ top-level shim.
 
 from __future__ import annotations
 
+import argparse
+
 import src.setup.i18n as i18n
 import src.setup.ui.menu as menu
 from src.setup.i18n import translate
 from src.setup.ui.basic import ui_header
 
 
-def run(args) -> None:
+def run(args: argparse.Namespace) -> None:
     """Run the setup application using parsed CLI args."""
     i18n.LANG = args.lang
     ui_header(translate("welcome"))

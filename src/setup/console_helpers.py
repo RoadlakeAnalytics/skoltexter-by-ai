@@ -4,12 +4,16 @@ This module centralizes optional imports for `rich` and `questionary`,
 provides a safe fallback for `rprint`, and exposes `ui_has_rich` flag.
 """
 
-from typing import IO, Any
+import typing
 
-# Import Rich types if available to provide nicer UI elements. Avoid binding
-# `rprint` directly to `rich.print` to remain resilient to tests that
-# monkeypatch imports at runtime.
-try:
+Any = typing.Any
+IO = typing.IO
+TYPE_CHECKING = typing.TYPE_CHECKING
+
+# Import Rich types when type-checking to provide correct type hints. At
+# runtime perform a guarded import so the module can be used even when
+# optional dependencies are missing.
+if TYPE_CHECKING:
     from rich.console import Console, Group
     from rich.layout import Layout
     from rich.live import Live
@@ -19,19 +23,31 @@ try:
     from rich.syntax import Syntax
     from rich.table import Table
 
-    _RICH_CONSOLE: Any = Console()
-except Exception:
-    # Define stubs for rich types to allow safe imports when rich is absent.
-    Console: Any = object
-    Group: Any = object
-    Layout: Any = object
-    Live: Any = object
-    Markdown: Any = object
-    Panel: Any = object
-    Rule: Any = object
-    Syntax: Any = object
-    Table: Any = object
-    _RICH_CONSOLE = None
+    _RICH_CONSOLE: Any = ...
+else:
+    try:
+        from rich.console import Console, Group
+        from rich.layout import Layout
+        from rich.live import Live
+        from rich.markdown import Markdown
+        from rich.panel import Panel
+        from rich.rule import Rule
+        from rich.syntax import Syntax
+        from rich.table import Table
+
+        _RICH_CONSOLE: Any = Console()
+    except Exception:
+        # Define stubs for rich types to allow safe imports when rich is absent.
+        Console: Any = object
+        Group: Any = object
+        Layout: Any = object
+        Live: Any = object
+        Markdown: Any = object
+        Panel: Any = object
+        Rule: Any = object
+        Syntax: Any = object
+        Table: Any = object
+        _RICH_CONSOLE = None
 
 # Ensure questionary presence is checked regardless of the Rich import
 try:
@@ -81,11 +97,8 @@ def rprint(
 
 
 __all__ = [
-    "_RICH_CONSOLE",
-    "questionary",
     "_HAS_Q",
-    "ui_has_rich",
-    "rprint",
+    "_RICH_CONSOLE",
     "Console",
     "Group",
     "Layout",
@@ -95,4 +108,7 @@ __all__ = [
     "Rule",
     "Syntax",
     "Table",
+    "questionary",
+    "rprint",
+    "ui_has_rich",
 ]

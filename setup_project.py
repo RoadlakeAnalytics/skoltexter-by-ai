@@ -2448,13 +2448,17 @@ def entry_point() -> None:
     if getattr(args, "ui", "rich") == "textual":
         try:
             # Lazy import so that 'textual' isn't required for non-textual paths
-            from src.setup.ui.textual_app import DashboardContext, SetupDashboardApp
             from src.setup.pipeline import orchestrator as _orch
+            from src.setup.ui.textual_app import DashboardContext, SetupDashboardApp
 
             # Provide a run_program callable that invokes the refactored
             # pipeline steps directly rather than spawning legacy scripts.
-            def _run_program_adapter(program_name: str, stream_output: bool = False) -> bool:
-                return _orch.run_pipeline_by_name(program_name, stream_output=stream_output)
+            def _run_program_adapter(
+                program_name: str, stream_output: bool = False
+            ) -> bool:
+                return _orch.run_pipeline_by_name(
+                    program_name, stream_output=stream_output
+                )
 
             ctx = DashboardContext(
                 t=translate,

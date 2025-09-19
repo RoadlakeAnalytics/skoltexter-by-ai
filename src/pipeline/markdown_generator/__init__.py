@@ -17,13 +17,13 @@ from .templating import (
 )
 
 __all__ = [
-    "get_value_from_row",
-    "get_survey_answer_value",
-    "determine_survey_year_for_report",
-    "load_school_rows_from_csv",
-    "process_csv_and_generate_markdowns",
     "build_template_context",
-    "load_template_and_placeholders",
+    "determine_survey_year_for_report",
     "extract_placeholders_from_template",
+    "get_survey_answer_value",
+    "get_value_from_row",
+    "load_school_rows_from_csv",
+    "load_template_and_placeholders",
+    "process_csv_and_generate_markdowns",
     "render_template",
 ]

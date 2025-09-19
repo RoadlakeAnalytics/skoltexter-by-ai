@@ -12,11 +12,53 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
-# Textual imports are local to this module to keep dependency surface minimal
+# Textual imports are local to this module to keep dependency surface minimal.
+# During type-checking we import real types; at runtime we fall back to
+# runtime-safe placeholders to avoid hard dependency on textual.
 if TYPE_CHECKING:
-    from textual.app import App, ComposeResult
+    # Define a lightweight protocol that expresses the minimal App API
+    # used by this module. Using a Protocol allows static type checkers
+    # to reason about calls such as `set_focus`, `exit` and
+    # `call_from_thread` without importing the optional `textual` package.
+    from collections.abc import Callable
+
+    class _AppBase:
+        """A lightweight, typed base class used only for static checking.
+
+        The methods provide simple concrete stubs so subclasses are not
+        considered abstract by static type checkers.
+        """
+
+        def set_focus(self, widget: Any) -> None:  # pragma: no cover - typing only
+            """Set focus to the given widget."""
+            return None
+
+        def exit(self) -> None:  # pragma: no cover - typing only
+            """Exit the application."""
+            return None
+
+        def call_from_thread(
+            self, func: Callable[..., Any], *args: Any, **kwargs: Any
+        ) -> Any:  # pragma: no cover - typing only
+            """Call a function from a non-UI thread on the UI thread."""
+            return None
+
+        def run_worker(
+            self, coro: Callable[..., Any], exclusive: bool = False
+        ) -> None:  # pragma: no cover - typing only
+            """Schedule and run a background coroutine within the UI runtime."""
+            return None
+
+        def run(
+            self, *args: Any, **kwargs: Any
+        ) -> Any:  # pragma: no cover - typing only
+            """Start the application's event loop."""
+            return None
+
+    AppType = _AppBase
+    ComposeResult = Any
 else:
-    App = object
+    AppType = object
     ComposeResult = Any
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
@@ -66,7 +108,7 @@ class DashboardContext:
     venv_dir: Callable[[], Path]
 
 
-class SetupDashboardApp(App):
+class SetupDashboardApp(AppType):
     """Textual application implementing the dashboard UI.
 
     Notes
@@ -101,6 +143,14 @@ class SetupDashboardApp(App):
     """
 
     def __init__(self, ctx: DashboardContext) -> None:
+        """Initialise the Textual dashboard application.
+
+        Parameters
+        ----------
+        ctx : DashboardContext
+            Wiring object that provides translation, program runners and
+            rendering helpers used by the UI.
+        """
         super().__init__()
         self.ctx = ctx
         self.active_view: reactive[str] = reactive("menu")
@@ -147,6 +197,11 @@ class SetupDashboardApp(App):
             self.set_focus(self.prompt_input)
 
     def _update_footer(self) -> None:
+        """Update footer information such as language and venv status.
+
+        This refreshes the small status line shown above the input prompt so
+        users can quickly see which language and venv are active.
+        """
         lang_label = "Svenska" if self.ctx.lang() == "sv" else "English"
         venv_status = (
             str(self.ctx.venv_dir().resolve())
@@ -161,6 +216,11 @@ class SetupDashboardApp(App):
             self.prompt_label.update(text)
 
     def _show_menu_message(self) -> None:
+        """Display the default menu guidance in the main output area.
+
+        This helper writes a short, localized instruction string to the
+        output widget instructing the user how to navigate the menu.
+        """
         if not self.output:
             return
         msg = (
@@ -196,6 +256,11 @@ class SetupDashboardApp(App):
             self.exit()
 
     def _render_env_unsupported(self) -> None:
+        """Render a short message indicating environment setup is not supported.
+
+        The Textual UI currently does not implement interactive environment
+        creation; this helper notifies the user and suggests the CLI path.
+        """
         if self.prompt_label:
             self.prompt_label.update(
                 "Environment setup via Textual is not interactive yet."
@@ -206,13 +271,24 @@ class SetupDashboardApp(App):
             )
 
     def _render_reset_info(self) -> None:
+        """Inform the user that resets are performed via the CLI menu.
+
+        This is a lightweight informational view that points to the CLI for
+        destructive reset operations.
+        """
         if self.prompt_label:
             self.prompt_label.update("Återställning görs via CLI i detta läge.")
         if self.output:
-            self.output.update(Static("Kör '5' i Rich/CLI-menyn för full reset.", classes="pad"))
+            self.output.update(
+                Static("Kör '5' i Rich/CLI-menyn för full reset.", classes="pad")
+            )
 
     # --- Program Descriptions View ---
     def _render_descriptions_home(self) -> None:
+        """Show a brief list of available program descriptions.
+
+        The content is rendered as a simple list with a numeric selection.
+        """
         if not self.output:
             return
         rows = self.ctx.get_program_descriptions()
@@ -243,6 +319,14 @@ class SetupDashboardApp(App):
                 self.prompt_input.value = ""
 
     def _handle_desc_input(self, value: str) -> None:
+        """Handle input from the descriptions view and render selected text.
+
+        Parameters
+        ----------
+        value : str
+            The user's input string; numeric or name-based selection is
+            supported.
+        """
         if value == "0":
             self._show_menu_message()
             self.active_view = "menu"
@@ -253,7 +337,7 @@ class SetupDashboardApp(App):
             return
         rows = self.ctx.get_program_descriptions()
         if value in rows:
-            short, long = rows[value]
+            _short, long = rows[value]
             # Render Markdown as plain text inside Textual using Static
             from rich.markdown import Markdown
 
@@ -267,6 +351,11 @@ class SetupDashboardApp(App):
 
     # --- Logs View ---
     def _render_logs_home(self) -> None:
+        """Render the logs view with selectable log filenames.
+
+        The view lists available .log files and prompts the user to select
+        one for viewing.
+        """
         files = [
             p
             for p in self.ctx.log_dir.iterdir()
@@ -288,6 +377,13 @@ class SetupDashboardApp(App):
             self.prompt_input.value = ""
 
     def _handle_logs_input(self, value: str) -> None:
+        """Handle user selection in the logs view and display file contents.
+
+        Parameters
+        ----------
+        value : str
+            User input corresponding to a file index or filename prefix.
+        """
         files = [
             p
             for p in self.ctx.log_dir.iterdir()
@@ -321,6 +417,11 @@ class SetupDashboardApp(App):
 
     # --- Pipeline View ---
     def _render_pipeline_home(self) -> None:
+        """Render the pipeline overview table and prepare the prompt.
+
+        Shows a table summarising the three pipeline steps and instructs the
+        user how to start execution.
+        """
         if self.output:
             table = self.ctx.render_pipeline_table(
                 "⏳ Väntar", "⏳ Väntar", "⏳ Väntar"
@@ -334,6 +435,13 @@ class SetupDashboardApp(App):
             self.prompt_input.value = ""
 
     def _handle_pipeline_input(self, value: str) -> None:
+        """Handle pipeline commands from the prompt (start/back).
+
+        Parameters
+        ----------
+        value : str
+            The input string from the prompt area.
+        """
         if value.lower() in {"back", "0"}:
             self._show_menu_message()
             self.active_view = "menu"
@@ -344,13 +452,25 @@ class SetupDashboardApp(App):
             self.prompt_input.value = ""
 
     def _start_pipeline_thread(self) -> None:
+        """Prepare and start the background worker that runs the pipeline.
+
+        This method registers TUI update callbacks with the provided
+        DashboardContext and starts an exclusive worker coroutine to avoid
+        concurrent pipeline runs.
+        """
+
         # Enable TUI mode so run_program can stream progress updates in-place
         def update_right(renderable: Any) -> None:
+            """Update the right-hand content area from worker threads.
+
+            The call is marshalled to the UI thread using ``call_from_thread``.
+            """
             if self.output:
                 # Updates must occur on the UI thread
                 self.call_from_thread(self.output.update, renderable)
 
         def update_prompt(renderable: Any) -> None:
+            """Update the small prompt label area from worker threads."""
             if self.prompt_label:
                 self.call_from_thread(self.prompt_label.update, renderable)
 
@@ -358,8 +478,16 @@ class SetupDashboardApp(App):
         self.run_worker(self._pipeline_worker, exclusive=True)
 
     async def _pipeline_worker(self) -> None:
+        """Background worker coroutine that runs the three pipeline steps.
+
+        The worker updates the UI status table as each program step begins and
+        completes. If the optional AI connectivity check fails, the worker
+        displays an error and restores the previous TUI state.
+        """
+
         # Build and update status table as the pipeline progresses
         def set_status(s1: str, s2: str, s3: str) -> None:
+            """Update the pipeline status table on the UI thread."""
             table = self.ctx.render_pipeline_table(s1, s2, s3)
             if self.output:
                 self.call_from_thread(self.output.update, table)

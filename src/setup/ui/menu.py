@@ -27,6 +27,11 @@ from src.setup.venv_manager import manage_virtual_environment
 
 
 def _ui_items() -> list[tuple[str, str]]:
+    """Return the list of main menu items as (key, label) pairs.
+
+    The labels are extracted from the translation table and trimmed to be
+    suitable for display in compact menus.
+    """
     return [
         (
             "1",
@@ -80,7 +85,20 @@ def _ui_items() -> list[tuple[str, str]]:
 
 
 def _manage_env() -> None:
+    """Expose a minimal UI surface for venv management.
+
+    This function constructs a lightweight ``_UI`` object that mimics the
+    attributes used by the venv manager so it can be invoked in isolation
+    from the rest of the interactive setup flow.
+    """
+
     class _UI:
+        """Small adapter exposing console utilities and process helpers.
+
+        The class provides the functions and attributes expected by the
+        ``manage_virtual_environment`` helper.
+        """
+
         import logging
         import os as os_mod
         import shutil as shutil_mod
@@ -100,6 +118,18 @@ def _manage_env() -> None:
 
         @staticmethod
         def _(k: str) -> str:
+            """Translate a key using the global translation function.
+
+            Parameters
+            ----------
+            k : str
+                i18n key to translate.
+
+            Returns
+            -------
+            str
+                Translated string.
+            """
             return translate(k)
 
     manage_virtual_environment(
@@ -144,6 +174,13 @@ def _main_menu_rich_dashboard() -> None:
     )
 
     def update_right(renderable: Any) -> None:
+        """Update the right-hand content area of the rich dashboard.
+
+        Parameters
+        ----------
+        renderable : Any
+            Renderable object to place in the content slot of the layout.
+        """
         layout["content"].update(renderable)
         if _RICH_CONSOLE is not None:
             _RICH_CONSOLE.print(layout)

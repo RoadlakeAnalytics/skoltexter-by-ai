@@ -4,16 +4,15 @@ Generates markdown from CSV (Program 1), simulates AI output, then builds
 final HTML (Program 3). Ensures the combined output includes expected names.
 """
 
-import json
 from pathlib import Path
 
 import pandas as pd
 
-from src.pipeline.markdown_generator.templating import load_template_and_placeholders
+from src.config import WEBSITE_TEMPLATE_PATH
 from src.pipeline.markdown_generator.processor import process_csv_and_generate_markdowns
+from src.pipeline.markdown_generator.templating import load_template_and_placeholders
 from src.pipeline.website_generator.data_aggregator import load_school_data
 from src.pipeline.website_generator.renderer import generate_final_html
-from src.config import WEBSITE_TEMPLATE_PATH
 
 
 def write_file(path: Path, text: str) -> None:

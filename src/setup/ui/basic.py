@@ -6,6 +6,7 @@ dashboard logic.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import AbstractContextManager
 
 from src.setup.console_helpers import (
@@ -37,10 +38,22 @@ def ui_header(title: str) -> None:
 
 
 def ui_status(message: str) -> AbstractContextManager[None]:
+    """Context manager that renders a transient status message.
+
+    Use this as:
+
+    with ui_status("Working..."):
+        do_work()
+    """
     from contextlib import contextmanager
 
     @contextmanager
-    def _ctx():
+    def _ctx() -> Iterator[None]:
+        """Context manager implementation that yields while a status is shown.
+
+        This implementation prefers Rich's status spinner when available
+        and falls back to a simple printed message.
+        """
         if ui_has_rich() and _RICH_CONSOLE:
             with _RICH_CONSOLE.status(message, spinner="dots"):
                 yield
@@ -98,12 +111,12 @@ def ui_menu(items: list[tuple[str, str]]) -> None:
 
 
 __all__ = [
-    "ui_rule",
+    "ui_error",
     "ui_header",
-    "ui_status",
     "ui_info",
+    "ui_menu",
+    "ui_rule",
+    "ui_status",
     "ui_success",
     "ui_warning",
-    "ui_error",
-    "ui_menu",
 ]

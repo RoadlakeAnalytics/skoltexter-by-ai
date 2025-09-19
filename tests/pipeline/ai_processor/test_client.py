@@ -33,9 +33,11 @@ class FakeResponse:
         return self._text
 
     async def __aenter__(self):
+        """Enter async context for fake response."""
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
+        """Exit async context for fake response."""
         return False
 
 

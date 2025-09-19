@@ -8,21 +8,33 @@ the rest of the package can be imported in minimal environments.
 
 from __future__ import annotations
 
-try:  # Lazy import so package import doesn't require Textual to be installed
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
     from .textual_app import DashboardContext, SetupDashboardApp
-except Exception:  # pragma: no cover - optional dependency
-    # Provide lightweight placeholders with helpful error messages so that
-    # callers that actually want to run the Textual app get a clear error
-    # while other parts of the codebase can import this package safely.
+else:  # pragma: no cover - optional dependency at runtime
 
     class _MissingTextualApp:  # sentinel placeholder
+        """Placeholder raised when Textual dependency is not available.
+
+        Instantiating this class will raise a RuntimeError explaining how to
+        install the optional dependency.
+        """
+
         def __init__(self, *a, **k):  # pragma: no cover - runtime guard
+            """Inform the caller that the Textual dependency is missing.
+
+            Raises
+            ------
+            RuntimeError
+                Always raised to indicate the missing optional dependency.
+            """
             raise RuntimeError(
                 "Textual is not installed; install it with `pip install textual` "
                 "to use the Textual dashboard (SetupDashboardApp)."
             )
 
-    SetupDashboardApp = _MissingTextualApp  # type: ignore
-    DashboardContext = object
+    SetupDashboardApp = _MissingTextualApp
+    DashboardContext: Any = object
 
-__all__ = ["SetupDashboardApp", "DashboardContext"]
+__all__ = ["DashboardContext", "SetupDashboardApp"]

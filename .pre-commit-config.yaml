@@ -111,6 +111,13 @@ repos:
         args: ["-v", "--fail-under", "100", "src/"]
         pass_filenames: false
         stages: [pre-commit, pre-push]
+      - id: interrogate-tests
+        name: Interrogate (tests docstring coverage, less strict)
+        entry: interrogate
+        language: system
+        args: ["-v", "--fail-under", "25", "tests/"]
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
       - id: mutmut-gate
         name: Mutmut (no surviving mutants)
         entry: python tools/ci/mutmut_gate.py

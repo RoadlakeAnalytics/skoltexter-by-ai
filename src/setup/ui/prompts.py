@@ -25,8 +25,9 @@ def ask_text(prompt: str, default: str | None = None) -> str:
     # TUI interaction has priority when an orchestrator-driven UI is
     # active so prompt updates are directed to the TUI pane.
     if (_orch is not None) and _orch._TUI_MODE and _orch._TUI_UPDATER is not None:
-        if getattr(_orch, "_TUI_PROMPT_UPDATER", None) is not None:
-            _orch._TUI_PROMPT_UPDATER(ch.Panel(f"{prompt}\n\n> ", title="Input"))
+        updater = getattr(_orch, "_TUI_PROMPT_UPDATER", None)
+        if callable(updater):
+            updater(ch.Panel(f"{prompt}\n\n> ", title="Input"))
         if (
             _os.environ.get("PYTEST_CURRENT_TEST")
             or not getattr(sys.stdin, "isatty", lambda: False)()
@@ -83,10 +84,9 @@ def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
         _orch = None  # type: ignore[assignment]
     if (_orch is not None) and _orch._TUI_MODE and _orch._TUI_UPDATER is not None:
         suffix = "(Y/n)" if default_yes else "(y/N)"
-        if getattr(_orch, "_TUI_PROMPT_UPDATER", None) is not None:
-            _orch._TUI_PROMPT_UPDATER(
-                ch.Panel(f"{prompt}  {suffix}\n\n> ", title="Confirm")
-            )
+        updater = getattr(_orch, "_TUI_PROMPT_UPDATER", None)
+        if callable(updater):
+            updater(ch.Panel(f"{prompt}  {suffix}\n\n> ", title="Confirm"))
         if (
             _os.environ.get("PYTEST_CURRENT_TEST")
             or not getattr(sys.stdin, "isatty", lambda: False)()
@@ -167,4 +167,4 @@ def ask_select(prompt: str, choices: list[str]) -> str:
         return sel  # pragma: no cover
 
 
-__all__ = ["ask_text", "ask_confirm", "ask_select"]
+__all__ = ["ask_confirm", "ask_select", "ask_text"]

@@ -12,9 +12,9 @@ def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("API_KEY", raising=False)
     monkeypatch.delenv("AZURE_API_KEY", raising=False)
     # Point PROJECT_ROOT away from real repo to avoid loading real .env
-    import types, sys as _sys
+    import src.config as cfg
 
-    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     with pytest.raises(ValueError):
         p2.OpenAIConfig()
 
@@ -23,9 +23,9 @@ def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("AZURE_API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
     monkeypatch.delenv("API_KEY", raising=False)
-    import types, sys as _sys
+    import src.config as cfg
 
-    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     with pytest.raises(ValueError):
         p2.OpenAIConfig()
 
@@ -33,9 +33,9 @@ def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
 def test_openai_config_non_azure_no_endpoint_warning(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
-    import types, sys as _sys
+    import src.config as cfg
 
-    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     cfg = p2.OpenAIConfig()
     assert cfg.gpt4o_endpoint == ""
 
@@ -61,9 +61,9 @@ def test_openai_config_env_paths(monkeypatch, tmp_path: Path):
 
 def test_openai_config_loads_dotenv(monkeypatch, tmp_path: Path):
     """Cover .env present branch by pointing PROJECT_ROOT to tmp and writing .env."""
-    import types, sys as _sys
+    import src.config as cfg
 
-    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     env_text = (
         "AZURE_API_KEY=kkk\n"
         "AZURE_ENDPOINT_BASE=https://example.test\n"

@@ -87,6 +87,12 @@ def run_program(
                 done_re = re.compile(r"AI Processing completed: (\d+)")
 
                 def render_progress() -> None:
+                    """Render the textual progress bar and notify UI updaters.
+
+                    This inner helper updates the shared progress renderable and
+                    calls any registered TUI updaters so progress is visible to
+                    dashboard components.
+                    """
                     percent = int((current / max(total or 1, 1)) * 100) if total else 0
                     filled = int(percent * bar_width / 100)
                     bar = "█" * filled + "░" * (bar_width - filled)

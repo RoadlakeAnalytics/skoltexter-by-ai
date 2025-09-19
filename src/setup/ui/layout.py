@@ -10,10 +10,30 @@ from typing import Any
 
 
 class _Slot:
+    """Simple container slot used by lightweight dashboard layouts.
+
+    The slot stores a single renderable value and exposes an ``update``
+    method to replace it.
+    """
+
     def __init__(self, value: Any | None = None) -> None:
+        """Create a new slot optionally initialised with ``value``.
+
+        Parameters
+        ----------
+        value : Any, optional
+            Initial value for the slot, by default None.
+        """
         self.value = value
 
     def update(self, value: Any) -> None:
+        """Update the slot's stored value.
+
+        Parameters
+        ----------
+        value : Any
+            New value to place into the slot.
+        """
         self.value = value
 
 

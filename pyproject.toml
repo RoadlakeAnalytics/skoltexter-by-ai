@@ -44,3 +44,7 @@ files = [
   "src",
   "setup_project.py",
 ]
+# Exclude optional UI modules from strict static analysis as they depend on
+# runtime-only third-party libraries (textual/rich) and are exercised
+# separately during integration/UI tests.
+exclude = "^src/setup/ui/.*"

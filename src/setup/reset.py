@@ -17,6 +17,14 @@ from src.setup.ui.basic import ui_rule
 
 
 def _resolve_project_paths() -> tuple[Path, Path]:
+    """Resolve and return key project paths used by reset helpers.
+
+    Returns
+    -------
+    tuple[Path, Path]
+        ``(project_root, log_dir)`` where both are Path objects extracted
+        from the project configuration.
+    """
     project_root = _config.PROJECT_ROOT
     log_dir = _config.LOG_DIR
     return project_root, log_dir
@@ -26,6 +34,16 @@ logger = logging.getLogger("setup_project.reset")
 
 
 def _gather_generated_paths() -> list[Path]:
+    """Gather all generated files that would be deleted by a reset.
+
+    This helper searches configured generated-data directories and returns
+    a flat list of files (not directories) that exist.
+
+    Returns
+    -------
+    list[Path]
+        List of file Paths that are considered generated artefacts.
+    """
     project_root, log_dir = _resolve_project_paths()
     dirs_to_check = [
         project_root / "data" / "generated_markdown_from_csv",
@@ -43,6 +61,11 @@ def _gather_generated_paths() -> list[Path]:
 
 
 def reset_project() -> None:
+    """Reset generated project artifacts and logs.
+
+    This function identifies generated data and output directories and
+    removes their contents after user confirmation.
+    """
     project_root, log_dir = _resolve_project_paths()
     try:
         ui_rule(translate("menu_option_5").split(". ")[1])

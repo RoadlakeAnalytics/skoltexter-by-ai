@@ -6,13 +6,13 @@ behaviours of SchoolDescriptionProcessor and the program entrypoint.
 """
 
 import asyncio
+import logging
 import sys
 from builtins import FakeLimiter
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import logging
 
 import src.pipeline.ai_processor as p2
 from src.pipeline.ai_processor import SchoolDescriptionProcessor
@@ -102,7 +102,9 @@ def test_program2_main_invocation(monkeypatch, tmp_path: Path):
             "5",
         ],
     )
-    p2.main()
+    from src.pipeline.ai_processor import cli as p2cli
+
+    p2cli.main()
     assert called["init"][0] == str(tmp_path)
 
 
@@ -112,15 +114,17 @@ def test_configure_logging_filehandler_error(monkeypatch):
             raise RuntimeError("no file handler")
 
     monkeypatch.setattr(logging, "FileHandler", BadFH)
-    p2.configure_logging("INFO", enable_file=True)
+    from src.pipeline.ai_processor import cli as p2cli
+
+    p2cli.configure_logging("INFO", enable_file=True)
 
 
 def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("API_KEY", raising=False)
     monkeypatch.delenv("AZURE_API_KEY", raising=False)
-    import types, sys as _sys
+    import src.config as cfg
 
-    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     with pytest.raises(ValueError):
         p2.OpenAIConfig()
 
@@ -129,9 +133,9 @@ def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("AZURE_API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
     monkeypatch.delenv("API_KEY", raising=False)
-    import types, sys as _sys
+    import src.config as cfg
 
-    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     with pytest.raises(ValueError):
         p2.OpenAIConfig()
 
@@ -139,9 +143,9 @@ def test_openai_config_azure_missing_endpoint(monkeypatch, tmp_path: Path):
 def test_openai_config_non_azure_no_endpoint_warning(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("API_KEY", "k")
     monkeypatch.delenv("AZURE_ENDPOINT_BASE", raising=False)
-    import types, sys as _sys
+    import src.config as cfg
 
-    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     cfg = p2.OpenAIConfig()
     assert cfg.gpt4o_endpoint == ""
 
@@ -422,7 +426,7 @@ async def test_process_all_files_gather_exception(monkeypatch, tmp_path: Path):
                 pass
         raise RuntimeError("gather error")
 
-    monkeypatch.setattr(p2.tqdm_asyncio, "gather", boom)
+    monkeypatch.setattr(asyncio, "gather", boom)
     import aiohttp
 
     with pytest.raises(RuntimeError):
@@ -448,7 +452,9 @@ def test_program2_main_valueerror(monkeypatch, tmp_path: Path, capsys):
             str(tmp_path),
         ],
     )
-    p2.main()
+    from src.pipeline.ai_processor import cli as p2cli
+
+    p2cli.main()
 
 
 def test_program2_main_generic_exception(monkeypatch, tmp_path: Path, capsys):
@@ -470,7 +476,9 @@ def test_program2_main_generic_exception(monkeypatch, tmp_path: Path, capsys):
         ],
     )
     with pytest.raises(RuntimeError):
-        p2.main()
+        from src.pipeline.ai_processor import cli as p2cli
+
+        p2cli.main()
 
 
 def test_program2_main_keyboard_interrupt(monkeypatch, tmp_path: Path, capsys):
@@ -491,7 +499,9 @@ def test_program2_main_keyboard_interrupt(monkeypatch, tmp_path: Path, capsys):
             str(tmp_path),
         ],
     )
-    p2.main()
+    from src.pipeline.ai_processor import cli as p2cli
+
+    p2cli.main()
 
 
 def test_log_processing_summary(tmp_path: Path, caplog):
@@ -506,8 +516,10 @@ def test_log_processing_summary(tmp_path: Path, caplog):
     json_dir = tmp_path / "json"
     md_dir.mkdir()
     json_dir.mkdir()
+    from src.pipeline.ai_processor import cli as p2cli
+
     with caplog.at_level(logging.INFO):
-        p2.log_processing_summary(stats, md_dir, json_dir)
+        p2cli.log_processing_summary(stats, md_dir, json_dir)
 
 
 @pytest.mark.asyncio
@@ -609,9 +621,9 @@ async def test_call_openai_api_no_endpoint(tmp_path: Path):
 
 
 def test_openai_config_loads_dotenv(monkeypatch, tmp_path: Path):
-    import types, sys as _sys
+    import src.config as cfg
 
-    monkeypatch.setitem(_sys.modules, "src.program2_ai_processor", types.SimpleNamespace(PROJECT_ROOT=tmp_path))
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     env_text = (
         "AZURE_API_KEY=kkk\n"
         "AZURE_ENDPOINT_BASE=https://example.test\n"
@@ -650,7 +662,9 @@ def test_parse_arguments_all_flags(monkeypatch, tmp_path: Path):
             "en",
         ],
     )
-    args = p2.parse_arguments()
+    from src.pipeline.ai_processor import cli as p2cli
+
+    args = p2cli.parse_arguments()
     assert args.limit == 5 and args.input == str(tmp_path)
 
 

@@ -39,6 +39,17 @@ class SchoolDescriptionProcessor:
     """
 
     def __init__(self, config: Any, input_dir: Path, output_dir_base: Path) -> None:
+        """Initialize the processor with configuration and IO directories.
+
+        Parameters
+        ----------
+        config : Any
+            Configuration object providing API and rate-limit settings.
+        input_dir : Path
+            Directory containing input markdown files.
+        output_dir_base : Path
+            Base directory where processed outputs and raw responses are written.
+        """
         self.config = config
         self.client = AIAPIClient(config)
         self.input_dir = Path(input_dir)
@@ -54,10 +65,36 @@ class SchoolDescriptionProcessor:
 
     @staticmethod
     def _load_prompt_template(template_path: Path) -> str:
+        """Load the AI prompt template from disk.
+
+        Parameters
+        ----------
+        template_path : Path
+            Filesystem path to the prompt template file.
+
+        Returns
+        -------
+        str
+            Contents of the template file as a string.
+        """
         with template_path.open("r", encoding="utf-8") as fh:
             return fh.read()
 
     def _parse_prompt_template(self, school_data: str) -> dict[str, Any]:
+        """Parse the configured prompt template and inject school data.
+
+        Parameters
+        ----------
+        school_data : str
+            Raw markdown content for a single school to be inserted into the
+            prompt template.
+
+        Returns
+        -------
+        dict[str, Any]
+            A payload fragment with `messages`, `max_tokens` and `temperature`
+            suitable for the AI API client.
+        """
         prompt_filled = self.prompt_template.replace("{school_data}", school_data)
         system_marker = "SYSTEM:"
         user_marker = "USER:"
@@ -82,6 +119,27 @@ class SchoolDescriptionProcessor:
 
     @staticmethod
     def _clean_ai_response(content: str) -> str:
+        """Clean common AI response artefacts from the returned text.
+
+        This removes fenced code blocks (``` ... ```), optional leading
+        language markers such as ```markdown and trailing fence markers, and
+        normalises whitespace.
+
+        Parameters
+        ----------
+        content : str
+            Raw text returned by the AI service.
+
+        Returns
+        -------
+        str
+            Cleaned, human-readable text.
+
+        Raises
+        ------
+        TypeError
+            If ``content`` is not a string.
+        """
         if not isinstance(content, str):
             raise TypeError("content must be a string")
         cleaned_content = content.strip()
@@ -251,12 +309,30 @@ class SchoolDescriptionProcessor:
                 return False
 
     def _save_ai_description(self, output_path: Path, content: str) -> None:
+        """Persist the AI-generated description to the given file path.
+
+        Parameters
+        ----------
+        output_path : Path
+            Destination file path for the markdown description.
+        content : str
+            AI generated markdown text to write.
+        """
         with output_path.open("w", encoding="utf-8") as output_file:
             output_file.write(content)
 
     def _save_json_response(
         self, output_path: Path, response_json: dict[str, Any]
     ) -> None:
+        """Write the raw AI JSON response to disk.
+
+        Parameters
+        ----------
+        output_path : Path
+            Destination JSON file path.
+        response_json : dict[str, Any]
+            Parsed JSON response from the AI service.
+        """
         with output_path.open("w", encoding="utf-8") as json_file:
             json.dump(response_json, json_file, ensure_ascii=False, indent=2)
 
@@ -301,21 +377,10 @@ class SchoolDescriptionProcessor:
                     )
                     for markdown_file in files_to_process
                 ]
-                try:
-                    from importlib import import_module
-
-                    # Prefer the new pipeline package module if present so that
-                    # tests and callers that import the pipeline package can
-                    # monkeypatch the ``tqdm_asyncio`` compatibility shim.
-                    try:
-                        p2 = import_module("src.pipeline.ai_processor")
-                    except Exception:
-                        p2 = import_module("src.program2_ai_processor")
-                    results = await p2.tqdm_asyncio.gather(
-                        *tasks, desc="Processing schools with AI"
-                    )
-                except Exception:
-                    results = await asyncio.gather(*tasks)
+                # Execute tasks concurrently. Tests may monkeypatch
+                # ``asyncio.gather`` to simulate failures; use it directly
+                # rather than relying on a package-level compatibility shim.
+                results = await asyncio.gather(*tasks)
             await connector.close()
             await asyncio.sleep(0.1)
         except Exception:
@@ -333,6 +398,18 @@ class SchoolDescriptionProcessor:
     def _filter_already_processed_files(
         self, markdown_files: list[Path]
     ) -> tuple[int, list[Path]]:
+        """Filter out markdown files that already have AI outputs.
+
+        Parameters
+        ----------
+        markdown_files : list[Path]
+            Candidate markdown files discovered in the input directory.
+
+        Returns
+        -------
+        tuple[int, list[Path]]
+            A tuple of ``(skipped_count, files_to_process)``.
+        """
         skipped_count = 0
         files_to_process: list[Path] = []
         for markdown_file in markdown_files:
@@ -360,6 +437,26 @@ class SchoolDescriptionProcessor:
         successful: int,
         failed: int,
     ) -> dict[str, int]:
+        """Build a statistics dictionary describing a processing run.
+
+        Parameters
+        ----------
+        total_files : int
+            Total markdown files discovered in the input directory.
+        skipped : int
+            Number of files skipped because outputs already existed.
+        attempted : int
+            Number of files sent for AI processing.
+        successful : int
+            Number of files successfully processed.
+        failed : int
+            Number of files that failed processing.
+
+        Returns
+        -------
+        dict[str, int]
+            Structured statistics suitable for test assertions and UI display.
+        """
         return {
             "total_files_in_input_dir": total_files,
             "skipped_already_processed": skipped,

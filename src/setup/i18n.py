@@ -199,6 +199,18 @@ def set_language() -> None:
         _rprint = None  # type: ignore
 
     def _ask_text(prompt: str) -> str:
+        """Prompt helper that prefers the prompts module when available.
+
+        Parameters
+        ----------
+        prompt : str
+            Text to present to the user.
+
+        Returns
+        -------
+        str
+            User input string.
+        """
         try:
             if _ask is not None:
                 return _ask(prompt)
@@ -207,6 +219,13 @@ def set_language() -> None:
         return input(prompt)
 
     def _print(msg: str) -> None:
+        """Print helper that uses the rich-aware rprint when available.
+
+        Parameters
+        ----------
+        msg : str
+            Message to display to the user.
+        """
         try:
             if _rprint is not None:
                 _rprint(msg)

@@ -5,12 +5,12 @@ the client implementation.
 """
 
 import os
-import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-from src.config import DEFAULT_API_VERSION, DEFAULT_DEPLOYMENT_NAME, PROJECT_ROOT
+import src.config as _project_config
+from src.config import DEFAULT_API_VERSION, DEFAULT_DEPLOYMENT_NAME
 
 
 class OpenAIConfig:
@@ -22,13 +22,16 @@ class OpenAIConfig:
     """
 
     def __init__(self) -> None:
-        env_root = PROJECT_ROOT
-        pg_mod = sys.modules.get("src.program2_ai_processor")
-        if pg_mod is not None and hasattr(pg_mod, "PROJECT_ROOT"):
-            try:
-                env_root = Path(pg_mod.PROJECT_ROOT)
-            except Exception:
-                env_root = PROJECT_ROOT
+        """Load environment variables and validate Azure/OpenAI configuration.
+
+        The constructor reads an optional `.env` file and populates
+        attributes consumed by the client and processor.
+        """
+        # Resolve project root dynamically from src.config so tests can
+        # monkeypatch ``src.config.PROJECT_ROOT`` if needed. This removes
+        # the previous fallback that inspected the legacy
+        # ``src.program2_ai_processor`` module.
+        env_root = Path(_project_config.PROJECT_ROOT)
         env_path = env_root / ".env"
         if env_path.exists():
             load_dotenv(env_path, override=True)

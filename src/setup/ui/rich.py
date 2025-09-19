@@ -5,4 +5,4 @@ from __future__ import annotations
 from src.setup.ui.layout import build_dashboard_layout
 from src.setup.ui.menu import _main_menu_rich_dashboard
 
-__all__ = ["build_dashboard_layout", "_main_menu_rich_dashboard"]
+__all__ = ["_main_menu_rich_dashboard", "build_dashboard_layout"]

@@ -42,7 +42,7 @@ def view_program_descriptions() -> None:
         if choice == "0":
             break
         if choice in descriptions:
-            title, body = descriptions[choice]
+            _title, body = descriptions[choice]
             if ui_has_rich():
                 rprint(Markdown(body))
             else:
@@ -68,8 +68,8 @@ def _view_program_descriptions_tui(
     if choice == "0":
         return
     if choice in descriptions:
-        title, body = descriptions[choice]
-        update_right(Panel(Markdown(body), title=title))
+        _title, body = descriptions[choice]
+        update_right(Panel(Markdown(body), title=_title))
     else:
         update_right(
             Panel(translate("invalid_choice"), title="Info", border_style="yellow")
@@ -173,9 +173,9 @@ def view_logs() -> None:
 
 
 __all__ = [
-    "get_program_descriptions",
-    "view_program_descriptions",
-    "_view_program_descriptions_tui",
     "_view_logs_tui",
+    "_view_program_descriptions_tui",
+    "get_program_descriptions",
     "view_logs",
+    "view_program_descriptions",
 ]

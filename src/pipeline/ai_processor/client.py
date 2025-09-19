@@ -24,6 +24,13 @@ class AIAPIClient:
     """
 
     def __init__(self, config: Any) -> None:
+        """Initialise the AI API client with the provided configuration.
+
+        Parameters
+        ----------
+        config : Any
+            Configuration object exposing API keys and endpoint URLs.
+        """
         self.config = config
 
     async def process_content(

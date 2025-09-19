@@ -22,6 +22,19 @@ ENV_PATH: Path = PROJECT_ROOT / ".env"
 
 
 def parse_env_file(env_path: Path) -> dict[str, str]:
+    """Parse a simple KEY="value" `.env` file into a dictionary.
+
+    Parameters
+    ----------
+    env_path : Path
+        Path to the `.env` file to read.
+
+    Returns
+    -------
+    dict[str, str]
+        Mapping of environment variable names to values. Returns an empty
+        dict if the file does not exist.
+    """
     env_dict: dict[str, str] = {}
     if not env_path.exists():
         return env_dict
@@ -46,7 +59,7 @@ REQUIRED_AZURE_KEYS: list[str] = [
 
 
 def prompt_and_update_env(
-    missing_keys: list[str], env_path: Path, existing: dict[str, str], ui=None
+    missing_keys: list[str], env_path: Path, existing: dict[str, str], ui: Any = None
 ) -> None:
     """Prompt the user for missing env keys and write a new .env file."""
     import sys
@@ -78,14 +91,35 @@ def prompt_and_update_env(
         except Exception:
 
             def _ask(prompt: str) -> str:  # type: ignore
+                """Prompt for input using ``input()`` when the prompts module is absent.
+
+                Parameters
+                ----------
+                prompt : str
+                    Prompt text to display to the user.
+
+                Returns
+                -------
+                str
+                    User-entered text.
+                """
                 return input(prompt)
 
         class _UI:
+            """Minimal UI shim exposing `rprint`, translation `_` and `ask_text`.
+
+            This lightweight class is used when the richer prompts module is
+            unavailable (e.g., during tests or minimal environments).
+            """
+
             rprint = staticmethod(_rprint)
             _ = staticmethod(_t)
             ask_text = staticmethod(_ask)
 
         ui = _UI()
+
+    # Note: `_ask` is defined above in the import fallback; no further
+    # redefinition is necessary.
 
     ui.rprint(f"\n{ui._('azure_env_intro')}\n{ui._('azure_env_storage')}")
     for key in missing_keys:
@@ -105,23 +139,34 @@ def prompt_and_update_env(
 
 
 def find_missing_env_keys(existing: dict[str, str], required: list[str]) -> list[str]:
+    """Return a list of keys from ``required`` that are not present in ``existing``.
+
+    Parameters
+    ----------
+    existing : dict[str, str]
+        Existing environment mapping.
+    required : list[str]
+        List of required keys to check.
+
+    Returns
+    -------
+    list[str]
+        Keys that are missing from ``existing``.
+    """
     return [key for key in required if not existing.get(key)]
 
 
 def run_ai_connectivity_check_silent() -> tuple[bool, str]:
-    # Prefer the legacy entrypoint export if present in sys.modules so tests
-    # that inject a fake module under ``src.program2_ai_processor`` continue
-    # to work. Fall back to the pipeline package otherwise.
-    try:
-        from importlib import import_module
+    """Perform a silent AI connectivity check against the configured endpoint.
 
-        try:
-            mod = import_module("src.program2_ai_processor")
-            OpenAIConfig = mod.OpenAIConfig
-        except Exception:
-            from src.pipeline.ai_processor import OpenAIConfig
-    except Exception:
-        from src.pipeline.ai_processor import OpenAIConfig
+    Returns
+    -------
+    tuple[bool, str]
+        ``(True, 'Status: OK')`` on success, otherwise ``(False, <detail>)``
+        describing the failure.
+    """
+    # Use the pipeline package configuration holder directly.
+    from src.pipeline.ai_processor.config import OpenAIConfig
 
     cfg = OpenAIConfig()
     if not cfg.gpt4o_endpoint:
@@ -137,6 +182,13 @@ def run_ai_connectivity_check_silent() -> tuple[bool, str]:
     user_prompt = f"{user_prompt_sv}\n\n{user_prompt_en}"
 
     async def _check_once() -> tuple[bool, str]:
+        """Perform a single asynchronous AI connectivity check.
+
+        Returns
+        -------
+        tuple[bool, str]
+            ``(True, 'Status: OK')`` on success, otherwise ``(False, detail)``.
+        """
         try:
             import aiohttp
         except Exception:

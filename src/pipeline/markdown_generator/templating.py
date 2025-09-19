@@ -55,13 +55,39 @@ def render_template(template_content: str, context: dict[str, str]) -> str:
     """
 
     def format_number_string(val: str) -> str:
+        """Normalize numeric-looking strings for readability.
+
+        Parameters
+        ----------
+        val : str
+            Candidate string value from the context.
+
+        Returns
+        -------
+        str
+            Integer-formatted string when input looks like a float with
+            zero fractional part (e.g. "10.0" -> "10"), otherwise the
+            original value.
+        """
         if re.fullmatch(r"-?\d+\.0", val):
             return str(int(float(val)))
         return val
 
     pattern = re.compile(r"\{([a-zA-Z0-9_/]+)\}")
 
-    def replace_func(match: re.Match) -> str:
+    def replace_func(match: re.Match[str]) -> str:
+        """Replace a placeholder match with its rendered value.
+
+        Parameters
+        ----------
+        match : re.Match[str]
+            The regex match object for a placeholder token.
+
+        Returns
+        -------
+        str
+            Replacement text for the placeholder.
+        """
         placeholder_name = match.group(1)
         value = context.get(placeholder_name, MISSING_DATA_PLACEHOLDER)
         return format_number_string(value)

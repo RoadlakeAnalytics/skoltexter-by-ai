@@ -30,25 +30,25 @@ from .programs import (
 from .prompts import ask_confirm, ask_select, ask_text
 
 __all__ = [
-    "ui_rule",
-    "ui_header",
-    "ui_status",
-    "ui_info",
-    "ui_success",
-    "ui_warning",
-    "ui_error",
-    "ui_menu",
-    "ask_text",
+    "_build_dashboard_layout",
+    "_view_logs_tui",
+    "_view_program_descriptions_tui",
     "ask_confirm",
     "ask_select",
-    "_build_dashboard_layout",
+    "ask_text",
     "get_program_descriptions",
-    "view_program_descriptions",
-    "_view_program_descriptions_tui",
-    "_view_logs_tui",
+    "ui_error",
+    "ui_has_rich",
+    "ui_header",
+    "ui_info",
+    "ui_menu",
+    "ui_rule",
+    "ui_status",
+    "ui_success",
+    "ui_warning",
     "view_logs",
+    "view_program_descriptions",
 ]
-__all__.append("ui_has_rich")
 
 # Re-export the helper under the public name so callers can do
 # ``from src.setup.ui import ui_has_rich`` without importing
