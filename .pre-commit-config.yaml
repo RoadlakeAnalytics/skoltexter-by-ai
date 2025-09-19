@@ -9,8 +9,6 @@ repos:
     rev: v0.6.8
     hooks:
       - id: ruff
-        args: ["--fix"]
-      - id: ruff-format
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -105,17 +103,17 @@ repos:
         pass_filenames: false
         stages: [pre-commit, pre-push]
       - id: interrogate
-        name: Interrogate (docstring coverage 100%)
+        name: Interrogate (src/ docstring coverage 100%)
         entry: interrogate
         language: system
         args: ["-v", "--fail-under", "100", "src/"]
         pass_filenames: false
         stages: [pre-commit, pre-push]
       - id: interrogate-tests
-        name: Interrogate (tests docstring coverage, less strict)
+        name: Interrogate (tests/ docstring coverage 100%)
         entry: interrogate
         language: system
-        args: ["-v", "--fail-under", "25", "tests/"]
+        args: ["-v", "--fail-under", "100", "tests/"]
         pass_filenames: false
         stages: [pre-commit, pre-push]
       - id: mutmut-gate
