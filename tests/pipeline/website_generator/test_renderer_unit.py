@@ -23,7 +23,9 @@ def test_get_school_description_html_success(monkeypatch, tmp_path: Path) -> Non
     assert "Hi" in out
 
 
-def test_get_school_description_html_markdown_exception(monkeypatch, tmp_path: Path) -> None:
+def test_get_school_description_html_markdown_exception(
+    monkeypatch, tmp_path: Path
+) -> None:
     md_file = tmp_path / "S.processed.md"
     md_file.write_text("# Hi")
 
@@ -55,4 +57,3 @@ def test_generate_final_html(tmp_path: Path) -> None:
     data = [{"code": "S", "name": "School"}]
     out = r.generate_final_html(data, tpl)
     assert "School" in out
-

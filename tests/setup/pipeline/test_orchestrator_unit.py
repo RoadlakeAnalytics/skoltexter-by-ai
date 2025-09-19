@@ -7,10 +7,10 @@ Original test files:
  - tests/setup/pipeline/test_orchestrator_variants.py
 """
 
-
 from types import SimpleNamespace
 from src.setup.pipeline import orchestrator
 import src.setup.pipeline.orchestrator as orch
+
 
 ### BEGIN ORIGINAL: tests/setup/pipeline/test_orchestrator_unit.py
 def test_set_tui_mode_and_restore():
@@ -29,13 +29,19 @@ def test_set_tui_mode_and_restore():
 def test_run_pipeline_step_choices(monkeypatch):
     # Simulate choosing 'y' and a failing run_program
     monkeypatch.setattr(orchestrator, "ask_text", lambda prompt, default="y": "y")
-    monkeypatch.setattr(orchestrator, "run_program", lambda name, path, stream_output=False: False)
-    ok = orchestrator._run_pipeline_step("k", "program_1", SimpleNamespace(), "fail", "confirm")
+    monkeypatch.setattr(
+        orchestrator, "run_program", lambda name, path, stream_output=False: False
+    )
+    ok = orchestrator._run_pipeline_step(
+        "k", "program_1", SimpleNamespace(), "fail", "confirm"
+    )
     assert ok is False
 
     # Simulate skip
     monkeypatch.setattr(orchestrator, "ask_text", lambda prompt, default="y": "s")
-    ok2 = orchestrator._run_pipeline_step("k", "program_1", SimpleNamespace(), "fail", "confirm", skip_message="skip_key")
+    ok2 = orchestrator._run_pipeline_step(
+        "k", "program_1", SimpleNamespace(), "fail", "confirm", skip_message="skip_key"
+    )
     assert ok2 is True
 
 
@@ -46,6 +52,8 @@ def test_run_pipeline_by_name(monkeypatch):
     assert orchestrator.run_pipeline_by_name("program_1") is True
     assert orchestrator.run_pipeline_by_name("program_2") is True
     assert orchestrator.run_pipeline_by_name("program_3") is True
+
+
 ### END ORIGINAL: tests/setup/pipeline/test_orchestrator_unit.py
 ### BEGIN ORIGINAL: tests/setup/pipeline/test_orchestrator_extra_unit.py
 def test_compose_and_update_group_fallback(monkeypatch):
@@ -64,6 +72,8 @@ def test_compose_and_update_group_fallback(monkeypatch):
     assert "obj" in captured
     # Fallback Group exposes .items containing the two renderables
     assert hasattr(captured["obj"], "items") and captured["obj"].items == ("S", "P")
+
+
 ### END ORIGINAL: tests/setup/pipeline/test_orchestrator_extra_unit.py
 ### BEGIN ORIGINAL: tests/setup/pipeline/test_orchestrator_variants.py
 def test_compose_and_update_no_render(monkeypatch):
@@ -77,7 +87,11 @@ def test_compose_and_update_no_render(monkeypatch):
 def test_run_pipeline_by_name_unknown(monkeypatch):
     # Unknown program uses run_program fallback
     called = {}
-    monkeypatch.setattr(orchestrator, "run_program", lambda name, path, stream_output=False: (called.setdefault("ok", True)))
+    monkeypatch.setattr(
+        orchestrator,
+        "run_program",
+        lambda name, path, stream_output=False: (called.setdefault("ok", True)),
+    )
     res = orchestrator.run_pipeline_by_name("unknown_prog")
     assert called.get("ok") is True or res is False
 
@@ -91,8 +105,12 @@ def test_run_processing_pipeline_plain_early_exit(monkeypatch):
 
 def test_run_processing_pipeline_plain_program1_fail(monkeypatch):
     monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: True)
-    monkeypatch.setattr(orchestrator, "run_ai_connectivity_check_interactive", lambda: True)
+    monkeypatch.setattr(
+        orchestrator, "run_ai_connectivity_check_interactive", lambda: True
+    )
     monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: False)
     # Should return early without raising
     orchestrator._run_processing_pipeline_plain()
+
+
 ### END ORIGINAL: tests/setup/pipeline/test_orchestrator_variants.py

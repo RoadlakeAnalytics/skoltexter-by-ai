@@ -38,6 +38,7 @@ def test_ask_helpers_branches(monkeypatch):
 
     # Questionary path
     monkeypatch.setattr(sp, "_HAS_Q", True)
+
     class Q:
         @staticmethod
         def text(prompt, default=""):
@@ -94,7 +95,12 @@ def test_set_language_and_exit(monkeypatch):
 
 
 def test_parse_cli_and_prompt_venv(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["setup_project.py", "--lang", "en", "--no-venv", "--ui", "rich"], raising=False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["setup_project.py", "--lang", "en", "--no-venv", "--ui", "rich"],
+        raising=False,
+    )
     ns = sp.parse_cli_args()
     assert ns.lang == "en" and ns.no_venv is True
     monkeypatch.setattr(sp, "ask_text", lambda prompt: "1")
@@ -110,7 +116,9 @@ def test_parse_env_and_find_missing(tmp_path: Path):
     env.write_text('AZURE_API_KEY="abc"\nOTHER=1\n')
     parsed = sp.parse_env_file(env)
     assert parsed.get("AZURE_API_KEY") == "abc"
-    missing = sp.find_missing_env_keys(parsed, ["AZURE_API_KEY", "GPT4O_DEPLOYMENT_NAME"])
+    missing = sp.find_missing_env_keys(
+        parsed, ["AZURE_API_KEY", "GPT4O_DEPLOYMENT_NAME"]
+    )
     assert "GPT4O_DEPLOYMENT_NAME" in missing
 
 
@@ -133,25 +141,33 @@ def test_ensure_azure_openai_env_calls_prompt(monkeypatch, tmp_path: Path):
     called = {}
 
     def fake_prompt(missing, path, existing):
-        called['ok'] = True
+        called["ok"] = True
 
     monkeypatch.setattr(sp, "prompt_and_update_env", fake_prompt)
     sp.ensure_azure_openai_env()
-    assert called.get('ok') is True
+    assert called.get("ok") is True
 
 
 def test_run_ai_connectivity_check_silent_no_endpoint(monkeypatch):
     # Patch OpenAIConfig to have no endpoint
     import src.pipeline.ai_processor as aipkg
 
-    monkeypatch.setattr(aipkg, "OpenAIConfig", lambda: SimpleNamespace(gpt4o_endpoint="", api_key="k", request_timeout=1))
+    monkeypatch.setattr(
+        aipkg,
+        "OpenAIConfig",
+        lambda: SimpleNamespace(gpt4o_endpoint="", api_key="k", request_timeout=1),
+    )
     ok, detail = sp.run_ai_connectivity_check_silent()
     assert ok is False and "Missing OpenAI endpoint" in detail
 
 
 def test_entry_point_minimal(monkeypatch):
     # Provide minimal CLI args and stub out heavy functions
-    monkeypatch.setattr(sp, "parse_cli_args", lambda: SimpleNamespace(lang='en', no_venv=True, ui='rich'))
+    monkeypatch.setattr(
+        sp,
+        "parse_cli_args",
+        lambda: SimpleNamespace(lang="en", no_venv=True, ui="rich"),
+    )
     monkeypatch.setattr(sp, "set_language", lambda: None)
     monkeypatch.setattr(sp, "ensure_azure_openai_env", lambda: None)
     monkeypatch.setattr(sp, "main_menu", lambda: None)

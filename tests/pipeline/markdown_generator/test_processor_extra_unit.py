@@ -27,16 +27,21 @@ def test_process_csv_and_generate_markdowns_writes_files(monkeypatch, tmp_path: 
     # Monkeypatch loader to read two rows
     monkeypatch.setattr(proc, "load_school_rows_from_csv", lambda p: ("ignored",))
     # Instead call the function with a fake loader via monkeypatching the loader
-    from src.pipeline.markdown_generator.data_loader import load_school_rows_from_csv as real_loader
+    from src.pipeline.markdown_generator.data_loader import (
+        load_school_rows_from_csv as real_loader,
+    )
 
     # Build a simple CSV and use the real loader implementation instead of the
     # monkeypatched placeholder above for this test's scope.
-    monkeypatch.setattr(proc, "load_school_rows_from_csv", lambda p: real_loader(csv_path))
+    monkeypatch.setattr(
+        proc, "load_school_rows_from_csv", lambda p: real_loader(csv_path)
+    )
     monkeypatch.setattr(proc, "render_template", lambda tpl, ctx: "--md--")
 
     outdir = tmp_path / "out"
-    count = proc.process_csv_and_generate_markdowns(csv_path, "tpl", ["SchoolCode"], outdir)
+    count = proc.process_csv_and_generate_markdowns(
+        csv_path, "tpl", ["SchoolCode"], outdir
+    )
     assert count == 2
     assert (outdir / "S1.md").exists()
     assert (outdir / "S2.md").exists()
-

@@ -25,4 +25,3 @@ def test_save_processed_files_swallow_exceptions(monkeypatch, tmp_path: Path) ->
         fh.save_processed_files("S1", "md", {"a": 1}, tmp_path)
     finally:
         monkeypatch.setattr(Path, "write_text", orig_write)
-

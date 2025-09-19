@@ -41,4 +41,3 @@ def test_save_processed_files(tmp_path: Path) -> None:
 
     parsed = json.loads(json_path.read_text(encoding="utf-8"))
     assert parsed == raw
-

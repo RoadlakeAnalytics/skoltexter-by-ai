@@ -34,23 +34,29 @@ def _import_run_with_stub():
 def test_run_program_non_stream(monkeypatch, tmp_path: Path):
     runmod, stub = _import_run_with_stub()
     monkeypatch.setattr(runmod, "get_python_executable", lambda: "/usr/bin/python")
+
     class R:
         returncode = 0
         stdout = ""
         stderr = ""
 
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: R())
-    ok = runmod.run_program("program_1", Path("src/program1_generate_markdowns.py"), stream_output=False)
+    ok = runmod.run_program(
+        "program_1", Path("src/program1_generate_markdowns.py"), stream_output=False
+    )
     assert ok is True
 
 
 def test_run_program_streaming(monkeypatch):
     runmod, stub = _import_run_with_stub()
     monkeypatch.setattr(runmod, "get_python_executable", lambda: "/usr/bin/python")
+
     # Prepare a fake Popen that yields lines
     class FakeProc:
         def __init__(self, *a, **k):
-            self.stdout = iter(["1/3\n", "AI Processing completed: 1\n"])  # lines to be read
+            self.stdout = iter(
+                ["1/3\n", "AI Processing completed: 1\n"]
+            )  # lines to be read
 
         def wait(self):
             return 0
@@ -59,8 +65,9 @@ def test_run_program_streaming(monkeypatch):
 
     # Hook TUI updater to capture progress updates
     captured = {}
+
     def updater(x):
-        captured.setdefault('u', []).append(x)
+        captured.setdefault("u", []).append(x)
 
     # Set updater on orchestrator module used by run_program
     # Ensure runmod references the stub orchestrator and set updater
@@ -70,6 +77,8 @@ def test_run_program_streaming(monkeypatch):
     monkeypatch.setattr(stub, "_compose_and_update", lambda: None, raising=False)
     monkeypatch.setattr(stub, "_PROGRESS_RENDERABLE", None, raising=False)
 
-    ok = runmod.run_program("program_2", Path("src/program2_ai_processor.py"), stream_output=True)
+    ok = runmod.run_program(
+        "program_2", Path("src/program2_ai_processor.py"), stream_output=True
+    )
     assert ok is True
-    assert 'u' in captured
+    assert "u" in captured

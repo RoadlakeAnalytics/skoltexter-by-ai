@@ -6,12 +6,12 @@ Original test files:
  - tests/setup/ui/test_prompts_extra_unit.py
 """
 
-
 import builtins
 import sys
 from types import SimpleNamespace
 import src.setup.ui.prompts as prom
 import pytest
+
 
 ### BEGIN ORIGINAL: tests/setup/ui/test_prompts_unit.py
 def test_ask_text_fallback(monkeypatch):
@@ -35,6 +35,7 @@ def test_ask_text_questionary(monkeypatch):
     stub = SimpleNamespace(_TUI_MODE=False, _TUI_UPDATER=None)
     monkeypatch.setattr(pkg, "orchestrator", stub, raising=False)
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", stub)
+
     class Q:
         @staticmethod
         def text(prompt, default=""):
@@ -67,7 +68,9 @@ def test_ask_text_questionary_raises_fallback(monkeypatch):
     class Q:
         @staticmethod
         def text(prompt, default=""):
-            return SimpleNamespace(ask=lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+            return SimpleNamespace(
+                ask=lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+            )
 
     monkeypatch.setattr(prom.ch, "_HAS_Q", True)
     monkeypatch.setattr(prom.ch, "questionary", Q)
@@ -96,10 +99,13 @@ def test_ask_text_non_tty_returns_default(monkeypatch):
     monkeypatch.setattr(prom, "sys", prom.sys)
     monkeypatch.setattr(prom.sys, "stdin", FakeStdin())
     assert prom.ask_text("p", default="DD") == "DD"
+
+
 ### END ORIGINAL: tests/setup/ui/test_prompts_unit.py
 ### BEGIN ORIGINAL: tests/setup/ui/test_prompts_extra_unit.py
 def test_ask_confirm_with_questionary(monkeypatch):
     """When questionary is available the confirm adapter should be used."""
+
     class Q:
         @staticmethod
         def confirm(prompt, default=True):
@@ -120,7 +126,11 @@ def test_ask_select_fallback_on_eof(monkeypatch):
     """ask_select should return the last choice when input fails."""
     monkeypatch.setattr(prom.ch, "_HAS_Q", False)
     monkeypatch.setattr(prom.ch, "questionary", None)
-    monkeypatch.setattr(builtins, "input", lambda prompt="": (_ for _ in ()).throw(EOFError()))
+    monkeypatch.setattr(
+        builtins, "input", lambda prompt="": (_ for _ in ()).throw(EOFError())
+    )
     choices = ["A", "B"]
     assert prom.ask_select("x", choices) == "B"
+
+
 ### END ORIGINAL: tests/setup/ui/test_prompts_extra_unit.py

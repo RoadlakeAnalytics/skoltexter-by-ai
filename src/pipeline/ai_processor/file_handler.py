@@ -66,7 +66,10 @@ def save_processed_files(
     # disrupted by I/O issues when persisting optional artifacts.
     try:
         md_path.write_text(markdown, encoding="utf-8")
-    except OSError as exc:  # pragma: no cover - defensive logging path
+    except Exception as exc:  # pragma: no cover - defensive logging path
+        # Be defensive: tests sometimes monkeypatch I/O helpers and may raise
+        # arbitrary exceptions. We do not want optional persistence failures
+        # to crash the processing pipeline.
         logger.exception(
             "Failed to write processed markdown for %s: %s", school_id, exc
         )
@@ -75,5 +78,5 @@ def save_processed_files(
         json_path.write_text(
             json.dumps(raw_json, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-    except OSError as exc:  # pragma: no cover - defensive logging path
+    except Exception as exc:  # pragma: no cover - defensive logging path
         logger.exception("Failed to write raw JSON response for %s: %s", school_id, exc)

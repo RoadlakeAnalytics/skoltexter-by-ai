@@ -26,4 +26,3 @@ def test_set_language_keyboardinterrupt(monkeypatch):
     monkeypatch.setattr(builtins, "input", _raise)
     with pytest.raises(SystemExit):
         i18n.set_language()
-

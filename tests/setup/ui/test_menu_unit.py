@@ -6,10 +6,10 @@ Original test files:
  - tests/setup/ui/test_menu_extra_unit.py
 """
 
-
 from pathlib import Path
 from types import SimpleNamespace
 import src.setup.ui.menu as menu
+
 
 ### BEGIN ORIGINAL: tests/setup/ui/test_menu_unit.py
 def test_ui_items_has_six_items():
@@ -56,6 +56,8 @@ def test_main_menu_rich_dashboard_quick_exit(monkeypatch):
 
     # Call the rich dashboard variant directly
     menu._main_menu_rich_dashboard()
+
+
 ### END ORIGINAL: tests/setup/ui/test_menu_unit.py
 ### BEGIN ORIGINAL: tests/setup/ui/test_menu_extra_unit.py
 def test_ui_items_handles_colon_and_space_variants(monkeypatch):
@@ -88,5 +90,9 @@ def test_main_menu_plain_invalid_choice_prints(monkeypatch):
 
     menu._main_menu_plain()
     # The invalid choice should have resulted in a printed message
-    assert any("invalid_choice" in str(x) or isinstance(x, str) for tup in printed for x in tup)
+    assert any(
+        "invalid_choice" in str(x) or isinstance(x, str) for tup in printed for x in tup
+    )
+
+
 ### END ORIGINAL: tests/setup/ui/test_menu_extra_unit.py

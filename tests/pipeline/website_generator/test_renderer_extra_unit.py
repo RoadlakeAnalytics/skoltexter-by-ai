@@ -17,13 +17,17 @@ def test_get_school_description_html_missing_file(tmp_path: Path) -> None:
     assert out == FALLBACK_DESCRIPTION_HTML
 
 
-def test_get_school_description_html_markdown2_error(tmp_path: Path, monkeypatch) -> None:
+def test_get_school_description_html_markdown2_error(
+    tmp_path: Path, monkeypatch
+) -> None:
     """If markdown2 raises, return the error HTML blob."""
     p = tmp_path / "S1.processed.md"
     p.write_text("# Title\nContent")
 
     # Install a fake markdown2 that raises during conversion
-    fake_mod = SimpleNamespace(markdown=lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    fake_mod = SimpleNamespace(
+        markdown=lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
     monkeypatch.setitem(sys.modules, "markdown2", fake_mod)
     out = r.get_school_description_html("S1", tmp_path)
     assert out == ERROR_DESCRIPTION_HTML
@@ -53,4 +57,3 @@ def test_generate_final_html_inserts_json(tmp_path: Path) -> None:
     out = r.generate_final_html(data, tpl)
     assert "PRE" in out and "POST" in out
     assert json.dumps(data, ensure_ascii=False) in out
-

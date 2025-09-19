@@ -62,11 +62,20 @@ def test_main_handles_openaiconfig_valueerror(monkeypatch, caplog):
 
     monkeypatch.setattr(ai_pkg, "OpenAIConfig", bad_conf)
     # Ensure parse_arguments returns a minimal namespace
-    monkeypatch.setattr(p2cli, "parse_arguments", lambda: SimpleNamespace(limit=None, input=str(Path.cwd()), output=str(Path.cwd()), log_level="INFO", lang="en"))
+    monkeypatch.setattr(
+        p2cli,
+        "parse_arguments",
+        lambda: SimpleNamespace(
+            limit=None,
+            input=str(Path.cwd()),
+            output=str(Path.cwd()),
+            log_level="INFO",
+            lang="en",
+        ),
+    )
 
     # The important behaviour is that main() does not raise on config errors.
     p2cli.main()
-
 
 
 def test_main_uses_asyncio_run_stub(monkeypatch):
@@ -86,7 +95,17 @@ def test_main_uses_asyncio_run_stub(monkeypatch):
     monkeypatch.setattr(ai_pkg, "OpenAIConfig", lambda: Cfg())
     monkeypatch.setattr(ai_pkg, "SchoolDescriptionProcessor", FakeProcessor)
 
-    monkeypatch.setattr(p2cli, "parse_arguments", lambda: SimpleNamespace(limit=None, input=str(Path.cwd()), output=str(Path.cwd()), log_level="INFO", lang="en"))
+    monkeypatch.setattr(
+        p2cli,
+        "parse_arguments",
+        lambda: SimpleNamespace(
+            limit=None,
+            input=str(Path.cwd()),
+            output=str(Path.cwd()),
+            log_level="INFO",
+            lang="en",
+        ),
+    )
 
     called = {}
 

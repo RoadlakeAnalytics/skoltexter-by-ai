@@ -18,7 +18,9 @@ def test_ask_text_tui_uses_input(monkeypatch):
     called = {}
     monkeypatch.setattr(orch, "_TUI_MODE", True)
     monkeypatch.setattr(orch, "_TUI_UPDATER", lambda v: called.setdefault("upd", v))
-    monkeypatch.setattr(orch, "_TUI_PROMPT_UPDATER", lambda v: called.setdefault("pupd", v))
+    monkeypatch.setattr(
+        orch, "_TUI_PROMPT_UPDATER", lambda v: called.setdefault("pupd", v)
+    )
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
     monkeypatch.setattr(builtins, "input", lambda prompt="": "typed")
 
@@ -51,7 +53,13 @@ def test_ask_text_tui_getpass_path(monkeypatch):
     monkeypatch.setattr(sys.__stdin__, "isatty", lambda: True)
     # Ensure Panel is callable so prompt delivery does not error
     import src.setup.console_helpers as ch
-    monkeypatch.setattr(ch, "Panel", lambda *a, **k: __import__('types').SimpleNamespace(), raising=False)
+
+    monkeypatch.setattr(
+        ch,
+        "Panel",
+        lambda *a, **k: __import__("types").SimpleNamespace(),
+        raising=False,
+    )
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": "gpval")
 
     assert prom.ask_text("p") == "gpval"

@@ -26,13 +26,16 @@ def test_view_program_descriptions_plain(monkeypatch):
 
 def test_run_processing_pipeline_rich(monkeypatch):
     updates = []
+
     def updater(x):
         updates.append(x)
 
     monkeypatch.setattr(sp, "ask_confirm", lambda *a, **k: True)
     monkeypatch.setattr(sp, "run_ai_connectivity_check_interactive", lambda: True)
     monkeypatch.setattr(sp, "_run_pipeline_step", lambda *a, **k: True)
-    monkeypatch.setattr(sp, "_render_pipeline_table", lambda s1, s2, s3: f"T:{s1},{s2},{s3}")
+    monkeypatch.setattr(
+        sp, "_render_pipeline_table", lambda s1, s2, s3: f"T:{s1},{s2},{s3}"
+    )
     monkeypatch.setattr(sp, "_status_label", lambda b: b)
 
     sp._run_processing_pipeline_rich(content_updater=updater)
