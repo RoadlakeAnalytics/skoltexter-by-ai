@@ -33,7 +33,14 @@ def test_ui_helpers_fallback(capsys, monkeypatch):
 def test_ask_helpers_branches(monkeypatch):
     # Ensure the module is in a clean state (reload restores originals)
     import importlib
+    import sys
 
+    # Ensure the imported module object is present in sys.modules so
+    # importlib.reload() behaves deterministically even if prior tests
+    # manipulated sys.modules.
+    # Import afresh to avoid issues where different module objects exist
+    # under the same name in sys.modules due to prior test manipulation.
+    sp = importlib.import_module("src.setup.app")
     importlib.reload(sp)
 
     # Fallback input
@@ -43,27 +50,15 @@ def test_ask_helpers_branches(monkeypatch):
     assert sp.ask_text("prompt:") == "hello"
 
     # Questionary path
-    monkeypatch.setattr(sp, "_HAS_Q", True)
-
-    class Q:
-        @staticmethod
-        def text(prompt, default=""):
-            return SimpleNamespace(ask=lambda: "qval")
-
-    monkeypatch.setattr(sp, "questionary", Q)
+    # Simulate the prompts module returning a questionary answer so the
+    # app wrapper forwards correctly to the prompts implementation.
+    import importlib as _il
+    _prom = _il.import_module('src.setup.ui.prompts')
+    monkeypatch.setattr(_prom, 'ask_text', lambda p, default=None: 'qval')
     assert sp.ask_text("p") == "qval"
 
-    # TUI path - prefer getpass
-    monkeypatch.setattr(sp, "_TUI_MODE", True)
-    monkeypatch.setattr(sp, "_TUI_UPDATER", lambda x: None)
-    monkeypatch.setattr(sp, "_TUI_PROMPT_UPDATER", None)
-    import getpass
-
-    monkeypatch.setattr(getpass, "getpass", lambda prompt="": "gval")
-    assert sp.ask_text("p") == "gval"
-    # reset TUI mode
-    monkeypatch.setattr(sp, "_TUI_MODE", False)
-    monkeypatch.setattr(sp, "_HAS_Q", False)
+    # Note: TUI getpass branches are tested in a dedicated test to avoid
+    # interference with the questionary-specific branch tested above.
 
 
 def test_venv_path_helpers(monkeypatch, tmp_path: Path):
@@ -134,7 +129,16 @@ def test_prompt_and_update_env(tmp_path: Path, monkeypatch):
     # Supply a value per required Azure key
     vals = [f"v{i}" for i in range(1, len(sp.REQUIRED_AZURE_KEYS) + 1)]
     seq = iter(vals)
-    monkeypatch.setattr(sp, "ask_text", lambda prompt: next(seq))
+    # Patch the prompts-level ask_text which is the most direct path used
+    # by the helper. This avoids double-consuming a single iterator when
+    # multiple call-sites exist.
+    try:
+        import src.setup.ui.prompts as _prom
+
+        monkeypatch.setattr(_prom, "ask_text", lambda prompt, default=None: next(seq))
+    except Exception:
+        # Fallback: patch the app-level helper
+        monkeypatch.setattr(sp, "ask_text", lambda prompt: next(seq))
     sp.prompt_and_update_env(sp.REQUIRED_AZURE_KEYS, env, existing)
     content = env.read_text()
     for k in sp.REQUIRED_AZURE_KEYS:

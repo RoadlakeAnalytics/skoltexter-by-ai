@@ -16,11 +16,18 @@ from src.setup.ui import prompts as prom
 
 def test_ask_text_tui_uses_input(monkeypatch):
     called = {}
-    monkeypatch.setattr(orch, "_TUI_MODE", True)
-    monkeypatch.setattr(orch, "_TUI_UPDATER", lambda v: called.setdefault("upd", v))
-    monkeypatch.setattr(
-        orch, "_TUI_PROMPT_UPDATER", lambda v: called.setdefault("pupd", v)
-    )
+    # Install a fake orchestrator so the prompts adapter will observe the
+    # TUI updater callbacks deterministically.
+    import importlib as _il
+    import types as _types
+
+    orch_fake = _types.ModuleType("src.setup.pipeline.orchestrator")
+    orch_fake._TUI_MODE = True
+    orch_fake._TUI_UPDATER = lambda v: called.setdefault("upd", v)
+    orch_fake._TUI_PROMPT_UPDATER = lambda v: called.setdefault("pupd", v)
+    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch_fake)
+    pkg = _il.import_module("src.setup.pipeline")
+    setattr(pkg, "orchestrator", orch_fake)
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
     monkeypatch.setattr(builtins, "input", lambda prompt="": "typed")
 
@@ -45,9 +52,17 @@ def test_ask_text_tui_input_eof_returns_default(monkeypatch):
 def test_ask_text_tui_getpass_path(monkeypatch):
     # Remove pytest env to exercise getpass branch
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
-    monkeypatch.setattr(orch, "_TUI_MODE", True)
-    monkeypatch.setattr(orch, "_TUI_UPDATER", lambda v: None)
-    monkeypatch.setattr(orch, "_TUI_PROMPT_UPDATER", lambda v: None)
+    # Install a fake orchestrator to guarantee the TUI flags are present
+    import importlib as _il
+    import types as _types
+
+    orch_fake = _types.ModuleType("src.setup.pipeline.orchestrator")
+    orch_fake._TUI_MODE = True
+    orch_fake._TUI_UPDATER = lambda v: None
+    orch_fake._TUI_PROMPT_UPDATER = lambda v: None
+    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch_fake)
+    pkg = _il.import_module("src.setup.pipeline")
+    setattr(pkg, "orchestrator", orch_fake)
     # Make stdin appear to be a TTY
     monkeypatch.setattr(sys, "stdin", sys.__stdin__)
     monkeypatch.setattr(sys.__stdin__, "isatty", lambda: True)
@@ -67,6 +82,12 @@ def test_ask_text_tui_getpass_path(monkeypatch):
 
 def test_ask_confirm_tui_variants(monkeypatch):
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
+    # Ensure the orchestrator module used by the prompts adapter is our
+    # test-time module object so TUI flags are observed deterministically.
+    import importlib as _il
+    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
+    pkg = _il.import_module("src.setup.pipeline")
+    setattr(pkg, "orchestrator", orch)
     monkeypatch.setattr(orch, "_TUI_MODE", True)
     monkeypatch.setattr(orch, "_TUI_UPDATER", lambda v: None)
     monkeypatch.setattr(orch, "_TUI_PROMPT_UPDATER", lambda v: None)

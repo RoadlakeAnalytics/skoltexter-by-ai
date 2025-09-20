@@ -34,8 +34,8 @@ def test_manage_virtual_environment_recreate(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(sp, "is_venv_active", lambda: False)
     monkeypatch.setattr(sp, "VENV_DIR", tmp_path / "venv")
     (sp.VENV_DIR).mkdir()
-    seq = iter(["y", "y"])  # yes to manage, yes to recreate
-    monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": next(seq))
+    # Return yes for prompts in this test (stable across orderings)
+    monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": "y")
 
     # Patch filesystem helpers and subprocess/venv calls
 

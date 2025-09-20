@@ -41,9 +41,16 @@ def test_prompt_wrappers_and_tty(monkeypatch):
 
     We stub the prompt functions to avoid interactive input.
     """
-    monkeypatch.setattr("src.setup.ui.prompts.ask_text", lambda p, default=None: "val")
-    monkeypatch.setattr("src.setup.ui.prompts.ask_confirm", lambda p, d=True: True)
-    monkeypatch.setattr("src.setup.ui.prompts.ask_select", lambda p, choices: choices[0])
+    # Reload modules to ensure a clean state and then patch the prompts
+    import importlib
+    import src.setup.app as app_mod
+    import src.setup.ui.prompts as prom_mod
+    importlib.reload(prom_mod)
+    importlib.reload(app_mod)
+
+    monkeypatch.setattr(prom_mod, "ask_text", lambda p, default=None: "val")
+    monkeypatch.setattr(prom_mod, "ask_confirm", lambda p, d=True: True)
+    monkeypatch.setattr(prom_mod, "ask_select", lambda p, choices: choices[0])
 
     # Also patch the legacy top-level shim to avoid accidental interference
     try:
@@ -53,6 +60,20 @@ def test_prompt_wrappers_and_tty(monkeypatch):
     except Exception:
         # Not present in some environments: ignore
         pass
+    # Ensure TUI mode is disabled so the wrapper delegates to prompts.ask_text
+    monkeypatch.setattr(app, "_TUI_MODE", False, raising=False)
+    monkeypatch.setattr(app, "_TUI_UPDATER", None, raising=False)
+    monkeypatch.setattr(app, "_TUI_PROMPT_UPDATER", None, raising=False)
+    # Also ensure orchestrator TUI flags are clear to avoid cross-module interference
+    try:
+        import src.setup.pipeline.orchestrator as orch
+
+        monkeypatch.setattr(orch, "_TUI_MODE", False, raising=False)
+        monkeypatch.setattr(orch, "_TUI_UPDATER", None, raising=False)
+        monkeypatch.setattr(orch, "_TUI_PROMPT_UPDATER", None, raising=False)
+    except Exception:
+        pass
+
     assert app.ask_text("p") == "val"
     assert app.ask_confirm("p") is True
     assert app.ask_select("p", ["A", "B"]) == "A"
@@ -60,17 +81,29 @@ def test_prompt_wrappers_and_tty(monkeypatch):
 
 def test_ask_text_tui_getpass(monkeypatch):
     """TUI path for ask_text uses getpass when TUI mode enabled."""
-    monkeypatch.setattr(app, "_TUI_MODE", True)
-    monkeypatch.setattr(app, "_TUI_UPDATER", lambda x: None)
-    monkeypatch.setattr(app, "_TUI_PROMPT_UPDATER", None)
+    import importlib
+    # Import a fresh reference to the app module so we operate on the
+    # module object currently registered in ``sys.modules``. Other
+    # tests may replace the entry in ``sys.modules`` which would make a
+    # previously-imported module object stale and cause
+    # ``importlib.reload`` to raise an ImportError. Importing here
+    # prevents order-dependent failures.
+    app_mod = importlib.import_module("src.setup.app")
+    importlib.reload(app_mod)
+    monkeypatch.setattr(app_mod, "_TUI_MODE", True)
+    monkeypatch.setattr(app_mod, "_TUI_UPDATER", lambda x: None)
+    monkeypatch.setattr(app_mod, "_TUI_PROMPT_UPDATER", None)
     import getpass
 
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": "secret")
-    val = app.ask_text("prompt")
+    # Ensure input fallback is predictable if used
+    import builtins
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "secret")
+    val = app_mod.ask_text("prompt")
     assert val == "secret"
     # Reset TUI mode
-    monkeypatch.setattr(app, "_TUI_MODE", False)
-    monkeypatch.setattr(app, "_TUI_UPDATER", None)
+    monkeypatch.setattr(app_mod, "_TUI_MODE", False)
+    monkeypatch.setattr(app_mod, "_TUI_UPDATER", None)
 
 
 def test_venv_path_helpers_and_run_program(monkeypatch, tmp_path: Path):

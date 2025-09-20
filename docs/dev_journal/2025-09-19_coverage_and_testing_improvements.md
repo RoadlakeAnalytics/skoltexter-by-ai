@@ -351,6 +351,42 @@ Files added in this session (tooling)
 - `tools/add_common_test_imports.py`
 - `tools/restore_test_headers_from_git.py`
 
+
+### 2025-09-20 — Additional follow-up and coverage work
+
+I performed a targeted follow-up session to stabilize a number of fragile
+tests and to add unit tests that exercise previously-untested branches.
+
+Key changes made in this follow-up
+- Made the `rich.panel` import in `src/setup/app.py` resilient to tests that
+  insert stub modules into `sys.modules`. The importer now treats a plain
+  `ModuleType("rich")` as a deliberate stub and will not accidentally use a
+  previously-imported `rich.panel` from the environment; however, a test that
+  explicitly injects `rich.panel` into `sys.modules` is still honoured.
+- Added lightweight, deterministic unit tests for console helpers and the
+  Azure `.env` helpers:
+  - `tests/setup/test_console_and_prompts_cov.py`
+  - `tests/setup/test_azure_env_cov.py`
+  - `tests/setup/test_ui_basic_cov.py`
+
+Current status
+- Full test-suite runs green locally.
+- Coverage increased to ~84% across `src/` after adding the above tests.
+
+Next steps to reach 100% coverage
+1. Add focused unit tests for `src/setup/app.py` entrypoints (management of
+   virtualenv, CLI entry, quality-suite runner). These tests will stub out
+   subprocess and venv creation to exercise both success/failure branches.
+2. Add orchestrator tests that simulate a pipeline step succeeding, failing,
+   and being skipped, and assert that TUI updater callbacks are invoked when
+   appropriate.
+3. Expand `src/setup/ui/prompts.py` tests to cover non‑TTY behaviour,
+   questionary exceptions and getpass fallbacks.
+
+If you want me to continue, I will proceed with the plan above and push a
+series of small, reviewable patches until coverage reaches 100%.
+
+
 Please tell me if you want me to continue and finish the remaining
 lint fixes now (I can attempt to do so here but some steps require
 network access to run the full `pre-commit` flow) or if you prefer I

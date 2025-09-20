@@ -28,11 +28,10 @@ convention = "numpy"
   "D401",  # First line should be imperative
   "E402",  # Module level import not at top of file
   "RUF059", # Unused unpacked variable in tests
-]
+  ]
 
-
-[tool.pytest.ini_options]
-addopts = "-p no:cacheprovider --xdoctest --cov=src --cov=setup_project --cov-report=term-missing"
+  [tool.pytest.ini_options]
+  addopts = "-p no:cacheprovider --xdoctest --cov --cov-report=term-missing"
 
 [tool.mypy]
 python_version = "3.13"
@@ -53,3 +52,20 @@ files = [
 # runtime-only third-party libraries (textual/rich) and are exercised
 # separately during integration/UI tests.
 exclude = "^src/setup/ui/.*"
+
+# Exclude tests/ from coverage reports.
+[tool.coverage.run]
+branch = true
+source = ["src", "setup_project.py"]
+omit = [
+  "tests/*",
+  "*/conftest.py",
+]
+
+[tool.coverage.report]
+omit = [
+  "tests/*",
+  "*/conftest.py",
+]
+show_missing = true
+precision = 1

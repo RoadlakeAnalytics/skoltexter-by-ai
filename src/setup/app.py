@@ -15,8 +15,43 @@ import venv as _venv
 from pathlib import Path
 from typing import Any
 
+import importlib
+
+# Attempt to import `rich.panel` early so tests that inject a stub
+# ``rich`` module in ``sys.modules`` are respected before other
+# imports (some imports may import or expose the real `rich` package).
+Panel = None
+try:
+    _rich_mod = sys.modules.get("rich")
+    _panel_in_sys = sys.modules.get("rich.panel")
+    if _rich_mod is not None and getattr(_rich_mod, "__path__", None) is None:
+        if _panel_in_sys is None:
+            raise ImportError("rich module stubbed; skip importing rich.panel")
+        # Allow test-provided stub modules (they typically lack a __spec__)
+        if getattr(_panel_in_sys, "__spec__", None) is None:
+            Panel = getattr(_panel_in_sys, "Panel", None)
+        else:
+            raise ImportError("rich module stubbed; skip importing rich.panel")
+    else:
+        _panel_mod = importlib.import_module("rich.panel")
+        Panel = getattr(_panel_mod, "Panel", None)
+except Exception:
+    Panel = None
+
 import src.setup.i18n as i18n
-import src.setup.ui.menu as menu
+try:
+    # Prefer the simple import; some test harnesses inject a stub module
+    # into ``sys.modules`` for ``src.setup.ui.menu``. In a few cases the
+    # package namespace semantics make the simple import raise; fall back
+    # to importlib which will honour an exact ``sys.modules`` entry.
+    import src.setup.ui.menu as menu
+except Exception:
+    import importlib as _importlib
+
+    try:
+        menu = _importlib.import_module("src.setup.ui.menu")
+    except Exception:
+        menu = None
 from src.config import (
     LOG_DIR,
     PROJECT_ROOT,
@@ -25,11 +60,6 @@ from src.config import (
     VENV_DIR,
 )
 from src.setup.i18n import translate
-
-try:
-    from rich.panel import Panel
-except Exception:
-    Panel = None
 
 venv = _venv
 
@@ -285,8 +315,10 @@ def ask_text(prompt: str, default: str | None = None) -> str:
     """
     # Preserve legacy behaviour for the TUI mode used by the original
     # `setup_project` shim: when TUI mode is enabled and an updater is
-    # registered prefer `getpass.getpass` (falling back to input) so tests
-    # that patch getpass observe the expected path.
+    # registered prefer `getpass.getpass` (falling back to input). This
+    # local branch avoids relying on the global test harness environment
+    # variable and provides deterministic behaviour for callers that
+    # enable the lightweight TUI adapter on this module.
     if _TUI_MODE and _TUI_UPDATER is not None:
         if _TUI_PROMPT_UPDATER is not None:
             try:
@@ -304,18 +336,39 @@ def ask_text(prompt: str, default: str | None = None) -> str:
                 return default or ""
         return (value or "").strip() or (default or "")
 
+    
+
+    # Delegate prompting to the central prompts adapter. Temporarily
+    # propagate TUI flags into the orchestrator module so the prompts
+    # implementation receives the expected runtime state. Restoring
+    # previous values afterwards prevents persistent side-effects that
+    # lead to order-dependent tests.
+    _orch = None
+    _orch_prev = None
     try:
         import src.setup.pipeline.orchestrator as _orch
 
+        _orch_prev = (_orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER)
         _orch._TUI_MODE = _TUI_MODE
         _orch._TUI_UPDATER = _TUI_UPDATER
         _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
     except Exception:
-        pass
-    _sync_console_helpers()
-    from src.setup.ui.prompts import ask_text as _ask
+        _orch = None
+        _orch_prev = None
 
-    return _ask(prompt, default)
+    try:
+        _sync_console_helpers()
+        from src.setup.ui.prompts import ask_text as _ask
+
+        result = _ask(prompt, default)
+    finally:
+        if _orch is not None and _orch_prev is not None:
+            try:
+                _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _orch_prev
+            except Exception:
+                pass
+
+    return result
 
 
 def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
@@ -334,18 +387,32 @@ def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
     bool
         True if the user confirmed, False otherwise.
     """
+    _orch = None
+    _orch_prev = None
     try:
         import src.setup.pipeline.orchestrator as _orch
 
+        _orch_prev = (_orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER)
         _orch._TUI_MODE = _TUI_MODE
         _orch._TUI_UPDATER = _TUI_UPDATER
         _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
     except Exception:
-        pass
-    _sync_console_helpers()
-    from src.setup.ui.prompts import ask_confirm as _askc
+        _orch = None
+        _orch_prev = None
 
-    return _askc(prompt, default_yes)
+    try:
+        _sync_console_helpers()
+        from src.setup.ui.prompts import ask_confirm as _askc
+
+        result = _askc(prompt, default_yes)
+    finally:
+        if _orch is not None and _orch_prev is not None:
+            try:
+                _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _orch_prev
+            except Exception:
+                pass
+
+    return result
 
 
 def ask_select(prompt: str, choices: list[str]) -> str:
@@ -363,10 +430,34 @@ def ask_select(prompt: str, choices: list[str]) -> str:
     str
         The selected option.
     """
-    _sync_console_helpers()
-    from src.setup.ui.prompts import ask_select as _asks
+    # Propagate TUI flags into the orchestrator temporarily as the
+    # prompts adapter may consult them when deciding interactive flow.
+    _orch = None
+    _orch_prev = None
+    try:
+        import src.setup.pipeline.orchestrator as _orch
 
-    return _asks(prompt, choices)
+        _orch_prev = (_orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER)
+        _orch._TUI_MODE = _TUI_MODE
+        _orch._TUI_UPDATER = _TUI_UPDATER
+        _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
+    except Exception:
+        _orch = None
+        _orch_prev = None
+
+    try:
+        _sync_console_helpers()
+        from src.setup.ui.prompts import ask_select as _asks
+
+        result = _asks(prompt, choices)
+    finally:
+        if _orch is not None and _orch_prev is not None:
+            try:
+                _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _orch_prev
+            except Exception:
+                pass
+
+    return result
 
 
 def get_venv_bin_dir(venv_path: Path) -> Path:
@@ -522,10 +613,12 @@ def manage_virtual_environment() -> None:
     # Delegate to the implementation
     if vm is not None:
         # If tests have monkeypatched module-level venv helpers on this
-        # module, propagate those into the lower-level venv helper module
-        # so the manager honours the test doubles. Only propagate values
-        # that are clearly not defined in this module (i.e. come from
-        # test code) to avoid creating recursive references.
+        # module, temporarily propagate those into the lower-level venv
+        # helper module so the manager honours the test doubles during
+        # the call. Restore original attributes afterwards so other
+        # tests are not affected by persistent side-effects.
+        _venvmod = None
+        _venv_orig: dict[str, tuple[bool, object | None]] = {}
         try:
             import src.setup.venv as _venvmod
 
@@ -541,13 +634,33 @@ def manage_virtual_environment() -> None:
                     # this module (tests will typically inject functions
                     # from their own modules).
                     if getattr(_val, "__module__", None) != __name__:
+                        had = hasattr(_venvmod, _name)
+                        orig = getattr(_venvmod, _name) if had else None
+                        _venv_orig[_name] = (had, orig)
                         setattr(_venvmod, _name, _val)
         except Exception:
-            pass
+            _venvmod = None
+            _venv_orig = {}
 
-        vm.manage_virtual_environment(
-            PROJECT_ROOT, VENV_DIR, REQUIREMENTS_FILE, REQUIREMENTS_LOCK_FILE, _UI
-        )
+        try:
+            vm.manage_virtual_environment(
+                PROJECT_ROOT, VENV_DIR, REQUIREMENTS_FILE, REQUIREMENTS_LOCK_FILE, _UI
+            )
+        finally:
+            # Restore any attributes we may have overridden on the venv module
+            if _venvmod is not None:
+                for _name, (had, orig) in _venv_orig.items():
+                    if had:
+                        setattr(_venvmod, _name, orig)
+                    else:
+                        # Remove attribute that we added for the test double
+                        if hasattr(_venvmod, _name):
+                            try:
+                                delattr(_venvmod, _name)
+                            except Exception:
+                                # If deletion fails for any reason, ignore to
+                                # avoid masking the real test error.
+                                pass
 
 
 def parse_env_file(env_path: Path) -> dict[str, str]:

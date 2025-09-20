@@ -14,7 +14,9 @@ def test_ai_connectivity_unexpected_reply(monkeypatch):
     """Cover the unexpected reply branch (HTTP 200 with non-OK content)."""
     import types
 
-    import src.setup.pipeline.orchestrator as sp_local
+    # Delay importing the orchestrator until after we install the fake
+    # `aiohttp` module below so module-level imports that depend on
+    # `aiohttp` succeed in environments where the package is absent.
 
     class FakeCfg:
         """Test FakeCfg."""
@@ -68,6 +70,13 @@ def test_ai_connectivity_unexpected_reply(monkeypatch):
         ClientSession=FakeSess, ClientTimeout=lambda total=None: None
     )
     monkeypatch.setitem(sys.modules, "aiohttp", fake_aiohttp)
+
+    import importlib as _il
+
+    # Import (or reload) the orchestrator module now that a fake aiohttp
+    # implementation is available so its imports succeed deterministically.
+    sp_local = _il.import_module("src.setup.pipeline.orchestrator")
+    _il.reload(sp_local)
 
     assert sp_local.run_ai_connectivity_check_interactive() is False
 

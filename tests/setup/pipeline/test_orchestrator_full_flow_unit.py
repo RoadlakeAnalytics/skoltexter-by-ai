@@ -17,6 +17,8 @@ def test_run_processing_pipeline_plain_full(monkeypatch, tmp_path: Path):
     out = tmp_path / "output"
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text("<html></html>")
+    # Force English messages for deterministic assertions
+    monkeypatch.setattr(orch, "LANG", "en", raising=False)
 
     # Control interactive prompts and step execution
     monkeypatch.setattr(orch, "ask_confirm", lambda *a, **k: True)
@@ -36,4 +38,3 @@ def test_run_processing_pipeline_plain_full(monkeypatch, tmp_path: Path):
 
     # Ensure completion message was emitted
     assert "pipeline_complete" in str(captured.get("msg", "")) or "Open the file" in str(captured.get("msg", ""))
-

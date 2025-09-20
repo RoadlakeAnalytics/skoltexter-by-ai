@@ -12,6 +12,7 @@ import json
 from types import SimpleNamespace
 
 import aiohttp
+import asyncio
 import pytest
 
 from src.pipeline.ai_processor.client import AIAPIClient
@@ -84,3 +85,103 @@ async def test_clienterror_returns_clienterror_type():
     ok, content, data = await client.process_content(session, {})
     assert ok is False
     assert data.get("error_type") == "ClientError"
+
+
+@pytest.mark.asyncio
+async def test_retry_on_clienterror_then_success(monkeypatch):
+    cfg = SimpleNamespace(api_key="k", gpt4o_endpoint="http://x", max_retries=1, backoff_factor=0.1)
+    client = AIAPIClient(cfg)
+
+    payload = {"choices": [{"message": {"content": "Hi"}}]}
+
+    # Create a session that raises ClientError on first call and succeeds
+    class SeqSession:
+        def __init__(self, seq):
+            self.seq = list(seq)
+
+        def post(self, *a, **k):
+            item = self.seq.pop(0)
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+    seq = [aiohttp.ClientError("boom"), DummyResponse(200, json.dumps(payload))]
+    session = SeqSession(seq)
+
+    async def _noop_sleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", _noop_sleep)
+
+    ok, content, data = await client.process_content(session, {})
+    assert ok is True
+    assert content == "Hi"
+
+
+@pytest.mark.asyncio
+async def test_429_then_success_retries(monkeypatch):
+    cfg = SimpleNamespace(api_key="k", gpt4o_endpoint="http://x", max_retries=1, retry_sleep_on_429=0.01)
+    client = AIAPIClient(cfg)
+
+    payload = {"choices": [{"message": {"content": "Ok"}}]}
+
+    class SeqSession:
+        def __init__(self, seq):
+            self.seq = list(seq)
+
+        def post(self, *a, **k):
+            return self.seq.pop(0)
+
+    seq = [DummyResponse(429, ""), DummyResponse(200, json.dumps(payload))]
+    session = SeqSession(seq)
+
+    async def _noop_sleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", _noop_sleep)
+
+    ok, content, data = await client.process_content(session, {})
+    assert ok is True
+    assert content == "Ok"
+
+
+@pytest.mark.asyncio
+async def test_timeout_then_success(monkeypatch):
+    cfg = SimpleNamespace(api_key="k", gpt4o_endpoint="http://x", max_retries=1)
+    client = AIAPIClient(cfg)
+
+    payload = {"choices": [{"message": {"content": "Done"}}]}
+
+    class SeqSession:
+        def __init__(self, seq):
+            self.seq = list(seq)
+
+        def post(self, *a, **k):
+            item = self.seq.pop(0)
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+    seq = [TimeoutError(), DummyResponse(200, json.dumps(payload))]
+    session = SeqSession(seq)
+
+    async def _noop_sleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", _noop_sleep)
+
+    ok, content, data = await client.process_content(session, {})
+    assert ok is True
+    assert content == "Done"
+
+
+@pytest.mark.asyncio
+async def test_unmatched_fenced_block_is_stripped():
+    cfg = SimpleNamespace(api_key="k", gpt4o_endpoint="http://x")
+    client = AIAPIClient(cfg)
+    payload = {"choices": [{"message": {"content": "```Hello"}}]}
+    resp = DummyResponse(200, json.dumps(payload))
+    session = DummySession(resp)
+    ok, content, data = await client.process_content(session, {})
+    assert ok is True
+    assert content == "Hello"
