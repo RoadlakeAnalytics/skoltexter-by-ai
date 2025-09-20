@@ -1,11 +1,11 @@
-"""Unit tests for AI processor CLI helpers. (unique module name)
-"""
-
-import argparse
 import asyncio
 import logging
-from types import SimpleNamespace
+import sys
 from pathlib import Path
+from types import SimpleNamespace
+
+"""Unit tests for AI processor CLI helpers. (unique module name)"""
+
 
 import src.pipeline.ai_processor.cli as p2cli
 
@@ -42,7 +42,6 @@ def test_log_processing_summary(tmp_path: Path, caplog):
 
 
 def test_parse_arguments_defaults(monkeypatch):
-    import sys
 
     monkeypatch.setattr(sys, "argv", ["prog"])
     ns = p2cli.parse_arguments()

@@ -1,16 +1,16 @@
-"""Unit tests for AI processor file handling utilities. (unique name)
-"""
-
 import json
 from pathlib import Path
 
-from src.pipeline.ai_processor import file_handler as fh
+"""Unit tests for AI processor file handling utilities. (unique name)"""
+
+
 from src.config import (
-    AI_PROCESSED_MARKDOWN_SUBDIR,
-    AI_RAW_RESPONSES_SUBDIR,
     AI_PROCESSED_FILENAME_SUFFIX,
+    AI_PROCESSED_MARKDOWN_SUBDIR,
     AI_RAW_RESPONSE_FILENAME_SUFFIX,
+    AI_RAW_RESPONSES_SUBDIR,
 )
+from src.pipeline.ai_processor import file_handler as fh
 
 
 def test_find_markdown_files(tmp_path: Path) -> None:

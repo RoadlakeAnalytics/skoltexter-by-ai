@@ -8,11 +8,10 @@ Original test files:
 """
 
 from types import SimpleNamespace
+
 from src.setup.pipeline import orchestrator
-import src.setup.pipeline.orchestrator as orch
 
 
-### BEGIN ORIGINAL: tests/setup/pipeline/test_orchestrator_unit.py
 def test_set_tui_mode_and_restore():
     def r1(x):
         pass
@@ -52,65 +51,3 @@ def test_run_pipeline_by_name(monkeypatch):
     assert orchestrator.run_pipeline_by_name("program_1") is True
     assert orchestrator.run_pipeline_by_name("program_2") is True
     assert orchestrator.run_pipeline_by_name("program_3") is True
-
-
-### END ORIGINAL: tests/setup/pipeline/test_orchestrator_unit.py
-### BEGIN ORIGINAL: tests/setup/pipeline/test_orchestrator_extra_unit.py
-def test_compose_and_update_group_fallback(monkeypatch):
-    """When both status and progress renderables exist a Group is composed."""
-    captured = {}
-
-    def updater(obj):
-        captured["obj"] = obj
-
-    monkeypatch.setattr(orch, "_TUI_MODE", True)
-    monkeypatch.setattr(orch, "_TUI_UPDATER", updater)
-    monkeypatch.setattr(orch, "_STATUS_RENDERABLE", "S")
-    monkeypatch.setattr(orch, "_PROGRESS_RENDERABLE", "P")
-
-    orch._compose_and_update()
-    assert "obj" in captured
-    # Fallback Group exposes .items containing the two renderables
-    assert hasattr(captured["obj"], "items") and captured["obj"].items == ("S", "P")
-
-
-### END ORIGINAL: tests/setup/pipeline/test_orchestrator_extra_unit.py
-### BEGIN ORIGINAL: tests/setup/pipeline/test_orchestrator_variants.py
-def test_compose_and_update_no_render(monkeypatch):
-    # Ensure when TUI disabled nothing happens
-    monkeypatch.setattr(orchestrator, "_TUI_MODE", False)
-    monkeypatch.setattr(orchestrator, "_TUI_UPDATER", None)
-    # Should not raise
-    orchestrator._compose_and_update()
-
-
-def test_run_pipeline_by_name_unknown(monkeypatch):
-    # Unknown program uses run_program fallback
-    called = {}
-    monkeypatch.setattr(
-        orchestrator,
-        "run_program",
-        lambda name, path, stream_output=False: (called.setdefault("ok", True)),
-    )
-    res = orchestrator.run_pipeline_by_name("unknown_prog")
-    assert called.get("ok") is True or res is False
-
-
-def test_run_processing_pipeline_plain_early_exit(monkeypatch):
-    # If ai_check declines, pipeline exits early
-    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: False)
-    # Should simply return without exception
-    orchestrator._run_processing_pipeline_plain()
-
-
-def test_run_processing_pipeline_plain_program1_fail(monkeypatch):
-    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: True)
-    monkeypatch.setattr(
-        orchestrator, "run_ai_connectivity_check_interactive", lambda: True
-    )
-    monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: False)
-    # Should return early without raising
-    orchestrator._run_processing_pipeline_plain()
-
-
-### END ORIGINAL: tests/setup/pipeline/test_orchestrator_variants.py

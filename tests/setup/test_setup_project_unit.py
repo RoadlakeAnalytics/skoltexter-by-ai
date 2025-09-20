@@ -1,3 +1,8 @@
+import builtins
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
 """Unit tests for top-level `setup_project.py` helpers.
 
 These tests exercise many branches of the setup script by monkeypatching
@@ -5,12 +10,8 @@ external dependencies and user input functions. They avoid performing
 destructive operations by stubbing subprocess and filesystem calls.
 """
 
-import builtins
-import sys
-from types import SimpleNamespace
-from pathlib import Path
 
-import setup_project as sp
+import src.setup.app as sp
 
 
 def test_ui_helpers_fallback(capsys, monkeypatch):

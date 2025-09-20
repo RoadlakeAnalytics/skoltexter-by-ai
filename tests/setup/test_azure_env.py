@@ -1,10 +1,11 @@
+import sys
+from pathlib import Path
+
 """Tests for `src/setup/azure_env.py`.
 
 Focused tests for environment parsing and interactive Azure connectivity checks.
 """
 
-import sys
-from pathlib import Path
 
 import src.setup.azure_env as sp
 

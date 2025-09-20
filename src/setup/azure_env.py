@@ -165,8 +165,13 @@ def run_ai_connectivity_check_silent() -> tuple[bool, str]:
         ``(True, 'Status: OK')`` on success, otherwise ``(False, <detail>)``
         describing the failure.
     """
-    # Use the pipeline package configuration holder directly.
-    from src.pipeline.ai_processor.config import OpenAIConfig
+    # Use the pipeline package configuration holder directly. Try importing
+    # the symbol from the package root first (tests may patch that
+    # location), otherwise fall back to the concrete config module.
+    try:
+        from src.pipeline.ai_processor import OpenAIConfig  # type: ignore
+    except Exception:
+        from src.pipeline.ai_processor.config import OpenAIConfig
 
     cfg = OpenAIConfig()
     if not cfg.gpt4o_endpoint:

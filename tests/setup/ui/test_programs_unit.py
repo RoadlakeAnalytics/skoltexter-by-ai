@@ -7,14 +7,11 @@ Original test files:
  - tests/setup/ui/test_programs_more_unit.py
 """
 
-
 from pathlib import Path
-import tempfile
-from src.setup.ui import programs
-from types import SimpleNamespace
-import src.setup.ui.programs as prog
 
-### BEGIN ORIGINAL: tests/setup/ui/test_programs_unit.py
+from src.setup.ui import programs
+
+
 def test_get_program_descriptions_has_three():
     desc = programs.get_program_descriptions()
     assert set(desc.keys()) == {"1", "2", "3"}
@@ -63,72 +60,3 @@ def test_view_logs_with_files(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(programs, "ui_has_rich", lambda: False)
 
     programs.view_logs()
-### END ORIGINAL: tests/setup/ui/test_programs_unit.py
-### BEGIN ORIGINAL: tests/setup/ui/test_programs_extra_unit.py
-def test_get_program_descriptions_uses_translate(monkeypatch):
-    """Descriptions are looked up via the translate function."""
-    def fake_translate(key: str) -> str:
-        return f"{key}_val"
-
-    monkeypatch.setattr(prog, "translate", fake_translate)
-    desc = prog.get_program_descriptions()
-    assert "1" in desc and isinstance(desc["1"], tuple)
-
-
-def test_view_program_descriptions_plain(monkeypatch):
-    """When non-rich, program descriptions are printed as plain text."""
-    monkeypatch.setattr(prog, "ui_rule", lambda *a, **k: None)
-    monkeypatch.setattr(prog, "ui_menu", lambda *a, **k: None)
-    monkeypatch.setattr(prog, "get_program_descriptions", lambda: {"1": ("S", "L")})
-    answers = ["1", "0"]
-    printed = []
-    monkeypatch.setattr(prog, "ask_text", lambda prompt: answers.pop(0))
-    monkeypatch.setattr(prog, "rprint", lambda *a, **k: printed.append(a))
-    monkeypatch.setattr(prog, "ui_has_rich", lambda: False)
-
-    prog.view_program_descriptions()
-    assert any("L" in str(p) for p in printed)
-
-
-def test_view_logs_no_logs_prints(monkeypatch, tmp_path: Path):
-    """When there are no log files the user is informed via rprint."""
-    monkeypatch.setattr(prog, "ui_rule", lambda *a, **k: None)
-    monkeypatch.setattr(prog, "rprint", lambda *a, **k: (_ for _ in ()).throw(AssertionError("rprint called")))
-    # Point LOG_DIR to an empty temporary directory
-    monkeypatch.setattr(prog, "LOG_DIR", tmp_path)
-
-    # view_logs should return early without raising if rprint is called
-    try:
-        prog.view_logs()
-    except AssertionError:
-        # rprint should have been invoked signalling no logs
-        pass
-### END ORIGINAL: tests/setup/ui/test_programs_extra_unit.py
-### BEGIN ORIGINAL: tests/setup/ui/test_programs_more_unit.py
-def test_view_program_descriptions_invalid_then_exit(monkeypatch):
-    seq = ["9", "0"]
-    monkeypatch.setattr(programs, "ask_text", lambda prompt: seq.pop(0))
-    monkeypatch.setattr(programs, "ui_menu", lambda items: None)
-    monkeypatch.setattr(programs, "ui_rule", lambda arg: None)
-    monkeypatch.setattr(programs, "ui_has_rich", lambda: False)
-    programs.view_program_descriptions()
-
-
-def test__view_logs_tui_select_by_name(monkeypatch, tmp_path: Path):
-    # Prepare log files
-    d = tmp_path
-    (d / "alpha.log").write_text("one")
-    (d / "beta.log").write_text("two")
-    monkeypatch.setattr(programs, "LOG_DIR", d)
-    # First call selects by literal name, then 0 to exit
-    seq = ["alpha.log", "0"]
-    monkeypatch.setattr(programs, "ask_text", lambda prompt: seq.pop(0))
-
-    captured = {}
-
-    def update_right(obj):
-        captured.setdefault("last", obj)
-
-    programs._view_logs_tui(update_right, lambda p: None)
-    assert "last" in captured
-### END ORIGINAL: tests/setup/ui/test_programs_more_unit.py

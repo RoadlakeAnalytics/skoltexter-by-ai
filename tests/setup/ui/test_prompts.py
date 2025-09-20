@@ -1,6 +1,7 @@
+import sys
+
 """Tests for `src/setup/ui/prompts.py` (questionary wrappers)."""
 
-import sys
 
 import src.setup.ui.prompts as sp
 from src.setup import console_helpers as ch

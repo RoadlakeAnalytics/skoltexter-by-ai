@@ -1,10 +1,11 @@
+from pathlib import Path
+
 """Integration test: minimal end-to-end flow without real API calls.
 
 Generates markdown from CSV (Program 1), simulates AI output, then builds
 final HTML (Program 3). Ensures the combined output includes expected names.
 """
 
-from pathlib import Path
 
 import pandas as pd
 

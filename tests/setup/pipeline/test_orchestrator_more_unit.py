@@ -1,8 +1,7 @@
 """Additional unit tests for the pipeline orchestrator."""
 
-from types import SimpleNamespace
-from src.setup.pipeline import orchestrator
 from src.setup import console_helpers as ch
+from src.setup.pipeline import orchestrator
 
 
 def test_compose_and_update_with_fallback_group(monkeypatch):

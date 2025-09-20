@@ -1,7 +1,6 @@
 """Additional tests for AI file handling that exercise edge-cases."""
 
 from pathlib import Path
-import json
 
 from src.pipeline.ai_processor import file_handler as fh
 

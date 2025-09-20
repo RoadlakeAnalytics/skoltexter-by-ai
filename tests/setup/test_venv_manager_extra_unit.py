@@ -1,8 +1,8 @@
+from pathlib import Path
+from types import SimpleNamespace
+
 """Extra tests for the venv manager covering recreate error handling."""
 
-from types import SimpleNamespace
-from pathlib import Path
-import os
 
 import src.setup.venv_manager as vm
 

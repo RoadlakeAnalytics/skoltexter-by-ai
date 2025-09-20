@@ -1,11 +1,8 @@
 """Extra tests for markdown processor helpers."""
 
 from pathlib import Path
-from types import SimpleNamespace
-import pytest
 
 from src.pipeline.markdown_generator import processor as proc
-from src.pipeline.markdown_generator import data_loader as dl
 
 
 def test_build_template_context_with_survey_answer(monkeypatch):

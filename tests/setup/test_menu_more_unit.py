@@ -1,7 +1,6 @@
 """Tests for menu label parsing variations in `src/setup/ui/menu.py`."""
 
 from src.setup.ui import menu
-from src.setup import i18n
 
 
 def test_ui_items_handles_numeric_prefixes(monkeypatch):

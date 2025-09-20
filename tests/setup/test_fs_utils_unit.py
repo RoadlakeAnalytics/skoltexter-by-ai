@@ -6,17 +6,14 @@ Original test files:
  - tests/setup/test_setup_project_run_and_venv_unit.py
 """
 
-import shutil
 from pathlib import Path
+
 import pytest
-from src.setup import fs_utils
+
 from src import config as _config
-import subprocess
-from types import SimpleNamespace
-import setup_project as sp
+from src.setup import fs_utils
 
 
-### BEGIN ORIGINAL: tests/setup/test_fs_utils_unit.py
 def test_create_safe_path_denies_project_root():
     with pytest.raises(PermissionError):
         fs_utils.create_safe_path(_config.PROJECT_ROOT)
@@ -41,51 +38,3 @@ def test_create_safe_path_and_safe_rmtree(tmp_path: Path, monkeypatch):
     # Now remove it using safe_rmtree
     fs_utils.safe_rmtree(validated)
     assert not test_dir.exists()
-
-
-### END ORIGINAL: tests/setup/test_fs_utils_unit.py
-### BEGIN ORIGINAL: tests/setup/test_setup_project_run_and_venv_unit.py
-def test_setup_project_run_program_non_stream(monkeypatch):
-    monkeypatch.setattr(sp, "get_python_executable", lambda: "/usr/bin/python")
-
-    class R:
-        returncode = 0
-        stdout = ""
-        stderr = ""
-
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: R())
-    ok = sp.run_program(
-        "program_1", Path("src/program1_generate_markdowns.py"), stream_output=False
-    )
-    assert ok is True
-
-
-def test_manage_virtual_environment_recreate(monkeypatch, tmp_path: Path):
-    # Simulate an existing venv and user confirming recreate
-    monkeypatch.setattr(sp, "is_venv_active", lambda: False)
-    monkeypatch.setattr(sp, "VENV_DIR", tmp_path / "venv")
-    (sp.VENV_DIR).mkdir()
-    seq = iter(["y", "y"])  # yes to manage, yes to recreate
-    monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": next(seq))
-
-    # Patch filesystem helpers and subprocess/venv calls
-    import src.setup.fs_utils as fs_utils
-
-    monkeypatch.setattr(fs_utils, "create_safe_path", lambda p: p, raising=False)
-    monkeypatch.setattr(fs_utils, "safe_rmtree", lambda p: None, raising=False)
-    monkeypatch.setattr(
-        sp, "get_venv_pip_executable", lambda p: p / "bin" / "pip", raising=False
-    )
-    monkeypatch.setattr(
-        sp, "get_venv_python_executable", lambda p: p / "bin" / "python", raising=False
-    )
-    monkeypatch.setattr(
-        sp, "venv", SimpleNamespace(create=lambda *a, **k: None), raising=False
-    )
-    monkeypatch.setattr(subprocess, "check_call", lambda *a, **k: None)
-
-    # Should not raise
-    sp.manage_virtual_environment()
-
-
-### END ORIGINAL: tests/setup/test_setup_project_run_and_venv_unit.py

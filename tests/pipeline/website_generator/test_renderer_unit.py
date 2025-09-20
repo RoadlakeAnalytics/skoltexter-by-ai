@@ -1,13 +1,9 @@
-"""Unit tests for website renderer utilities. (unique module name)
-"""
+"""Unit tests for website renderer utilities. (unique module name)"""
 
 from pathlib import Path
-import json
 
-import pytest
-
+from src.config import ERROR_DESCRIPTION_HTML, FALLBACK_DESCRIPTION_HTML
 from src.pipeline.website_generator import renderer as r
-from src.config import FALLBACK_DESCRIPTION_HTML, ERROR_DESCRIPTION_HTML
 
 
 def test_get_school_description_html_no_file(tmp_path: Path) -> None:

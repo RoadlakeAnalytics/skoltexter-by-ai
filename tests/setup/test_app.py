@@ -1,7 +1,8 @@
-"""Tests for `src/setup/app.py` runner."""
-
 import sys
 from types import SimpleNamespace
+
+"""Tests for `src/setup/app.py` runner."""
+
 
 import src.setup.app as app
 import src.setup.i18n as i18n

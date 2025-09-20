@@ -19,27 +19,39 @@ import os
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Set
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def find_src_files() -> list[Path]:
+    """Return a sorted list of Python source files under ``src/``.
+
+    Returns
+    -------
+    list[Path]
+        Sorted list of Path objects for Python files under the ``src`` tree.
+    """
     return sorted(ROOT.glob("src/**/*.py"))
 
 
 def find_test_files() -> list[Path]:
+    """Return a sorted list of Python test files under ``tests/``.
+
+    Returns
+    -------
+    list[Path]
+        Sorted list of Path objects for Python files under the ``tests`` tree.
+    """
     return sorted(ROOT.glob("tests/**/*.py"))
 
 
-def parse_imported_srcs(test_path: Path, src_set: Set[str]) -> Set[str]:
+def parse_imported_srcs(test_path: Path, src_set: set[str]) -> set[str]:
     """Return set of src file paths (relative to repo root) imported by test.
 
-    We look for `import src.xxx.yyy` and `from src.xxx.yyy import z` forms.
+    We look for ``import src.xxx.yyy`` and ``from src.xxx.yyy import z`` forms.
     """
     text = test_path.read_text(encoding="utf-8")
-    found: Set[str] = set()
+    found: set[str] = set()
     for line in text.splitlines():
         line = line.strip()
         m1 = re.match(r"import\s+(src(?:\.[A-Za-z0-9_]+)+)", line)
@@ -61,7 +73,7 @@ def parse_imported_srcs(test_path: Path, src_set: Set[str]) -> Set[str]:
     return found
 
 
-def unique_basename(module_path: Path, used_basenames: Set[str]) -> str:
+def unique_basename(module_path: Path, used_basenames: set[str]) -> str:
     """Generate a unique test basename for a module by adding parents.
 
     Start with `test_<module>_unit.py`. If that basename collides, prepend
@@ -86,7 +98,7 @@ def unique_basename(module_path: Path, used_basenames: Set[str]) -> str:
     return cand
 
 
-def compute_canonical_basenames(src_paths: list[Path]) -> Dict[str, str]:
+def compute_canonical_basenames(src_paths: list[Path]) -> dict[str, str]:
     """Deterministically compute canonical basenames for all src modules.
 
     This function ensures uniqueness by disambiguating modules that share
@@ -98,8 +110,8 @@ def compute_canonical_basenames(src_paths: list[Path]) -> Dict[str, str]:
     for p in src_paths:
         by_stem[p.stem].append(p)
 
-    canonical: Dict[str, str] = {}
-    used: Set[str] = set()
+    canonical: dict[str, str] = {}
+    used: set[str] = set()
 
     for stem, paths in by_stem.items():
         if len(paths) == 1:
@@ -112,11 +124,12 @@ def compute_canonical_basenames(src_paths: list[Path]) -> Dict[str, str]:
             continue
 
         # Disambiguate a group of paths sharing the same stem
-        parent_parts = {p: list(p.parts[1:-1]) for p in paths}
+        # Map parent parts by a stable string key to avoid closure binding
+        parent_parts = {p.as_posix(): list(p.parts[1:-1]) for p in paths}
         depth_map = {p: 0 for p in paths}
 
-        def make_candidate(p: Path, depth: int) -> str:
-            parts = parent_parts[p]
+        def make_candidate(p: Path, depth: int, _parent_parts=parent_parts) -> str:
+            parts = _parent_parts[p.as_posix()]
             if depth <= 0 or not parts:
                 return f"test_{p.stem}_unit.py"
             prefix = "_".join(parts[-depth:])
@@ -131,7 +144,7 @@ def compute_canonical_basenames(src_paths: list[Path]) -> Dict[str, str]:
             dup = any(v > 1 for v in counts.values())
             coll = any(c in used for c in cands)
             if not dup and not coll:
-                for p, c in zip(paths, cands):
+                for p, c in zip(paths, cands, strict=False):
                     canonical[str(p.relative_to(ROOT))] = c
                     used.add(c)
                 break
@@ -140,7 +153,7 @@ def compute_canonical_basenames(src_paths: list[Path]) -> Dict[str, str]:
             for i, p in enumerate(paths):
                 c = cands[i]
                 if counts[c] > 1 or c in used:
-                    if depth_map[p] < len(parent_parts[p]):
+                    if depth_map[p] < len(parent_parts[p.as_posix()]):
                         depth_map[p] += 1
                     else:
                         dotted = "_".join(p.with_suffix("").parts)
@@ -152,13 +165,13 @@ def compute_canonical_basenames(src_paths: list[Path]) -> Dict[str, str]:
     return canonical
 
 
-def _compute_moves() -> list[Dict[str, str]]:
+def _compute_moves() -> list[dict[str, str]]:
     src_files = find_src_files()
     test_files = find_test_files()
     src_set = {str(p.relative_to(ROOT)) for p in src_files}
 
     # map test -> imported srcs
-    test_imports: Dict[str, Set[str]] = {}
+    test_imports: dict[str, set[str]] = {}
     for t in test_files:
         # skip conftest and __init__ files
         if t.name in ("conftest.py", "__init__.py"):
@@ -168,7 +181,7 @@ def _compute_moves() -> list[Dict[str, str]]:
             test_imports[str(t.relative_to(ROOT))] = imps
 
     # invert mapping to src -> tests that import it
-    src_to_tests: Dict[str, list[str]] = defaultdict(list)  # type: ignore
+    src_to_tests: dict[str, list[str]] = defaultdict(list)  # type: ignore
     for t, imps in test_imports.items():
         for s in imps:
             src_to_tests[s].append(t)
@@ -177,9 +190,9 @@ def _compute_moves() -> list[Dict[str, str]]:
     canonical_map = compute_canonical_basenames(src_files)
 
     # existing basenames in tests (avoid collisions)
-    used_basenames: Set[str] = {p.name for p in test_files}
+    used_basenames: set[str] = {p.name for p in test_files}
 
-    moves: list[Dict[str, str]] = []
+    moves: list[dict[str, str]] = []
     for s, tests in src_to_tests.items():
         if len(tests) != 1:
             # ambiguous mapping; skip to be safe
@@ -208,7 +221,7 @@ def _compute_moves() -> list[Dict[str, str]]:
     return moves
 
 
-def _apply_moves(moves: list[Dict[str, str]]) -> int:
+def _apply_moves(moves: list[dict[str, str]]) -> int:
     applied = 0
     for m in moves:
         src = Path(m["from"])
@@ -227,6 +240,18 @@ def _apply_moves(moves: list[Dict[str, str]]) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint: print or apply planned test file renames.
+
+    Parameters
+    ----------
+    argv : list[str] | None
+        Optional argv to parse; when None the real CLI args are used.
+
+    Returns
+    -------
+    int
+        Exit code (0 on success).
+    """
     parser = argparse.ArgumentParser(
         description="Plan or apply deterministic test file renames to mirror src/ structure."
     )
@@ -249,4 +274,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

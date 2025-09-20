@@ -4,6 +4,7 @@
 - Ensures the project root is available on ``sys.path`` for imports.
 """
 
+import ast
 import os
 import signal
 import sys
@@ -118,9 +119,9 @@ def pytest_sessionfinish(session, exitstatus):
         # Avoid importing heavy modules at test collection time; import
         # coverage lazily only when the session finishes and the plugin
         # may be present.
-        import coverage
         from pathlib import Path
-        import ast as _ast
+
+        import coverage
     except Exception:
         return
 
@@ -176,7 +177,7 @@ def pytest_sessionfinish(session, exitstatus):
                 pass
 
         data = cov_obj.get_data()
-        targets = [Path("setup_project.py")] + sorted(Path("src").rglob("*.py"))
+        targets = [Path("setup_project.py"), *sorted(Path("src").rglob("*.py"))]
         for p in targets:
             if not p.exists():
                 continue
@@ -246,7 +247,7 @@ def pytest_configure(config):
         if plugin is not None:
             try:
                 # Replace the validation function with a quiet no-op.
-                setattr(plugin, "validate_fail_under", lambda *a, **k: None)
+                plugin.validate_fail_under = lambda *a, **k: None
             except Exception:
                 pass
 
@@ -260,9 +261,10 @@ def pytest_configure(config):
                     data = cov_obj.get_data()
                     from pathlib import Path
 
-                    targets = [Path("setup_project.py")] + sorted(
-                        Path("src").rglob("*.py")
-                    )
+                    targets = [
+                        Path("setup_project.py"),
+                        *sorted(Path("src").rglob("*.py")),
+                    ]
                     for p in targets:
                         if not p.exists():
                             continue

@@ -1,11 +1,9 @@
-"""Unit tests for `src.setup.pipeline.run.run_program` streaming and non-streaming.
-"""
+"""Unit tests for `src.setup.pipeline.run.run_program` streaming and non-streaming."""
 
+import importlib
 import subprocess
 import sys as _sys
 import types
-import importlib
-from types import SimpleNamespace
 from pathlib import Path
 
 

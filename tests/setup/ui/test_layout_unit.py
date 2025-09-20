@@ -20,4 +20,3 @@ def test_build_dashboard_layout_old_and_new_signatures():
 
     layout_new = build_dashboard_layout("welcome2")
     assert layout_new["header"].value == "welcome2"
-

@@ -59,7 +59,7 @@ def _compose_and_update() -> None:
             # Rich's Group is used so tests can inspect the container.
             try:
                 if not hasattr(content, "items"):
-                    setattr(content, "items", (a, b))
+                    content.items = a, b
             except Exception:
                 # Defensive: ignore failures when object is not attribute-writable
                 pass

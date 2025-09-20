@@ -1,7 +1,8 @@
 """Tests for `run_full_quality_suite` helper in setup_project.py."""
 
 import subprocess
-import setup_project as sp
+
+import src.setup.app as sp
 
 
 def test_run_full_quality_suite_success(monkeypatch):

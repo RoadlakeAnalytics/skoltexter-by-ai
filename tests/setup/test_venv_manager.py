@@ -12,7 +12,7 @@ import sys as _sys
 import venv as _venv
 from pathlib import Path
 
-import setup_project as sp
+import src.setup.app as sp
 import src.setup.venv_manager as vm
 from src import config as cfg
 from src.setup import venv as venvmod
@@ -353,7 +353,7 @@ def test_manage_virtual_environment_install_fallback_when_no_lock(
     monkeypatch, tmp_path: Path
 ):
     """When requirements.lock is missing, fallback to requirements.txt install path is used."""
-    import setup_project as sp_local
+    import src.setup.app as sp_local
 
     # Prepare venv dir and paths
     monkeypatch.setattr(sp_local, "VENV_DIR", tmp_path / "venv_fb")
@@ -396,7 +396,7 @@ def test_manage_virtual_environment_no_venvdir_pip_python_fallback(
     We simulate an active venv with missing pip executable path and a non-existent
     project VENV_DIR, ensuring the code takes the false branch and continues.
     """
-    import setup_project as sp_local
+    import src.setup.app as sp_local
 
     monkeypatch.setattr(sp_local, "is_venv_active", lambda: True)
     # Return a non-existent pip path for the active environment
@@ -421,7 +421,7 @@ def test_manage_virtual_environment_venv_exists_no_python_fallback(
     monkeypatch, tmp_path: Path
 ):
     """Cover fallback to system python when VENV_DIR exists but python is missing (697->703)."""
-    import setup_project as sp_local
+    import src.setup.app as sp_local
 
     vdir = tmp_path / "vdir"
     vdir.mkdir()
@@ -454,7 +454,7 @@ def test_manage_virtual_environment_restart_with_invalid_lang(
     monkeypatch, tmp_path: Path
 ):
     """Drive restart branch and cover LANG not in (en, sv) path (742->744)."""
-    import setup_project as sp_local
+    import src.setup.app as sp_local
 
     monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
     monkeypatch.setattr(sp_local, "LANG", "xx")
@@ -495,7 +495,7 @@ def test_manage_virtual_environment_vdir_not_created_then_fallback(
     We simulate a scenario where VENV_DIR does not exist before and after venv.create,
     forcing the code to skip the 'elif VENV_DIR.exists()' block and hit the fallback.
     """
-    import setup_project as sp_local
+    import src.setup.app as sp_local
 
     vdir = tmp_path / "vnone"
     monkeypatch.setattr(sp_local, "VENV_DIR", vdir)

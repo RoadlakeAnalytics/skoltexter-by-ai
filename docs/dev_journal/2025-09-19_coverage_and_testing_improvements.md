@@ -238,6 +238,124 @@ Actions taken
 
 Notes on `setup_project.py`
 --------------------------
+
+Additional notes (2025-09-20)
+-----------------------------
+Added a few focused unit tests to increase coverage for utility modules:
+
+- `tests/pipeline/markdown_generator/test_templating_unit.py` — covers
+  placeholder extraction and rendering edge cases (numeric formatting and
+  missing-data placeholder handling).
+- `tests/setup/test_venv_helpers_unit.py` — covers venv path helpers and the
+  logic for selecting a Python executable, with platform variations mocked
+  via `monkeypatch`.
+- `tests/setup/test_setup_project_shim_unit.py` — verifies the top-level
+  `setup_project` shim correctly propagates monkeypatches into the
+  refactored `src.setup.app` module for backward compatibility.
+
+These tests include module- and function-level docstrings and are designed
+to be deterministic (no network or external process calls). They passed in
+the execution environment used for development and increase overall
+coverage in the utility areas mentioned above.
+
+
+Automated follow-up (2025-09-20)
+--------------------------------
+
+Actions performed by the automated assistant during a maintenance session:
+
+- Restored a 1:1 mapping between test files and source modules by
+  implementing and running a small set of tooling scripts under `tools/`:
+  - `tools/split_consolidated_tests.py` — detects consolidated test files
+    and splits them into the original files using `### BEGIN ORIGINAL` /
+    `### END ORIGINAL` markers embedded in the consolidated modules.
+  - `tools/plan_test_renames.py` — computes a deterministic canonical
+    basename for every `src/` module and proposes non‑destructive
+    test-file moves so tests follow `tests/<path-after-src>/test_<module>_unit.py`.
+  - `tools/add_common_test_imports.py` — conservative helper to prepend
+    a minimal set of commonly-needed imports (pytest, json, asyncio,
+    SimpleNamespace, aiohttp, etc.) to split files that lacked them.
+  - `tools/restore_test_headers_from_git.py` — reads the original
+    consolidated files from `git HEAD`, extracts their header (the
+    import/docstring section) and reapplies it to each split file so
+    that per-file imports are restored exactly as they were before
+    splitting.
+
+- Executed the above tooling and verified behaviour by running lint and
+  test checks inside the project's virtual environment (`venv/bin/pytest`,
+  `venv/bin/ruff`). Where a full `pre-commit` run could not complete due
+  to restricted network access (pre-commit attempted to fetch remote
+  hook repositories), I ran the local equivalents (Black, Ruff and pytest)
+  as far as possible in this offline environment.
+
+Results & current status
+------------------------
+
+- The tests were successfully split into individual files and the
+  per-file import headers were restored from the committed consolidated
+  sources. This eliminates double-definitions that were present when a
+  single consolidated file held multiple original tests.
+- Several helper tools are now available under `tools/` to plan, apply
+  and repair the 1:1 mapping; these are conservative by default and use
+  a dry-run mode.
+- Many lint and import errors were resolved by restoring headers and
+  adding common test imports. A number of `ruff` warnings remain (mostly
+  docstring/style checks and some module-import ordering issues flagged
+  as `E402` where imports are not the very first statement because of
+  original module docstrings). These are generally low‑risk cosmetic
+  issues but need a brief, manual sweep to fully satisfy the project's
+  zero-warnings policy.
+
+Limitations and next steps
+--------------------------
+
+1. pre-commit cannot be fully executed in this sandbox due to network
+   restrictions (pre-commit installs hook environments by fetching from
+   remote repositories such as GitHub). On a developer machine or in CI
+   with network access, run `venv/bin/pre-commit run --all-files` to
+   exercise the full suite of hooks (black, ruff, bandit, semgrep,
+   pip-audit, etc.).
+
+2. A small number of style warnings remain (docstring coverage, a few
+   E402 import-order items). I recommend:
+   - Running `venv/bin/ruff --select E402` and fixing true violations
+     where an import appears after executable code (move the import or
+     ensure the module docstring is the first node in the file).
+   - Optionally configure `ruff`/`flake8` to relax D103 checks for
+     tests if the team prefers not to require docstrings on test
+     functions (this is a policy decision).
+
+3. Final verification (recommended local steps):
+
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.lock
+    venv/bin/pre-commit install
+    venv/bin/pre-commit run --all-files
+    venv/bin/pytest -q
+
+If you want, I can continue and:
+
+- Sweep and fix the remaining `ruff` warnings (E402/D103) across
+  `tests/` and `src/` (requires careful ordering to preserve module
+  docstrings), and
+- Run `pre-commit` in a network-enabled environment (I will need
+  permission to run external fetches in this environment) so the full
+  hook suite is exercised.
+
+Files added in this session (tooling)
+------------------------------------
+
+- `tools/split_consolidated_tests.py`
+- `tools/plan_test_renames.py` (existing; used for planning canonical names)
+- `tools/add_common_test_imports.py`
+- `tools/restore_test_headers_from_git.py`
+
+Please tell me if you want me to continue and finish the remaining
+lint fixes now (I can attempt to do so here but some steps require
+network access to run the full `pre-commit` flow) or if you prefer I
+prepare a PR with the current set of changes for you to run locally/CI.
+
 I inspected `setup_project.py` to answer the question whether the file had
 become too large. It currently contains a comprehensive interactive UI and a
 lot of helper logic (menus, TUI integration, virtualenv management). The

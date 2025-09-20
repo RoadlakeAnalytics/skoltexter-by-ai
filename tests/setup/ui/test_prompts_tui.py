@@ -1,3 +1,6 @@
+import builtins
+import sys
+
 """Tests for TUI-specific branches in `src/setup/ui/prompts.py`.
 
 These tests simulate the orchestrator TUI being active and exercise the
@@ -5,13 +8,10 @@ branches that render prompts into the TUI area and then read input via
 `input()` or `getpass.getpass()` depending on environment.
 """
 
-import builtins
 import getpass
-import os
-import sys
 
-from src.setup.ui import prompts as prom
 from src.setup.pipeline import orchestrator as orch
+from src.setup.ui import prompts as prom
 
 
 def test_ask_text_tui_uses_input(monkeypatch):

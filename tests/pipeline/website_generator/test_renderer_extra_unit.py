@@ -1,14 +1,14 @@
 """Extra tests for website renderer utilities."""
 
-from types import SimpleNamespace
-from pathlib import Path
 import json
 import sys
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from src.config import ERROR_DESCRIPTION_HTML, FALLBACK_DESCRIPTION_HTML
 from src.pipeline.website_generator import renderer as r
-from src.config import FALLBACK_DESCRIPTION_HTML, ERROR_DESCRIPTION_HTML
 
 
 def test_get_school_description_html_missing_file(tmp_path: Path) -> None:

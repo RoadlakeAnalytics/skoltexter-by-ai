@@ -1,6 +1,7 @@
 """Unit tests for internationalisation helpers. (unique name)"""
 
 import builtins
+
 import pytest
 
 from src.setup import i18n

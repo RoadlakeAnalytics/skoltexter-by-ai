@@ -1,7 +1,6 @@
 """Additional unit tests for functions in setup_project.py."""
 
-import setup_project as sp
-from pathlib import Path
+import src.setup.app as sp
 
 
 def test_build_dashboard_layout_smoke():
