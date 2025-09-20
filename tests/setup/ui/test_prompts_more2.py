@@ -20,9 +20,10 @@ def test_questionary_text_branch(monkeypatch):
     orch._TUI_UPDATER = None
     orch._TUI_PROMPT_UPDATER = None
     import importlib as _il
+
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
     # Ensure pytest internal env var is present to avoid early non-tty returns
-    monkeypatch.setenv('PYTEST_CURRENT_TEST', '1')
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
     pkg = _il.import_module("src.setup.pipeline")
     setattr(pkg, "orchestrator", orch)
 
@@ -51,7 +52,9 @@ def test_questionary_text_falls_back_on_exception(monkeypatch):
     class Q:
         @staticmethod
         def text(prompt, default=""):
-            return types.SimpleNamespace(ask=lambda: (_ for _ in ()).throw(RuntimeError()))
+            return types.SimpleNamespace(
+                ask=lambda: (_ for _ in ()).throw(RuntimeError())
+            )
 
     monkeypatch.setattr(ch, "questionary", Q)
     monkeypatch.setattr(builtins, "input", lambda prompt="": "fb")
@@ -79,6 +82,11 @@ def test_questionary_confirm_and_select_variants(monkeypatch):
             return types.SimpleNamespace(ask=lambda: choices[0])
 
     monkeypatch.setattr(ch, "questionary", QC)
+    # Ensure the package attribute for src.setup.pipeline points to our stub
+    import importlib as _il
+
+    pkg = _il.import_module("src.setup.pipeline")
+    setattr(pkg, "orchestrator", orch)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     assert prom.ask_confirm("?", default_yes=True) is False
     assert prom.ask_select("choose", ["A", "B"]) == "A"

@@ -17,56 +17,57 @@ def test_ask_text_tui_updater(monkeypatch):
     called = {}
 
     def prompt_updater(v):
-        called['v'] = v
+        called["v"] = v
 
-    orch = _types.ModuleType('src.setup.pipeline.orchestrator')
+    orch = _types.ModuleType("src.setup.pipeline.orchestrator")
     orch._TUI_MODE = True
     orch._TUI_UPDATER = lambda x: None
     orch._TUI_PROMPT_UPDATER = prompt_updater
-    monkeypatch.setitem(sys.modules, 'src.setup.pipeline.orchestrator', orch)
-    pkg = _il.import_module('src.setup.pipeline')
-    setattr(pkg, 'orchestrator', orch)
+    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
+    pkg = _il.import_module("src.setup.pipeline")
+    setattr(pkg, "orchestrator", orch)
 
     # Ensure pytest internal env var is not present so getpass branch is used
-    monkeypatch.delenv('PYTEST_CURRENT_TEST', raising=False)
-    monkeypatch.setattr(sys.stdin, 'isatty', lambda: True)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     import getpass, builtins
-    monkeypatch.setattr(getpass, 'getpass', lambda prompt='': 'secret')
-    monkeypatch.setattr(builtins, 'input', lambda prompt='': 'secret')
+
+    monkeypatch.setattr(getpass, "getpass", lambda prompt="": "secret")
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "secret")
     # Run
-    val = prom.ask_text('p')
-    assert val == 'secret'
+    val = prom.ask_text("p")
+    assert val == "secret"
     # The prompt updater should have been called with a Panel-like object
-    assert 'v' in called
+    assert "v" in called
 
 
 def test_questionary_fallback_on_exception(monkeypatch):
     # Simulate questionary present but raising inside ask()
-    monkeypatch.setattr(ch, '_HAS_Q', True)
+    monkeypatch.setattr(ch, "_HAS_Q", True)
 
     class Q:
         @staticmethod
-        def text(prompt, default=''):
+        def text(prompt, default=""):
             class A:
                 def ask(self):
-                    raise RuntimeError('boom')
+                    raise RuntimeError("boom")
 
             return A()
 
-    monkeypatch.setattr(ch, 'questionary', Q)
+    monkeypatch.setattr(ch, "questionary", Q)
     # Fallback to input
-    monkeypatch.setattr(builtins, 'input', lambda prompt='': 'fallback')
-    assert prom.ask_text('p') == 'fallback'
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "fallback")
+    assert prom.ask_text("p") == "fallback"
 
 
 def test_ui_has_rich_dynamic(monkeypatch):
     # Ensure ui_has_rich returns False when rich not importable
-    monkeypatch.setitem(sys.modules, 'rich', None)
+    monkeypatch.setitem(sys.modules, "rich", None)
     # For tests we can directly assert boolean based on _RICH_CONSOLE
-    monkeypatch.setattr(ch, '_RICH_CONSOLE', None)
+    monkeypatch.setattr(ch, "_RICH_CONSOLE", None)
     assert ch.ui_has_rich() is False
     # When console present, it should return True
-    monkeypatch.setattr(ch, '_RICH_CONSOLE', object())
+    monkeypatch.setattr(ch, "_RICH_CONSOLE", object())
     # Provide an importable dummy rich package for the dynamic check
-    monkeypatch.setitem(sys.modules, 'rich', types.ModuleType('rich'))
+    monkeypatch.setitem(sys.modules, "rich", types.ModuleType("rich"))
     assert ch.ui_has_rich() is True

@@ -69,7 +69,9 @@ def test_run_pipeline_step_branches(monkeypatch):
 
     # 1) Yes and program succeeds
     monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "y")
-    monkeypatch.setattr(orch, "run_program", lambda name, path, stream_output=False: True)
+    monkeypatch.setattr(
+        orch, "run_program", lambda name, path, stream_output=False: True
+    )
     ok = orch._run_pipeline_step("p", "program_1", Path("x"), "fail", "confirm")
     assert ok is True
     assert calls["success"] and calls["success"][-1] == "confirm"
@@ -85,7 +87,9 @@ def test_run_pipeline_step_branches(monkeypatch):
     # 3) Skip with skip_message
     monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "s")
     calls["info"].clear()
-    ok = orch._run_pipeline_step("p", "program_2", Path("x"), "fail_key", "confirmed", skip_message="skipped")
+    ok = orch._run_pipeline_step(
+        "p", "program_2", Path("x"), "fail_key", "confirmed", skip_message="skipped"
+    )
     assert ok is True
     assert calls["info"] and calls["info"][-1] == "skipped"
 
@@ -118,6 +122,7 @@ def test_run_pipeline_by_name_maps(monkeypatch):
     assert orch.run_pipeline_by_name("program_3") is True
 
     # unknown -> falls back to run_program
-    monkeypatch.setattr(orch, "run_program", lambda name, path, stream_output=False: True)
+    monkeypatch.setattr(
+        orch, "run_program", lambda name, path, stream_output=False: True
+    )
     assert orch.run_pipeline_by_name("program_x", stream_output=True) is True
-

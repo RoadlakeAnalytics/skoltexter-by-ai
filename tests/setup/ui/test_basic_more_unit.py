@@ -24,4 +24,3 @@ def test_ui_status_context_manager(monkeypatch, capsys):
         pass
     out = capsys.readouterr().out
     assert "Working" in out
-

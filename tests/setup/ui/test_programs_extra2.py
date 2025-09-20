@@ -6,7 +6,9 @@ import src.setup.ui.programs as programs
 
 
 def test_view_program_descriptions_rich_calls_rprint(monkeypatch):
-    monkeypatch.setattr(programs, "get_program_descriptions", lambda: {"1": ("T", "BODY")})
+    monkeypatch.setattr(
+        programs, "get_program_descriptions", lambda: {"1": ("T", "BODY")}
+    )
     monkeypatch.setattr(programs, "ui_menu", lambda items: None)
     seq = ["1", "0"]
     monkeypatch.setattr(programs, "ask_text", lambda prompt: seq.pop(0))
@@ -34,6 +36,7 @@ def test__view_logs_tui_invalid_selection_updates_info(monkeypatch, tmp_path):
     # choose an invalid selection then exit
     seq = ["nonexistent", "0"]
     monkeypatch.setattr(programs, "ask_text", lambda p: seq.pop(0))
+
     # Avoid importing/using the real `rich` Table/Panel/Syntax types which
     # can perform expensive operations. Provide minimal stand-ins that
     # implement the methods used by the code under test.

@@ -37,4 +37,6 @@ def test_run_processing_pipeline_plain_full(monkeypatch, tmp_path: Path):
     orch._run_processing_pipeline_plain()
 
     # Ensure completion message was emitted
-    assert "pipeline_complete" in str(captured.get("msg", "")) or "Open the file" in str(captured.get("msg", ""))
+    assert "pipeline_complete" in str(
+        captured.get("msg", "")
+    ) or "Open the file" in str(captured.get("msg", ""))

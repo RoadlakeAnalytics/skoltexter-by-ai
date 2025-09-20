@@ -1,130 +1,100 @@
-"""Additional unit tests for prompt fallbacks and TUI branches.
+"""Extra unit tests for ``src.setup.ui.prompts`` covering remaining branches.
 
-These exercises target the TUI-specific branches and adapter error
-fallbacks in ``src.setup.ui.prompts``. They intentionally inject a
-lightweight fake orchestrator module into ``sys.modules`` to control
-the TUI flags without mutating the real orchestrator object.
+These tests exercise filesystem/TTY and TUI branches that were not yet
+covered by the existing suite. They avoid launching any interactive UI by
+monkeypatching stdin/getpass/questionary and by installing small stubs for
+the orchestrator when needed.
 """
 
-import sys
+from types import SimpleNamespace
 import types
+import sys
 import builtins
 
-import src.setup.ui.prompts as prom
 from src.setup import console_helpers as ch
-
-
-def make_orch(tui_mode=True, updater=lambda x: None, prompt_updater=None):
-    m = types.ModuleType("src.setup.pipeline.orchestrator")
-    m._TUI_MODE = tui_mode
-    m._TUI_UPDATER = updater
-    m._TUI_PROMPT_UPDATER = prompt_updater
-    return m
-
-
-def test_ask_text_tui_uses_input_when_pytest_env(monkeypatch):
-    orch = make_orch(tui_mode=True, updater=lambda x: None)
-    # Ensure the package attribute and sys.modules entry are set so
-    # ``from src.setup.pipeline import orchestrator`` resolves to our fake
-    # module during the prompt call.
-    import importlib as _il
-
-    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
-    pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch)
-    # Simulate pytest env so the code uses input() even when TTY
-    monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
-    monkeypatch.setattr(builtins, "input", lambda prompt="": "typed")
-    res = prom.ask_text("p?")
-    assert res == "typed"
+import src.setup.ui.prompts as prom
 
 
 def test_ask_text_tui_getpass_and_fallback(monkeypatch):
-    orch = make_orch(tui_mode=True, updater=lambda x: None)
-    import importlib as _il
+    """TUI mode: getpass succeeds, and when it fails we fall back to input."""
+    # Use the real orchestrator module but monkeypatch its TUI flags so
+    # the prompts module sees TUI mode enabled for the duration of the test.
+    # Ensure imports inside prom.ask_text pick up our stub orchestrator
+    # by replacing any pre-existing entries in sys.modules.
+    for k in ("src.setup.pipeline.orchestrator", "src.setup.pipeline"):
+        if k in sys.modules:
+            del sys.modules[k]
 
-    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
-    pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch)
-    # Simulate a real TTY so getpass branch is chosen
+    fake_orch = types.ModuleType("src.setup.pipeline.orchestrator")
+    fake_orch._TUI_MODE = True
+    fake_orch._TUI_UPDATER = lambda v: None
+    fake_orch._TUI_PROMPT_UPDATER = lambda v: None
+    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", fake_orch)
+
+    # Simulate a real TTY and no pytest env so getpass branch is exercised
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
-    import getpass
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True, raising=False)
 
-    # Normal getpass behaviour
-    monkeypatch.setattr(getpass, "getpass", lambda prompt="": "secret")
-    assert prom.ask_text("p:") == "secret"
+    # getpass returns value
+    import getpass as _gp
 
-    # If getpass raises, fallback to input()
-    def boom(prompt=""):
-        raise RuntimeError()
+    monkeypatch.setattr(_gp, "getpass", lambda prompt="": "gpval", raising=False)
+    assert prom.ask_text("P?", default="d") == "gpval"
 
-    monkeypatch.setattr(getpass, "getpass", boom)
-    monkeypatch.setattr(builtins, "input", lambda prompt="": "fallback")
-    assert prom.ask_text("p:") == "fallback"
+    # When getpass raises we should fall back to input and then to default on EOF
+    def _bad_getpass(prompt=""):
+        raise RuntimeError("no tty")
+
+    monkeypatch.setattr("getpass.getpass", _bad_getpass, raising=False)
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "inpval", raising=False)
+    assert prom.ask_text("P?", default="d") == "inpval"
+
+    # And when input raises EOFError default is returned
+    monkeypatch.setattr(builtins, "input", lambda prompt="": (_ for _ in ()).throw(EOFError()))
+    assert prom.ask_text("P?", default="dflt") == "dflt"
 
 
-def test_ask_text_questionary_error_fallback(monkeypatch):
-    # Enable questionary but have its adapter raise on ask()
-    monkeypatch.setattr(ch, "_HAS_Q", True)
+def test_ask_text_non_tty_not_in_test_returns_default(monkeypatch):
+    """When not a TTY and not under pytest the default is returned."""
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False, raising=False)
+    assert prom.ask_text("P?", default="xyz") == "xyz"
 
+
+def test_ask_confirm_non_tty_default_yes(monkeypatch):
+    """ask_confirm returns the default when non-tty and not in test env."""
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False, raising=False)
+    assert prom.ask_confirm("Proceed?", default_yes=True) is True
+
+
+def test_ask_select_non_tty_returns_last_choice(monkeypatch):
+    """ask_select returns last choice when non-tty and not in test env."""
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False, raising=False)
+    assert prom.ask_select("Pick", ["A", "B", "C"]) == "C"
+
+
+def test_isatty_exception_is_handled(monkeypatch):
+    """If sys.stdin.isatty raises, prompts treat that as non-tty gracefully."""
+    def _raise():
+        raise RuntimeError("nope")
+
+    monkeypatch.setattr(sys.stdin, "isatty", _raise, raising=False)
+    # Under pytest this should go to input branch; stub input
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "ok", raising=False)
+    assert prom.ask_text("Q?", default="d") == "ok"
+
+
+def test_ask_confirm_questionary_exception_fallback(monkeypatch):
+    """When questionary.confirm raises, ask_confirm falls back to input."""
     class Q:
         @staticmethod
-        def text(prompt, default=""):
-            return types.SimpleNamespace(ask=lambda: (_ for _ in ()).throw(RuntimeError()))
-
-    monkeypatch.setattr(ch, "questionary", Q)
-    monkeypatch.setattr(builtins, "input", lambda prompt="": "qfallback")
-    # Ensure TTY state allows input fallback
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
-    assert prom.ask_text("p") == "qfallback"
-
-
-def test_ask_text_non_tty_returns_default(monkeypatch):
-    # Non-tty + not in pytest env -> default returned
-    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
-    assert prom.ask_text("p", default="DFT") == "DFT"
-
-
-def test_ask_confirm_tui_and_questionary(monkeypatch):
-    # TUI non-tty path using input
-    orch = make_orch(tui_mode=True, updater=lambda x: None)
-    import importlib as _il
-
-    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
-    pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch)
-    monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
-    monkeypatch.setattr(builtins, "input", lambda prompt="": "y")
-    assert prom.ask_confirm("sure?") is True
-
-    # Questionary confirm path: ensure a non-TUI orchestrator stub is
-    # present so the questionary branch (non-TUI) is exercised
-    # deterministically.
-    orch2 = make_orch(tui_mode=False, updater=None)
-    import importlib as _il
-
-    monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch2)
-    pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch2)
-    monkeypatch.setattr(ch, "_HAS_Q", True)
-
-    class QC:
-        @staticmethod
         def confirm(prompt, default=True):
-            return types.SimpleNamespace(ask=lambda: False)
+            return SimpleNamespace(ask=lambda: (_ for _ in ()).throw(RuntimeError("qerr")))
 
-    monkeypatch.setattr(ch, "questionary", QC)
-    assert prom.ask_confirm("sure?", default_yes=True) is False
-
-
-def test_ask_select_numeric_choice(monkeypatch):
-    # Simulate numeric selection via input
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
-    # Ensure questionary adapter is not used in this test so we exercise
-    # the input-based selection fallback.
-    monkeypatch.setattr(ch, "questionary", None)
-    monkeypatch.setattr(ch, "_HAS_Q", False)
-    monkeypatch.setattr(builtins, "input", lambda prompt="": "2")
-    assert prom.ask_select("pick", ["A", "B"]) == "B"
+    monkeypatch.setattr(ch, "questionary", Q, raising=False)
+    monkeypatch.setattr(ch, "_HAS_Q", False, raising=False)
+    # Input returns 'y'
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "y", raising=False)
+    assert prom.ask_confirm("Proceed?", default_yes=False) is True

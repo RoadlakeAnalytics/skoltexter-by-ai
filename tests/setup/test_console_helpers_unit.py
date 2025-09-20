@@ -14,9 +14,9 @@ def test_ui_has_rich_false_when_missing(monkeypatch):
 
 def test_ui_has_rich_true_when_console_available(monkeypatch):
     # Ensure a fake rich module and set _RICH_CONSOLE non-None
-    fake = importlib.util.module_from_spec(importlib.machinery.ModuleSpec('rich', None))
-    monkeypatch.setitem(sys.modules, 'rich', fake)
-    monkeypatch.setattr(ch, '_RICH_CONSOLE', object())
+    fake = importlib.util.module_from_spec(importlib.machinery.ModuleSpec("rich", None))
+    monkeypatch.setitem(sys.modules, "rich", fake)
+    monkeypatch.setattr(ch, "_RICH_CONSOLE", object())
     assert ch.ui_has_rich() is True
 
 
@@ -26,4 +26,3 @@ def test_rprint_falls_back_to_print(monkeypatch, capsys):
     ch.rprint("hello", "world")
     out = capsys.readouterr().out
     assert "hello world" in out
-

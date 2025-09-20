@@ -30,4 +30,3 @@ def test_app_ui_has_rich_and_rprint(monkeypatch, capsys):
     app.rprint("x", "y")
     out = capsys.readouterr().out
     assert "x y" in out
-

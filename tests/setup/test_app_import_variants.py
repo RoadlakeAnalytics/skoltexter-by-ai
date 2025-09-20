@@ -53,7 +53,10 @@ def test_import_app_with_minimal_rich(monkeypatch):
     panel_mod.Panel = DummyPanel
     # Inject both package and submodule entries
     fake_rich_pkg = types.ModuleType("rich")
-    sysmods = {"src.setup.ui.menu": fake_menu, "rich.panel": panel_mod, "rich": fake_rich_pkg}
+    sysmods = {
+        "src.setup.ui.menu": fake_menu,
+        "rich.panel": panel_mod,
+        "rich": fake_rich_pkg,
+    }
     mod = _reload_with_stubs(sysmods)
     assert getattr(mod, "Panel", None) is not None
-

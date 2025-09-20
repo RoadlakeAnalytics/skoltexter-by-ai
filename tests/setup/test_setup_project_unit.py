@@ -53,8 +53,9 @@ def test_ask_helpers_branches(monkeypatch):
     # Simulate the prompts module returning a questionary answer so the
     # app wrapper forwards correctly to the prompts implementation.
     import importlib as _il
-    _prom = _il.import_module('src.setup.ui.prompts')
-    monkeypatch.setattr(_prom, 'ask_text', lambda p, default=None: 'qval')
+
+    _prom = _il.import_module("src.setup.ui.prompts")
+    monkeypatch.setattr(_prom, "ask_text", lambda p, default=None: "qval")
     assert sp.ask_text("p") == "qval"
 
     # Note: TUI getpass branches are tested in a dedicated test to avoid

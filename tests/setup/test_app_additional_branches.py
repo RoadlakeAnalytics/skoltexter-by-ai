@@ -1,0 +1,135 @@
+"""Additional unit tests for ``src.setup.app`` wrappers and helpers.
+
+Tests focus on lightweight wrappers (UI delegation), venv helper
+resolution and small utility behaviour that can be asserted
+deterministically without starting subprocesses or modifying the
+developer's environment.
+
+"""
+
+from types import SimpleNamespace
+from pathlib import Path
+
+import src.setup.app as app
+import src.setup.i18n as i18n
+
+
+def test_parse_cli_args_and_sync_console_helpers(monkeypatch) -> None:
+    """CLI parsing returns expected attributes and sync pushes to console_helpers.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch module attributes.
+
+    Returns
+    -------
+    None
+    """
+    args = app.parse_cli_args(["--lang", "sv", "--no-venv", "--ui", "textual"])
+    assert args.lang == "sv" and args.no_venv is True and args.ui == "textual"
+
+    # Test _sync_console_helpers propagates test toggles
+    monkeypatch.setattr(app, "_RICH_CONSOLE", "RC", raising=False)
+    monkeypatch.setattr(app, "_HAS_Q", True, raising=False)
+    monkeypatch.setattr(app, "questionary", SimpleNamespace(text=lambda *a, **k: None), raising=False)
+    # Call and ensure no exception (propagation happens into console_helpers)
+    app._sync_console_helpers()
+
+
+def test_ui_wrappers_delegate(monkeypatch) -> None:
+    """UI wrapper functions delegate to the underlying UI implementations.
+
+    We patch the underlying implementations in ``src.setup.ui.basic`` and
+    assert that the thin wrappers in this module call them.
+    """
+    called = {}
+
+    monkeypatch.setattr(app, "_sync_console_helpers", lambda: None, raising=False)
+    monkeypatch.setattr("src.setup.ui.basic.ui_rule", lambda t: called.setdefault("rule", t), raising=False)
+    monkeypatch.setattr("src.setup.ui.basic.ui_header", lambda t: called.setdefault("header", t), raising=False)
+    monkeypatch.setattr("src.setup.ui.basic.ui_info", lambda m: called.setdefault("info", m), raising=False)
+    monkeypatch.setattr("src.setup.ui.basic.ui_warning", lambda m: called.setdefault("warn", m), raising=False)
+    monkeypatch.setattr("src.setup.ui.basic.ui_success", lambda m: called.setdefault("succ", m), raising=False)
+
+    app.ui_rule("T")
+    app.ui_header("H")
+    app.ui_info("I")
+    app.ui_warning("W")
+    app.ui_success("S")
+
+    assert called["rule"] == "T"
+    assert called["header"] == "H"
+    assert called["info"] == "I"
+    assert called["warn"] == "W"
+    assert called["succ"] == "S"
+
+
+def test_venv_bin_and_executables(monkeypatch, tmp_path: Path) -> None:
+    """get_venv_bin_dir, get_venv_python_executable and get_venv_pip_executable.
+
+    The tests patch the module-level ``sys`` on the app module so the
+    functions behave as though running on Windows or POSIX.
+    """
+    v = tmp_path / "venv"
+    # Simulate posix and windows by temporarily assigning the module-level
+    # `sys` object on the app module and restoring the original afterwards.
+    orig_sys = getattr(app, "sys", None)
+    try:
+        app.sys = SimpleNamespace(platform="linux")
+        assert app.get_venv_bin_dir(v).name == "bin"
+        assert app.get_venv_python_executable(v).name == "python"
+        assert app.get_venv_pip_executable(v).name == "pip"
+
+        app.sys = SimpleNamespace(platform="win32")
+        assert app.get_venv_bin_dir(v).name == "Scripts"
+        assert app.get_venv_python_executable(v).name == "python.exe"
+        assert app.get_venv_pip_executable(v).name == "pip.exe"
+    finally:
+        if orig_sys is not None:
+            app.sys = orig_sys
+
+
+def test_run_program_subprocess_and_stream(monkeypatch, tmp_path: Path) -> None:
+    """run_program uses subprocess.run and Popen depending on stream_output.
+
+    We stub Popen and run to avoid spawning real processes.
+    """
+    monkeypatch.setattr(app, "get_python_executable", lambda: "python", raising=False)
+
+    class FakeProc:
+        def wait(self):
+            return 0
+
+    monkeypatch.setattr(app.subprocess, "Popen", lambda *a, **k: FakeProc(), raising=False)
+    # For stream_output True
+    assert app.run_program("m", Path("mod.py"), stream_output=True) is True
+
+    class FakeRes:
+        returncode = 0
+
+    monkeypatch.setattr(app.subprocess, "run", lambda *a, **k: FakeRes(), raising=False)
+    assert app.run_program("m", Path("mod.py"), stream_output=False) is True
+
+
+def test_prompt_virtual_environment_choice_and_set_language(monkeypatch) -> None:
+    """Prompt for virtual env choice and set_language behaviour.
+
+    The functions are small and deterministic when provided with
+    controlled responses from ``ask_text``.
+    """
+    # Virtual env choice -> '1' returns True
+    monkeypatch.setattr(app, "ask_text", lambda prompt: "1", raising=False)
+    assert app.prompt_virtual_environment_choice() is True
+    # Virtual env choice -> '2' returns False and ui_info called
+    monkeypatch.setattr(app, "ask_text", lambda prompt: "2", raising=False)
+    monkeypatch.setattr(app, "ui_info", lambda m: None, raising=False)
+    assert app.prompt_virtual_environment_choice() is False
+
+    # set_language: choose '1' and '2'
+    monkeypatch.setattr(app, "ask_text", lambda prompt: "1", raising=False)
+    app.set_language()
+    assert i18n.LANG == "en"
+    monkeypatch.setattr(app, "ask_text", lambda prompt: "2", raising=False)
+    app.set_language()
+    assert i18n.LANG == "sv"

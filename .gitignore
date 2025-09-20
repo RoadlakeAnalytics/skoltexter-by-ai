@@ -93,6 +93,7 @@ coverage.xml
 .pytest_cache/
 .ruff_cache/
 mutants/
+coverage_html
 
 # Jupyter Notebook
 .ipynb_checkpoints

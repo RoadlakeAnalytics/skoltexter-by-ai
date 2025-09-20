@@ -51,7 +51,12 @@ def test_reload_app_with_stubbed_rich_panel(monkeypatch):
         pass
 
     panel_mod.Panel = DummyPanel
-    mod = _reload_with_restore({"rich": fake_rich, "rich.panel": panel_mod, "src.setup.ui.menu": types.ModuleType("src.setup.ui.menu")})
+    mod = _reload_with_restore(
+        {
+            "rich": fake_rich,
+            "rich.panel": panel_mod,
+            "src.setup.ui.menu": types.ModuleType("src.setup.ui.menu"),
+        }
+    )
     # Panel should be taken from the stubbed submodule
     assert getattr(mod, "Panel", None) is not None
-

@@ -35,4 +35,3 @@ def test_set_language_selects_and_exits(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda prompt="": "2")
     i18n.set_language()
     assert i18n.LANG == "sv"
-

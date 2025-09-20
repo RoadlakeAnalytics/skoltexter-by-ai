@@ -89,7 +89,9 @@ async def test_clienterror_returns_clienterror_type():
 
 @pytest.mark.asyncio
 async def test_retry_on_clienterror_then_success(monkeypatch):
-    cfg = SimpleNamespace(api_key="k", gpt4o_endpoint="http://x", max_retries=1, backoff_factor=0.1)
+    cfg = SimpleNamespace(
+        api_key="k", gpt4o_endpoint="http://x", max_retries=1, backoff_factor=0.1
+    )
     client = AIAPIClient(cfg)
 
     payload = {"choices": [{"message": {"content": "Hi"}}]}
@@ -120,7 +122,9 @@ async def test_retry_on_clienterror_then_success(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_429_then_success_retries(monkeypatch):
-    cfg = SimpleNamespace(api_key="k", gpt4o_endpoint="http://x", max_retries=1, retry_sleep_on_429=0.01)
+    cfg = SimpleNamespace(
+        api_key="k", gpt4o_endpoint="http://x", max_retries=1, retry_sleep_on_429=0.01
+    )
     client = AIAPIClient(cfg)
 
     payload = {"choices": [{"message": {"content": "Ok"}}]}

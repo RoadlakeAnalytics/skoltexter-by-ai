@@ -49,7 +49,13 @@ def test_find_missing_env_keys():
 def test_run_ai_connectivity_check_silent_success(monkeypatch):
     # Provide a fake OpenAIConfig
     mod = importlib.import_module("src.pipeline.ai_processor")
-    monkeypatch.setattr(mod, "OpenAIConfig", lambda: SimpleNamespace(gpt4o_endpoint="http://x", api_key="k", request_timeout=1))
+    monkeypatch.setattr(
+        mod,
+        "OpenAIConfig",
+        lambda: SimpleNamespace(
+            gpt4o_endpoint="http://x", api_key="k", request_timeout=1
+        ),
+    )
 
     # Build a fake aiohttp module with async context managers
     class DummyResponse:
@@ -80,7 +86,9 @@ def test_run_ai_connectivity_check_silent_success(monkeypatch):
             payload = {"choices": [{"message": {"content": "Status: OK"}}]}
             return DummyResponse(200, json.dumps(payload))
 
-    fake_aio = SimpleNamespace(ClientTimeout=lambda total: None, ClientSession=DummySession)
+    fake_aio = SimpleNamespace(
+        ClientTimeout=lambda total: None, ClientSession=DummySession
+    )
     monkeypatch.setitem(__import__("sys").modules, "aiohttp", fake_aio)
 
     ok, detail = az.run_ai_connectivity_check_silent()
@@ -90,7 +98,11 @@ def test_run_ai_connectivity_check_silent_success(monkeypatch):
 
 def test_run_ai_connectivity_check_silent_missing_endpoint(monkeypatch):
     mod = importlib.import_module("src.pipeline.ai_processor")
-    monkeypatch.setattr(mod, "OpenAIConfig", lambda: SimpleNamespace(gpt4o_endpoint="", api_key="k", request_timeout=1))
+    monkeypatch.setattr(
+        mod,
+        "OpenAIConfig",
+        lambda: SimpleNamespace(gpt4o_endpoint="", api_key="k", request_timeout=1),
+    )
     ok, detail = az.run_ai_connectivity_check_silent()
     assert ok is False
     assert "Missing OpenAI endpoint" in detail

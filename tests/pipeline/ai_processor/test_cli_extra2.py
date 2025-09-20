@@ -14,7 +14,9 @@ def test_configure_logging_swallows_filehandler_errors(monkeypatch, tmp_path):
     # Monkeypatch FileHandler constructor to raise
     import logging as _logging
 
-    monkeypatch.setattr(_logging, "FileHandler", lambda *a, **k: (_ for _ in ()).throw(OSError("boom")))
+    monkeypatch.setattr(
+        _logging, "FileHandler", lambda *a, **k: (_ for _ in ()).throw(OSError("boom"))
+    )
     # Should not raise
     cli.configure_logging(level="INFO", enable_file=True)
 
@@ -44,10 +46,16 @@ def test_log_processing_summary_logs_counts(tmp_path, caplog):
 def test_main_handles_openaiconfig_valueerror(monkeypatch):
     """When OpenAIConfig raises ValueError the CLI main should return early."""
     # Patch parse_arguments to provide simple args
-    monkeypatch.setattr(cli, "parse_arguments", lambda: SimpleNamespace(limit=None, input=".", output=".", log_level="INFO"))
+    monkeypatch.setattr(
+        cli,
+        "parse_arguments",
+        lambda: SimpleNamespace(limit=None, input=".", output=".", log_level="INFO"),
+    )
     # Patch OpenAIConfig to raise
     mod = importlib.import_module("src.pipeline.ai_processor")
-    monkeypatch.setattr(mod, "OpenAIConfig", lambda: (_ for _ in ()).throw(ValueError("bad")))
+    monkeypatch.setattr(
+        mod, "OpenAIConfig", lambda: (_ for _ in ()).throw(ValueError("bad"))
+    )
     # Run main (should not raise)
     cli.main()
 
@@ -59,7 +67,11 @@ def test_main_uses_asyncio_run_stub(monkeypatch):
     stdlib by setting its __module__ attribute so the branch is exercised
     without executing the coroutine.
     """
-    monkeypatch.setattr(cli, "parse_arguments", lambda: SimpleNamespace(limit=1, input=".", output=".", log_level="INFO"))
+    monkeypatch.setattr(
+        cli,
+        "parse_arguments",
+        lambda: SimpleNamespace(limit=1, input=".", output=".", log_level="INFO"),
+    )
 
     # Provide a dummy OpenAIConfig and SchoolDescriptionProcessor
     mod = importlib.import_module("src.pipeline.ai_processor")

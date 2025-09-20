@@ -58,4 +58,3 @@ def test_set_tui_mode_and_restore(monkeypatch):
     assert orch._TUI_MODE is True and orch._TUI_UPDATER is upd
     restore()
     assert (orch._TUI_MODE, orch._TUI_UPDATER, orch._TUI_PROMPT_UPDATER) == prev
-

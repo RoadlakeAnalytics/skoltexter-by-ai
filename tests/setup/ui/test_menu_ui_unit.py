@@ -20,11 +20,11 @@ def test_manage_env_delegates(monkeypatch):
     called = {}
 
     def fake_manage(*a, **k):
-        called['ok'] = True
+        called["ok"] = True
 
     monkeypatch.setattr(menu, "manage_virtual_environment", fake_manage)
     menu._manage_env()
-    assert called.get('ok') is True
+    assert called.get("ok") is True
 
 
 def test_main_menu_plain_exits_quick(monkeypatch):
@@ -47,4 +47,3 @@ def test_main_menu_rich_dashboard_simple(monkeypatch):
     monkeypatch.setattr(menu, "ask_text", lambda prompt: next(seq))
     monkeypatch.setattr(menu, "manage_virtual_environment", lambda *a, **k: None)
     menu._main_menu_rich_dashboard()
-

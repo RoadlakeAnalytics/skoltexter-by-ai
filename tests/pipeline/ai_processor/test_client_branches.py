@@ -82,6 +82,7 @@ async def test_timeout_error_returns_timeout_type(monkeypatch):
             raise TimeoutError("to")
 
     session = BadSession()
+
     # Patch asyncio.sleep to avoid delays in retries
     async def _nosleep(_):
         return None
@@ -101,10 +102,10 @@ async def test_generic_exception_returns_exception_type(monkeypatch):
             raise Exception("boom")
 
     session = BadSession()
+
     async def _nosleep(_):
         return None
 
     monkeypatch.setattr(asyncio, "sleep", _nosleep)
     ok, content, data = await client.process_content(session, {})
     assert ok is False and content is None and data.get("error_type") == "Exception"
-

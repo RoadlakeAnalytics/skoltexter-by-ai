@@ -20,10 +20,18 @@ def test_ui_wrappers_delegate(monkeypatch):
     """
     calls = {}
 
-    monkeypatch.setattr("src.setup.ui.basic.ui_rule", lambda t: calls.setdefault("rule", t))
-    monkeypatch.setattr("src.setup.ui.basic.ui_header", lambda t: calls.setdefault("header", t))
-    monkeypatch.setattr("src.setup.ui.basic.ui_info", lambda m: calls.setdefault("info", m))
-    monkeypatch.setattr("src.setup.ui.basic.ui_menu", lambda items: calls.setdefault("menu", items))
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_rule", lambda t: calls.setdefault("rule", t)
+    )
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_header", lambda t: calls.setdefault("header", t)
+    )
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_info", lambda m: calls.setdefault("info", m)
+    )
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_menu", lambda items: calls.setdefault("menu", items)
+    )
 
     app.ui_rule("T")
     app.ui_header("H")
@@ -45,6 +53,7 @@ def test_prompt_wrappers_and_tty(monkeypatch):
     import importlib
     import src.setup.app as app_mod
     import src.setup.ui.prompts as prom_mod
+
     importlib.reload(prom_mod)
     importlib.reload(app_mod)
 
@@ -56,14 +65,18 @@ def test_prompt_wrappers_and_tty(monkeypatch):
     try:
         import setup_project as sp_top
 
-        monkeypatch.setattr(sp_top, "ask_text", lambda p, default=None: "val", raising=False)
+        monkeypatch.setattr(
+            sp_top, "ask_text", lambda p, default=None: "val", raising=False
+        )
     except Exception:
         # Not present in some environments: ignore
         pass
-    # Ensure TUI mode is disabled so the wrapper delegates to prompts.ask_text
-    monkeypatch.setattr(app, "_TUI_MODE", False, raising=False)
-    monkeypatch.setattr(app, "_TUI_UPDATER", None, raising=False)
-    monkeypatch.setattr(app, "_TUI_PROMPT_UPDATER", None, raising=False)
+    # Ensure TUI mode is disabled on the reloaded app module so the wrapper
+    # delegates to prompts.ask_text. Use the reloaded module object to avoid
+    # order-dependent issues with previously-imported module objects.
+    monkeypatch.setattr(app_mod, "_TUI_MODE", False, raising=False)
+    monkeypatch.setattr(app_mod, "_TUI_UPDATER", None, raising=False)
+    monkeypatch.setattr(app_mod, "_TUI_PROMPT_UPDATER", None, raising=False)
     # Also ensure orchestrator TUI flags are clear to avoid cross-module interference
     try:
         import src.setup.pipeline.orchestrator as orch
@@ -74,14 +87,15 @@ def test_prompt_wrappers_and_tty(monkeypatch):
     except Exception:
         pass
 
-    assert app.ask_text("p") == "val"
-    assert app.ask_confirm("p") is True
-    assert app.ask_select("p", ["A", "B"]) == "A"
+    assert app_mod.ask_text("p") == "val"
+    assert app_mod.ask_confirm("p") is True
+    assert app_mod.ask_select("p", ["A", "B"]) == "A"
 
 
 def test_ask_text_tui_getpass(monkeypatch):
     """TUI path for ask_text uses getpass when TUI mode enabled."""
     import importlib
+
     # Import a fresh reference to the app module so we operate on the
     # module object currently registered in ``sys.modules``. Other
     # tests may replace the entry in ``sys.modules`` which would make a
@@ -98,6 +112,7 @@ def test_ask_text_tui_getpass(monkeypatch):
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": "secret")
     # Ensure input fallback is predictable if used
     import builtins
+
     monkeypatch.setattr(builtins, "input", lambda prompt="": "secret")
     val = app_mod.ask_text("prompt")
     assert val == "secret"

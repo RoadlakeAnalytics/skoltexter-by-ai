@@ -35,7 +35,9 @@ def test_set_language_ask_raises_fallback_to_input(monkeypatch):
     try:
         import src.setup.ui.prompts as _prom
 
-        monkeypatch.setattr(_prom, "ask_text", lambda p: (_ for _ in ()).throw(Exception("boom")))
+        monkeypatch.setattr(
+            _prom, "ask_text", lambda p: (_ for _ in ()).throw(Exception("boom"))
+        )
     except Exception:
         # If the prompts module isn't importable in the test env, ensure
         # the function will use input by forcing _ask to None via import
@@ -52,7 +54,9 @@ def test_set_language_invalid_choice_prints_and_recovers(monkeypatch, capsys):
     try:
         import src.setup.console_helpers as _ch
 
-        monkeypatch.setattr(_ch, "rprint", lambda m: (_ for _ in ()).throw(Exception("boom")))
+        monkeypatch.setattr(
+            _ch, "rprint", lambda m: (_ for _ in ()).throw(Exception("boom"))
+        )
     except Exception:
         # If the console helpers aren't importable, ignore — print will be used.
         pass

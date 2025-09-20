@@ -12,41 +12,48 @@ def test_manage_virtual_environment_wrapper_propagates(monkeypatch, tmp_path):
         return False
 
     def fake_get_venv_python_executable(p):
-        return tmp_path / 'venv' / 'bin' / 'python'
+        return tmp_path / "venv" / "bin" / "python"
 
     # Assign helpers to app (their __module__ differs so wrapper will propagate)
-    monkeypatch.setattr(app, 'is_venv_active', fake_is_venv_active, raising=False)
-    monkeypatch.setattr(app, 'get_venv_python_executable', fake_get_venv_python_executable, raising=False)
+    monkeypatch.setattr(app, "is_venv_active", fake_is_venv_active, raising=False)
+    monkeypatch.setattr(
+        app,
+        "get_venv_python_executable",
+        fake_get_venv_python_executable,
+        raising=False,
+    )
 
     called = {}
 
     def fake_manage(*a, **k):
-        called['ok'] = True
+        called["ok"] = True
 
     # Patch the underlying venv manager implementation to avoid side-effects
     import src.setup.venv_manager as vm
 
-    monkeypatch.setattr(vm, 'manage_virtual_environment', fake_manage)
+    monkeypatch.setattr(vm, "manage_virtual_environment", fake_manage)
 
     # Call wrapper - it should propagate helpers and call the underlying manager
     app.manage_virtual_environment()
-    assert called.get('ok') is True
+    assert called.get("ok") is True
 
 
 def test_delegation_wrappers_to_orchestrator(monkeypatch):
     # Ensure wrapper functions delegate to orchestrator implementations
-    mod = importlib.import_module('src.setup.pipeline.orchestrator')
-    monkeypatch.setattr(mod, '_run_pipeline_step', lambda *a, **k: 'OK')
-    assert app._run_pipeline_step('a') == 'OK'
-    monkeypatch.setattr(mod, '_render_pipeline_table', lambda *a, **k: 'TBL')
-    assert app._render_pipeline_table(1, 2, 3) == 'TBL'
-    monkeypatch.setattr(mod, '_status_label', lambda b: f'ST-{b}')
-    assert app._status_label('waiting') == 'ST-waiting'
+    mod = importlib.import_module("src.setup.pipeline.orchestrator")
+    monkeypatch.setattr(mod, "_run_pipeline_step", lambda *a, **k: "OK")
+    assert app._run_pipeline_step("a") == "OK"
+    monkeypatch.setattr(mod, "_render_pipeline_table", lambda *a, **k: "TBL")
+    assert app._render_pipeline_table(1, 2, 3) == "TBL"
+    monkeypatch.setattr(mod, "_status_label", lambda b: f"ST-{b}")
+    assert app._status_label("waiting") == "ST-waiting"
 
 
 def test_set_language_keyboardinterrupt(monkeypatch):
     # Force ask_text to raise KeyboardInterrupt and verify SystemExit
-    monkeypatch.setattr(app, 'ask_text', lambda prompt: (_ for _ in ()).throw(KeyboardInterrupt()))
+    monkeypatch.setattr(
+        app, "ask_text", lambda prompt: (_ for _ in ()).throw(KeyboardInterrupt())
+    )
     try:
         app.set_language()
     except SystemExit:
@@ -56,15 +63,15 @@ def test_set_language_keyboardinterrupt(monkeypatch):
 
 def test_parse_and_prompt_delegations(monkeypatch):
     # parse_env_file delegates to azure_env; stub the implementation
-    monkeypatch.setattr('src.setup.azure_env.parse_env_file', lambda p: {'A': 'v'})
-    assert app.parse_env_file('x')['A'] == 'v'
+    monkeypatch.setattr("src.setup.azure_env.parse_env_file", lambda p: {"A": "v"})
+    assert app.parse_env_file("x")["A"] == "v"
 
     # prompt_and_update_env delegates
     called = {}
 
     def fake_prompt(m, p, e, ui=None):
-        called['ok'] = True
+        called["ok"] = True
 
-    monkeypatch.setattr('src.setup.azure_env.prompt_and_update_env', fake_prompt)
-    app.prompt_and_update_env(['A'], 'env', {})
-    assert called.get('ok') is True
+    monkeypatch.setattr("src.setup.azure_env.prompt_and_update_env", fake_prompt)
+    app.prompt_and_update_env(["A"], "env", {})
+    assert called.get("ok") is True

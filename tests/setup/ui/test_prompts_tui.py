@@ -85,6 +85,7 @@ def test_ask_confirm_tui_variants(monkeypatch):
     # Ensure the orchestrator module used by the prompts adapter is our
     # test-time module object so TUI flags are observed deterministically.
     import importlib as _il
+
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
     pkg = _il.import_module("src.setup.pipeline")
     setattr(pkg, "orchestrator", orch)

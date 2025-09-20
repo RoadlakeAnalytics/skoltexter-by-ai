@@ -81,9 +81,9 @@ def test_ui_basic_rich(monkeypatch):
         def __str__(self):
             return f"TABLE rows={self._rows}"
 
-    monkeypatch.setattr(basic, 'Rule', FakeRule)
-    monkeypatch.setattr(basic, 'Panel', FakePanel)
-    monkeypatch.setattr(basic, 'Table', FakeTable)
+    monkeypatch.setattr(basic, "Rule", FakeRule)
+    monkeypatch.setattr(basic, "Panel", FakePanel)
+    monkeypatch.setattr(basic, "Table", FakeTable)
 
     basic.ui_rule("T")
     basic.ui_header("H")

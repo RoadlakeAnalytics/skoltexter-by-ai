@@ -17,7 +17,9 @@ def test_parse_env_file_and_find_missing(tmp_path: str | None):
     p.write_text('AZURE_API_KEY="abc"\nOTHER=1\n')
     parsed = ae.parse_env_file(p)
     assert parsed.get("AZURE_API_KEY") == "abc"
-    missing = ae.find_missing_env_keys(parsed, ["AZURE_API_KEY", "GPT4O_DEPLOYMENT_NAME"])
+    missing = ae.find_missing_env_keys(
+        parsed, ["AZURE_API_KEY", "GPT4O_DEPLOYMENT_NAME"]
+    )
     assert "GPT4O_DEPLOYMENT_NAME" in missing
 
 
@@ -55,7 +57,14 @@ def test_run_ai_connectivity_check_silent_success(monkeypatch):
             self.api_key = "k"
             self.request_timeout = 1
 
-    monkeypatch.setattr(sys.modules.setdefault("src.pipeline.ai_processor", types.ModuleType("src.pipeline.ai_processor")), "OpenAIConfig", Cfg, raising=False)
+    monkeypatch.setattr(
+        sys.modules.setdefault(
+            "src.pipeline.ai_processor", types.ModuleType("src.pipeline.ai_processor")
+        ),
+        "OpenAIConfig",
+        Cfg,
+        raising=False,
+    )
 
     # Build a fake aiohttp module
     fake_aio = types.ModuleType("aiohttp")
@@ -100,4 +109,3 @@ def test_run_ai_connectivity_check_silent_success(monkeypatch):
 
     ok, detail = ae.run_ai_connectivity_check_silent()
     assert ok is True and "Status: OK" in detail
-

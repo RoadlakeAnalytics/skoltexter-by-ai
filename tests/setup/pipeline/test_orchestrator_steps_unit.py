@@ -23,7 +23,9 @@ def test_compose_and_update_no_render(monkeypatch):
 def test_run_pipeline_step_yes_ok(monkeypatch):
     # choose 'y', run_program returns True
     monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "y")
-    monkeypatch.setattr(orch, "run_program", lambda name, path, stream_output=False: True)
+    monkeypatch.setattr(
+        orch, "run_program", lambda name, path, stream_output=False: True
+    )
     monkeypatch.setattr(orch, "ui_success", lambda m: None)
     res = orch._run_pipeline_step("p", "program_1", None, "fail", "ok")
     assert res is True
@@ -31,7 +33,9 @@ def test_run_pipeline_step_yes_ok(monkeypatch):
 
 def test_run_pipeline_step_yes_fail(monkeypatch):
     monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "y")
-    monkeypatch.setattr(orch, "run_program", lambda name, path, stream_output=False: False)
+    monkeypatch.setattr(
+        orch, "run_program", lambda name, path, stream_output=False: False
+    )
     called = {}
     monkeypatch.setattr(orch, "ui_warning", lambda m: called.setdefault("w", m))
     res = orch._run_pipeline_step("p", "program_1", None, "fail", "ok")
@@ -44,7 +48,9 @@ def test_run_pipeline_step_skip_and_invalid(monkeypatch):
     monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "s")
     called = {}
     monkeypatch.setattr(orch, "ui_info", lambda m: called.setdefault("i", m))
-    res = orch._run_pipeline_step("p", "program_2", None, "fail", "ok", skip_message="skipped")
+    res = orch._run_pipeline_step(
+        "p", "program_2", None, "fail", "ok", skip_message="skipped"
+    )
     assert res is True or res is None
 
     # Invalid
@@ -54,4 +60,3 @@ def test_run_pipeline_step_skip_and_invalid(monkeypatch):
     res2 = orch._run_pipeline_step("p", "program_1", None, "fail", "ok")
     assert res2 is False
     assert "w" in called
-

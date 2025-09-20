@@ -15,20 +15,20 @@ def test_parse_cli_args_and_run(monkeypatch):
     # Patch menu.main_menu so run() delegates without error
     import src.setup.ui.menu as menu
 
-    monkeypatch.setattr(menu, 'main_menu', lambda: called.setdefault('mm', True))
-    args = SimpleNamespace(lang='en')
+    monkeypatch.setattr(menu, "main_menu", lambda: called.setdefault("mm", True))
+    args = SimpleNamespace(lang="en")
     app.run(args)
-    assert called.get('mm') is True
+    assert called.get("mm") is True
 
 
 def test_sync_console_helpers_propagation(monkeypatch):
     # Set module-level toggles and ensure console_helpers picks them up
     import src.setup.console_helpers as ch
 
-    monkeypatch.setattr(app, '_RICH_CONSOLE', object(), raising=False)
-    monkeypatch.setattr(app, '_HAS_Q', True, raising=False)
+    monkeypatch.setattr(app, "_RICH_CONSOLE", object(), raising=False)
+    monkeypatch.setattr(app, "_HAS_Q", True, raising=False)
     fake_q = object()
-    monkeypatch.setattr(app, 'questionary', fake_q, raising=False)
+    monkeypatch.setattr(app, "questionary", fake_q, raising=False)
     app._sync_console_helpers()
     assert ch._HAS_Q is True
     assert ch.questionary is fake_q
@@ -36,18 +36,20 @@ def test_sync_console_helpers_propagation(monkeypatch):
 
 def test_run_ai_connectivity_interactive_branches(monkeypatch):
     # Success branch
-    monkeypatch.setattr(app, 'run_ai_connectivity_check_silent', lambda: (True, 'ok'))
+    monkeypatch.setattr(app, "run_ai_connectivity_check_silent", lambda: (True, "ok"))
     called = {}
-    monkeypatch.setattr(app, 'ui_success', lambda m: called.setdefault('ok', m))
+    monkeypatch.setattr(app, "ui_success", lambda m: called.setdefault("ok", m))
     assert app.run_ai_connectivity_check_interactive() is True
-    assert 'ok' in called
+    assert "ok" in called
 
     # Failure branch
-    monkeypatch.setattr(app, 'run_ai_connectivity_check_silent', lambda: (False, 'detail'))
+    monkeypatch.setattr(
+        app, "run_ai_connectivity_check_silent", lambda: (False, "detail")
+    )
     called = {}
-    monkeypatch.setattr(app, 'ui_error', lambda m: called.setdefault('err', m))
+    monkeypatch.setattr(app, "ui_error", lambda m: called.setdefault("err", m))
     assert app.run_ai_connectivity_check_interactive() is False
-    assert 'err' in called
+    assert "err" in called
 
 
 def test_run_quality_suites(monkeypatch):
@@ -55,22 +57,23 @@ def test_run_quality_suites(monkeypatch):
     called = {}
 
     def fake_run(*a, **k):
-        called['args'] = a
+        called["args"] = a
 
-    monkeypatch.setattr(app, 'get_python_executable', lambda: '/usr/bin/python')
-    monkeypatch.setattr(subprocess, 'run', fake_run)
+    monkeypatch.setattr(app, "get_python_executable", lambda: "/usr/bin/python")
+    monkeypatch.setattr(subprocess, "run", fake_run)
     app.run_full_quality_suite()
     app.run_extreme_quality_suite()
-    assert 'args' in called
+    assert "args" in called
 
 
 def test_entry_point_invokes_main_menu(monkeypatch):
     # Prevent language prompt and venv management, ensure main_menu called
-    monkeypatch.setattr(app, 'parse_cli_args', lambda: SimpleNamespace(lang='en', no_venv=True))
-    monkeypatch.setattr(app, 'set_language', lambda: None)
-    monkeypatch.setattr(app, 'ensure_azure_openai_env', lambda: None)
+    monkeypatch.setattr(
+        app, "parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=True)
+    )
+    monkeypatch.setattr(app, "set_language", lambda: None)
+    monkeypatch.setattr(app, "ensure_azure_openai_env", lambda: None)
     called = {}
-    monkeypatch.setattr(app, 'main_menu', lambda: called.setdefault('mm', True))
+    monkeypatch.setattr(app, "main_menu", lambda: called.setdefault("mm", True))
     app.entry_point()
-    assert called.get('mm') is True
-
+    assert called.get("mm") is True

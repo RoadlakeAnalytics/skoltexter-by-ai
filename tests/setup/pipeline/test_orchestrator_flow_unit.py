@@ -37,4 +37,3 @@ def test_run_processing_pipeline_plain_flow_runs_all_steps(monkeypatch):
 
     # Should not raise
     orch._run_processing_pipeline_plain()
-

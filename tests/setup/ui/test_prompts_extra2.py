@@ -10,7 +10,9 @@ from src.setup import console_helpers as ch
 
 def test_ask_text_uses_questionary(monkeypatch):
     """When questionary is enabled, ask_text should use it and return the answer."""
-    fake = SimpleNamespace(text=lambda prompt, default=None: SimpleNamespace(ask=lambda: "qval"))
+    fake = SimpleNamespace(
+        text=lambda prompt, default=None: SimpleNamespace(ask=lambda: "qval")
+    )
     monkeypatch.setattr(ch, "_HAS_Q", True)
     monkeypatch.setattr(ch, "questionary", fake)
     # Ensure TUI mode is not active so questionary branch is used.
@@ -27,6 +29,7 @@ def test_ask_text_uses_questionary(monkeypatch):
 
 def test_ask_text_questionary_exception_falls_back(monkeypatch):
     """If questionary raises the code should fall back to input behaviour."""
+
     class Bad:
         def text(self, *a, **k):
             return SimpleNamespace(ask=lambda: (_ for _ in ()).throw(Exception("boom")))
@@ -50,7 +53,9 @@ def test_ask_text_non_tty_returns_default(monkeypatch):
 
 def test_ask_confirm_questionary_branch(monkeypatch):
     """Test confirm branch that routes through questionary when present."""
-    fake = SimpleNamespace(confirm=lambda prompt, default=True: SimpleNamespace(ask=lambda: True))
+    fake = SimpleNamespace(
+        confirm=lambda prompt, default=True: SimpleNamespace(ask=lambda: True)
+    )
     monkeypatch.setattr(ch, "_HAS_Q", False)
     monkeypatch.setattr(ch, "questionary", fake)
     assert prom.ask_confirm("p", default_yes=True) is True

@@ -41,12 +41,14 @@ def test_ask_text_questionary(monkeypatch):
     # Ensure any TUI orchestrator state from other tests is disabled so
     # the questionary branch is exercised deterministically.
     import types
+
     orch = types.ModuleType("src.setup.pipeline.orchestrator")
     orch._TUI_MODE = False
     orch._TUI_UPDATER = None
     orch._TUI_PROMPT_UPDATER = None
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
     import builtins
+
     monkeypatch.setattr(builtins, "input", lambda prompt="": "qval")
     val = prom.ask_text("p?")
     assert val == "qval"
@@ -75,6 +77,7 @@ def test_ask_text_tui_getpass(monkeypatch):
     # `input()` (order-dependent tests may flip branches). This keeps the
     # assertion deterministic.
     import builtins
+
     monkeypatch.setattr(builtins, "input", lambda prompt="": "gval")
 
     val = prom.ask_text("p?: ")
