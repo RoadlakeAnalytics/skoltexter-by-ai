@@ -1,6 +1,7 @@
 """Additional unit tests for functions in setup_project.py."""
 
 import src.setup.app as sp
+import src.setup.pipeline.orchestrator as orchestrator
 
 
 def test_build_dashboard_layout_smoke():
@@ -29,20 +30,25 @@ def test_run_processing_pipeline_rich(monkeypatch):
     def updater(x):
         updates.append(x)
 
-    monkeypatch.setattr(sp, "ask_confirm", lambda *a, **k: True)
-    monkeypatch.setattr(sp, "run_ai_connectivity_check_interactive", lambda: True)
-    monkeypatch.setattr(sp, "_run_pipeline_step", lambda *a, **k: True)
+    # Patch the orchestrator-level helpers directly to avoid interactive
+    # prompts and to control step outcomes.
+    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: True)
     monkeypatch.setattr(
-        sp, "_render_pipeline_table", lambda s1, s2, s3: f"T:{s1},{s2},{s3}"
+        orchestrator, "run_ai_connectivity_check_interactive", lambda: True
     )
-    monkeypatch.setattr(sp, "_status_label", lambda b: b)
+    monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: True)
+    monkeypatch.setattr(
+        orchestrator, "_render_pipeline_table", lambda s1, s2, s3: f"T:{s1},{s2},{s3}"
+    )
+    monkeypatch.setattr(orchestrator, "_status_label", lambda b: b)
 
     sp._run_processing_pipeline_rich(content_updater=updater)
     assert len(updates) >= 2
 
 
 def test_run_processing_pipeline_plain_early(monkeypatch):
-    monkeypatch.setattr(sp, "ask_confirm", lambda *a, **k: False)
-    # Avoid interactive _run_pipeline_step by stubbing it to fail early
-    monkeypatch.setattr(sp, "_run_pipeline_step", lambda *a, **k: False)
+    # Patch orchestrator-level prompt and pipeline step helpers to avoid
+    # interactive prompts and heavy processing.
+    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: False)
+    monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: False)
     sp._run_processing_pipeline_plain()

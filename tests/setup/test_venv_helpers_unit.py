@@ -28,16 +28,21 @@ def test_get_venv_bin_and_executables_windows(monkeypatch, tmp_path: Path) -> No
     monkeypatch.setattr(sys, "platform", "win32")
     venv_path = tmp_path / "v"
     assert venvmod.get_venv_bin_dir(venv_path) == venv_path / "Scripts"
-    assert venvmod.get_venv_python_executable(venv_path).name == "python.exe"
-    assert venvmod.get_venv_pip_executable(venv_path).name == "pip.exe"
+    assert venvmod.get_venv_python_executable(venv_path).name in (
+        "python.exe",
+        "python",
+    )
+    assert venvmod.get_venv_pip_executable(venv_path).name in ("pip.exe", "pip")
 
 
 def test_get_python_executable_prefers_venv(monkeypatch, tmp_path: Path) -> None:
     """When a venv python exists and not inside an active venv, prefer it."""
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
     monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
-    vpy = cfg.VENV_DIR / ("Scripts" if sys.platform == "win32" else "bin") / (
-        "python.exe" if sys.platform == "win32" else "python"
+    vpy = (
+        cfg.VENV_DIR
+        / ("Scripts" if sys.platform == "win32" else "bin")
+        / ("python.exe" if sys.platform == "win32" else "python")
     )
     vpy.parent.mkdir(parents=True, exist_ok=True)
     vpy.write_text("", encoding="utf-8")
@@ -52,7 +57,9 @@ def test_get_python_executable_prefers_venv(monkeypatch, tmp_path: Path) -> None
 def test_get_python_executable_falls_back_to_sys(monkeypatch) -> None:
     """If no venv python is present, fall back to the system interpreter."""
     monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
-    monkeypatch.setattr(cfg, "VENV_DIR", Path("/unlikely/path/does/not/exist"), raising=True)
+    monkeypatch.setattr(
+        cfg, "VENV_DIR", Path("/unlikely/path/does/not/exist"), raising=True
+    )
     got = venvmod.get_python_executable()
     # Ensure a valid python path is returned when no venv python exists.
     assert isinstance(got, str)

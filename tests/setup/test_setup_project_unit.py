@@ -31,6 +31,11 @@ def test_ui_helpers_fallback(capsys, monkeypatch):
 
 
 def test_ask_helpers_branches(monkeypatch):
+    # Ensure the module is in a clean state (reload restores originals)
+    import importlib
+
+    importlib.reload(sp)
+
     # Fallback input
     monkeypatch.setattr(builtins, "input", lambda prompt="": "hello")
     monkeypatch.setattr(sp, "_TUI_MODE", False)

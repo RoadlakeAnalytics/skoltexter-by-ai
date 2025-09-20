@@ -35,4 +35,3 @@ def test_load_template_and_placeholders_raises(tmp_path: Path) -> None:
     p.write_text("No placeholders here")
     with pytest.raises(ValueError):
         tpl.load_template_and_placeholders(p)
-

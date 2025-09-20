@@ -1,85 +1,46 @@
-"""Additional unit tests for the pipeline orchestrator."""
+"""Additional tests for orchestrator pipeline step logic."""
 
-from src.setup import console_helpers as ch
-from src.setup.pipeline import orchestrator
+from types import SimpleNamespace
+
+import src.setup.pipeline.orchestrator as orch
 
 
-def test_compose_and_update_with_fallback_group(monkeypatch):
-    # Ensure TUI is enabled and updater captures the content
-    captured = {}
-    monkeypatch.setattr(orchestrator, "_TUI_MODE", True)
-    monkeypatch.setattr(
-        orchestrator, "_TUI_UPDATER", lambda c: captured.setdefault("c", c)
+def test_run_pipeline_step_yes_ok(monkeypatch):
+    monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "y")
+    monkeypatch.setattr(orch, "run_program", lambda *a, **k: True)
+    ok = orch._run_pipeline_step("prompt", "program_1", SimpleNamespace(), "fail", "ok")
+    assert ok is True
+
+
+def test_run_pipeline_step_yes_fail(monkeypatch):
+    monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "y")
+    monkeypatch.setattr(orch, "run_program", lambda *a, **k: False)
+    ok = orch._run_pipeline_step("prompt", "program_1", SimpleNamespace(), "fail", "ok")
+    assert ok is False
+
+
+def test_run_pipeline_step_skip_and_invalid(monkeypatch):
+    # Skip with message
+    monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "s")
+    ok = orch._run_pipeline_step(
+        "prompt", "program_1", SimpleNamespace(), "fail", "ok", skip_message="skip_msg"
     )
-    # Set status and progress renderables
-    orchestrator._STATUS_RENDERABLE = "S"
-    orchestrator._PROGRESS_RENDERABLE = "P"
-
-    # Make the console_helpers.Group callable raise so the fallback is used
-    monkeypatch.setattr(
-        ch, "Group", lambda a, b: (_ for _ in ()).throw(RuntimeError("nope"))
+    assert ok is True
+    # Invalid choice
+    monkeypatch.setattr(orch, "ask_text", lambda p, default="y": "x")
+    ok2 = orch._run_pipeline_step(
+        "prompt", "program_1", SimpleNamespace(), "fail", "ok"
     )
-
-    orchestrator._compose_and_update()
-    assert "c" in captured
-    # Fallback Group stores items attribute
-    assert hasattr(captured["c"], "items")
-    assert captured["c"].items == ("S", "P")
+    assert ok2 is False
 
 
-def test_compose_and_update_status_only(monkeypatch):
-    captured = {}
-    monkeypatch.setattr(orchestrator, "_TUI_MODE", True)
-    monkeypatch.setattr(
-        orchestrator, "_TUI_UPDATER", lambda c: captured.setdefault("c", c)
-    )
-    orchestrator._STATUS_RENDERABLE = "ONLY"
-    orchestrator._PROGRESS_RENDERABLE = None
-    orchestrator._compose_and_update()
-    assert captured["c"] == "ONLY"
-
-
-def test_run_processing_pipeline_rich_full_flow(monkeypatch):
-    updates = []
-
-    def updater(x):
-        updates.append(x)
-
-    # Make confirmations and checks succeed and pipeline steps return True
-    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: True)
-    monkeypatch.setattr(
-        orchestrator, "run_ai_connectivity_check_interactive", lambda: True
-    )
-    monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: True)
-    # Ensure render table and status label use simple defaults
-    monkeypatch.setattr(
-        orchestrator, "_render_pipeline_table", lambda s1, s2, s3: f"T:{s1},{s2},{s3}"
-    )
-    monkeypatch.setattr(orchestrator, "_status_label", lambda base: base)
-
-    orchestrator._run_processing_pipeline_rich(content_updater=updater)
-    # Expect multiple updates (at least initial AI check panel + status changes)
-    assert len(updates) >= 3
-
-
-def test_run_processing_pipeline_rich_no_updater(monkeypatch):
-    # No updater provided: exercise non-updater branch
-    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: True)
-    monkeypatch.setattr(
-        orchestrator, "run_ai_connectivity_check_interactive", lambda: True
-    )
-    monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: True)
-    monkeypatch.setattr(orchestrator, "_render_pipeline_table", lambda s1, s2, s3: "T")
-    orchestrator._run_processing_pipeline_rich(content_updater=None)
-
-
-def test_run_processing_pipeline_rich_step_failures(monkeypatch):
-    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: True)
-    monkeypatch.setattr(
-        orchestrator, "run_ai_connectivity_check_interactive", lambda: True
-    )
-    # First step succeeds, second fails, third succeeds
-    seq = iter([True, False, True])
-    monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: next(seq))
-    monkeypatch.setattr(orchestrator, "_render_pipeline_table", lambda s1, s2, s3: "T")
-    orchestrator._run_processing_pipeline_rich(content_updater=lambda x: None)
+def test_run_pipeline_by_name_mapping(monkeypatch):
+    # program_1 maps to run_markdown
+    monkeypatch.setattr(orch, "run_markdown", lambda: True)
+    assert orch.run_pipeline_by_name("program_1") is True
+    # program_2 calls ai_processor_main and returns True
+    monkeypatch.setattr(orch, "ai_processor_main", lambda: None)
+    assert orch.run_pipeline_by_name("program_2") is True
+    # unknown falls back to run_program
+    monkeypatch.setattr(orch, "run_program", lambda *a, **k: True)
+    assert orch.run_pipeline_by_name("unknown_prog") is True

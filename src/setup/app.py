@@ -253,6 +253,19 @@ def ui_menu(items: list[tuple[str, str]]) -> None:
     _ui_menu(items)
 
 
+def _build_dashboard_layout(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Build a dashboard layout by delegating to the UI layout helper.
+
+    This thin wrapper exists for backward compatibility so callers that
+    import ``_build_dashboard_layout`` from ``src.setup.app`` continue to
+    work. It simply forwards arguments to ``src.setup.ui._build_dashboard_layout``.
+    """
+    _sync_console_helpers()
+    from src.setup.ui import _build_dashboard_layout as _impl
+
+    return _impl(*args, **kwargs)
+
+
 def ui_has_rich() -> bool:
     """Return True when Rich console is available or when module was patched."""
     try:
@@ -508,6 +521,30 @@ def manage_virtual_environment() -> None:
 
     # Delegate to the implementation
     if vm is not None:
+        # If tests have monkeypatched module-level venv helpers on this
+        # module, propagate those into the lower-level venv helper module
+        # so the manager honours the test doubles. Only propagate values
+        # that are clearly not defined in this module (i.e. come from
+        # test code) to avoid creating recursive references.
+        try:
+            import src.setup.venv as _venvmod
+
+            for _name in (
+                "is_venv_active",
+                "get_venv_python_executable",
+                "get_venv_pip_executable",
+                "get_python_executable",
+            ):
+                if _name in globals():
+                    _val = globals()[_name]
+                    # Only propagate if the attribute originates outside
+                    # this module (tests will typically inject functions
+                    # from their own modules).
+                    if getattr(_val, "__module__", None) != __name__:
+                        setattr(_venvmod, _name, _val)
+        except Exception:
+            pass
+
         vm.manage_virtual_environment(
             PROJECT_ROOT, VENV_DIR, REQUIREMENTS_FILE, REQUIREMENTS_LOCK_FILE, _UI
         )
@@ -678,15 +715,74 @@ def _status_label(base: str) -> str:
 
 
 def _run_processing_pipeline_plain() -> None:
-    from src.setup.pipeline.orchestrator import _run_processing_pipeline_plain as _impl
+    # Propagate prompt/control helpers into the orchestrator so tests that
+    # monkeypatch these names on this module affect the orchestrator which
+    # imported them at module import time.
+    # Temporarily propagate helpers into the orchestrator for the duration
+    # of the delegated call so tests that patch this module behave as
+    # expected. Restore the original values afterwards to avoid leaking
+    # monkeypatches between tests.
+    try:
+        import importlib
 
-    return _impl()
+        orch = importlib.import_module("src.setup.pipeline.orchestrator")
+        replaced: dict[str, object | None] = {}
+        for _n in ("ask_confirm", "ask_text", "run_ai_connectivity_check_interactive"):
+            if _n in globals():
+                replaced[_n] = getattr(orch, _n, None)
+                setattr(orch, _n, globals()[_n])
+    except Exception:
+        orch = None
+        replaced = {}
+
+    try:
+        from src.setup.pipeline.orchestrator import (
+            _run_processing_pipeline_plain as _impl,
+        )
+
+        return _impl()
+    finally:
+        if orch is not None:
+            for _n, _old in replaced.items():
+                try:
+                    if _old is None:
+                        delattr(orch, _n)
+                    else:
+                        setattr(orch, _n, _old)
+                except Exception:
+                    pass
 
 
 def _run_processing_pipeline_rich(*args: Any, **kwargs: Any) -> None:
-    from src.setup.pipeline.orchestrator import _run_processing_pipeline_rich as _impl
+    try:
+        import importlib
 
-    return _impl(*args, **kwargs)
+        orch = importlib.import_module("src.setup.pipeline.orchestrator")
+        replaced: dict[str, object | None] = {}
+        for _n in ("ask_confirm", "ask_text", "run_ai_connectivity_check_interactive"):
+            if _n in globals():
+                replaced[_n] = getattr(orch, _n, None)
+                setattr(orch, _n, globals()[_n])
+    except Exception:
+        orch = None
+        replaced = {}
+
+    try:
+        from src.setup.pipeline.orchestrator import (
+            _run_processing_pipeline_rich as _impl,
+        )
+
+        return _impl(*args, **kwargs)
+    finally:
+        if orch is not None:
+            for _n, _old in replaced.items():
+                try:
+                    if _old is None:
+                        delattr(orch, _n)
+                    else:
+                        setattr(orch, _n, _old)
+                except Exception:
+                    pass
 
 
 def prompt_virtual_environment_choice() -> bool:

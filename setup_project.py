@@ -97,6 +97,17 @@ def _propagate_patchable_names_to_app() -> None:
 
         this = importlib.import_module(__name__)
         app = importlib.import_module("src.setup.app")
+
+        # Names that are implemented as lightweight wrappers in this module
+        # and must not be propagated back into the implementation (would
+        # otherwise cause recursive calls).
+        WRAPPER_NAMES = {
+            "run_program",
+            "manage_virtual_environment",
+            "is_venv_active",
+            "get_python_executable",
+        }
+
         for name in (
             "ask_text",
             "ask_confirm",
@@ -108,10 +119,29 @@ def _propagate_patchable_names_to_app() -> None:
             "subprocess",
             "venv",
         ):
-            if hasattr(this, name):
-                setattr(app, name, getattr(this, name))
-        # Also propagate to the lower-level venv helpers module which is used
-        # directly by the venv manager implementation.
+            # Only propagate when the attribute was explicitly set on this
+            # module and differs from the value already present on the
+            # implementation module. This avoids overwriting the
+            # implementation with our own local wrappers unless the test
+            # intentionally patched the top-level name.
+            if name in this.__dict__:
+                this_val = this.__dict__[name]
+                app_val = getattr(app, name, object())
+                if this_val is app_val:
+                    continue
+                # Never propagate our own wrapper functions into the
+                # implementation to avoid recursion.
+                if (
+                    name in WRAPPER_NAMES
+                    and getattr(this_val, "__module__", None) == __name__
+                ):
+                    continue
+                setattr(app, name, this_val)
+
+        # Also propagate to the lower-level venv helpers module but only
+        # when the top-level attribute has been patched by tests. This is
+        # conservative and avoids replacing implementation functions with
+        # our own wrappers.
         try:
             venvmod = importlib.import_module("src.setup.venv")
             for name in (
@@ -120,8 +150,17 @@ def _propagate_patchable_names_to_app() -> None:
                 "get_venv_pip_executable",
                 "get_python_executable",
             ):
-                if hasattr(this, name):
-                    setattr(venvmod, name, getattr(this, name))
+                if name in this.__dict__:
+                    this_val = this.__dict__[name]
+                    venv_val = getattr(venvmod, name, object())
+                    if this_val is venv_val:
+                        continue
+                    if (
+                        name in WRAPPER_NAMES
+                        and getattr(this_val, "__module__", None) == __name__
+                    ):
+                        continue
+                    setattr(venvmod, name, this_val)
         except Exception:
             pass
     except Exception:

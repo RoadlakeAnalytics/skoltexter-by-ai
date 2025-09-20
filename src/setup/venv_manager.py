@@ -193,6 +193,7 @@ def manage_virtual_environment(
 
         try:
             venv_python = venvmod.get_venv_python_executable(venv_dir)
+            # Evaluate restart branch conditions.
             if (
                 (not venvmod.is_venv_active())
                 and venv_python.exists()

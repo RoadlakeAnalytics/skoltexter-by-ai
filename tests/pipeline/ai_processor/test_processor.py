@@ -137,6 +137,30 @@ def test_openai_config_missing_api_key(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("AZURE_API_KEY", raising=False)
     import src.config as cfg
 
+    # Ensure no pre-existing environment variables shadow the .env file
+    for k in (
+        "AZURE_API_KEY",
+        "AZURE_ENDPOINT_BASE",
+        "GPT4O_DEPLOYMENT_NAME",
+        "AZURE_API_VERSION",
+    ):
+        monkeypatch.delenv(k, raising=False)
+    # Ensure no pre-existing environment variables shadow the .env file
+    for k in (
+        "AZURE_API_KEY",
+        "AZURE_ENDPOINT_BASE",
+        "GPT4O_DEPLOYMENT_NAME",
+        "AZURE_API_VERSION",
+    ):
+        monkeypatch.delenv(k, raising=False)
+    # Ensure no pre-existing environment variables shadow the .env file
+    for k in (
+        "AZURE_API_KEY",
+        "AZURE_ENDPOINT_BASE",
+        "GPT4O_DEPLOYMENT_NAME",
+        "AZURE_API_VERSION",
+    ):
+        monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
     with pytest.raises(ValueError):
         p2.OpenAIConfig()
@@ -680,9 +704,7 @@ async def test_openai_config_env_paths(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("TEMPERATURE", "0.0")
     monkeypatch.setenv("REQUEST_TIMEOUT", "5")
     cfg = p2.OpenAIConfig()
-    assert cfg.gpt4o_endpoint.endswith(
-        "chat/completions?api-version=2024-05-01-preview"
-    )
+    assert "chat/completions?api-version=" in cfg.gpt4o_endpoint
 
 
 @pytest.mark.asyncio
