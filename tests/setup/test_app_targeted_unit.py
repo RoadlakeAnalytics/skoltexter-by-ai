@@ -59,13 +59,9 @@ _app_ns = types.SimpleNamespace(
     sys=_sys,
 )
 
-from types import ModuleType
+app = _app_ns
 import sys as _sys
-_mod = ModuleType("src.setup.app")
-for _k, _v in vars(_app_ns).items():
-    setattr(_mod, _k, _v)
-_sys.modules["src.setup.app"] = _mod
-app = _mod
+_sys.modules["src.setup.app"] = app
 
 
 def test_get_venv_helpers_windows_and_unix(monkeypatch, tmp_path: Path) -> None:

@@ -18,20 +18,19 @@ import src.setup.app_runner as _app_runner
 import src.setup.app_ui as _app_ui
 import src.setup.app_venv as _app_venv
 
-_mod = types.ModuleType("src.setup.app")
-setattr(_mod, "parse_cli_args", _app_runner.parse_cli_args)
-setattr(_mod, "set_language", _app_prompts.set_language)
-setattr(_mod, "entry_point", _app_runner.entry_point)
-setattr(_mod, "main_menu", _app_runner.main_menu)
-setattr(_mod, "prompt_virtual_environment_choice", _app_prompts.prompt_virtual_environment_choice)
-setattr(_mod, "LANG", _app_prompts.__dict__.get("LANG", None))
-setattr(_mod, "ask_text", _app_prompts.ask_text)
-setattr(_mod, "ui_info", _app_ui.ui_info)
-setattr(_mod, "is_venv_active", _app_venv.is_venv_active)
-setattr(_mod, "manage_virtual_environment", _app_venv.manage_virtual_environment)
-setattr(_mod, "ensure_azure_openai_env", _app_runner.ensure_azure_openai_env)
-_sys.modules["src.setup.app"] = _mod
-app = _mod
+app = types.SimpleNamespace()
+setattr(app, "parse_cli_args", _app_runner.parse_cli_args)
+setattr(app, "set_language", _app_prompts.set_language)
+setattr(app, "entry_point", _app_runner.entry_point)
+setattr(app, "main_menu", _app_runner.main_menu)
+setattr(app, "prompt_virtual_environment_choice", _app_prompts.prompt_virtual_environment_choice)
+setattr(app, "LANG", _app_prompts.__dict__.get("LANG", None))
+setattr(app, "ask_text", _app_prompts.ask_text)
+setattr(app, "ui_info", _app_ui.ui_info)
+setattr(app, "is_venv_active", _app_venv.is_venv_active)
+setattr(app, "manage_virtual_environment", _app_venv.manage_virtual_environment)
+setattr(app, "ensure_azure_openai_env", _app_runner.ensure_azure_openai_env)
+_sys.modules["src.setup.app"] = app
 
 
 def test_set_language_sets_module_lang(monkeypatch):
@@ -103,9 +102,9 @@ def test_entry_point_triggers_manage_virtualenv_when_needed(monkeypatch):
     venv must be created/managed.
     """
     # Simulate CLI args that do not set a language and request venv handling
-    monkeypatch.setattr(app, "parse_cli_args", lambda: SimpleNamespace(lang=None, no_venv=False, ui="rich"))
-    monkeypatch.setattr(app, "set_language", lambda: None)
-    monkeypatch.setattr(app, "is_venv_active", lambda: False)
+    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang=None, no_venv=False, ui="rich"))
+    monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
+    monkeypatch.setattr("src.setup.app_venv.is_venv_active", lambda: False)
 
     called = {}
 
@@ -115,14 +114,17 @@ def test_entry_point_triggers_manage_virtualenv_when_needed(monkeypatch):
     def fake_manage():
         called["managed"] = True
 
-    monkeypatch.setattr(app, "prompt_virtual_environment_choice", lambda: True)
-    monkeypatch.setattr(app, "manage_virtual_environment", fake_manage)
-    monkeypatch.setattr(app, "ensure_azure_openai_env", lambda: None)
-    monkeypatch.setattr(app, "main_menu", lambda: None)
+    monkeypatch.setattr("src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True)
+    monkeypatch.setattr("src.setup.app_venv.manage_virtual_environment", fake_manage)
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
+    # Patch the concrete runner main_menu so the interactive menu does not run
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
 
     # Clear any env var that would skip language prompt
     monkeypatch.delenv("SETUP_SKIP_LANGUAGE_PROMPT", raising=False)
 
+    # Prevent interactive language prompt from blocking the test
+    monkeypatch.setattr(app, "ask_text", lambda prompt: "1", raising=False)
     # Call entry_point; should call manage_virtual_environment
     app.entry_point()
     assert called.get("managed") is True

@@ -28,13 +28,12 @@ _app_ns = types.SimpleNamespace(
     get_python_executable=_app_venv.get_python_executable,
 )
 
-from types import ModuleType
+# Avoid registering a synthetic module under ``sys.modules`` during
+# migration. Use a local SimpleNamespace that mirrors the small set of
+# helpers previously exported by the legacy `src.setup.app` shim.
+app = _app_ns
 import sys as _sys
-_mod = ModuleType("src.setup.app")
-for _k, _v in vars(_app_ns).items():
-    setattr(_mod, _k, _v)
-_sys.modules["src.setup.app"] = _mod
-app = _mod
+_sys.modules["src.setup.app"] = app
 
 
 def test_parse_cli_args_and_run(monkeypatch):
@@ -98,12 +97,13 @@ def test_run_quality_suites(monkeypatch):
 
 def test_entry_point_invokes_main_menu(monkeypatch):
     # Prevent language prompt and venv management, ensure main_menu called
-    monkeypatch.setattr(
-        app, "parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=True)
-    )
-    monkeypatch.setattr(app, "set_language", lambda: None)
-    monkeypatch.setattr(app, "ensure_azure_openai_env", lambda: None)
+    # Patch the concrete implementations used by entry_point in the
+    # refactored code. Tests should patch concrete modules rather than
+    # the old global shim.
+    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=True))
+    monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
     called = {}
-    monkeypatch.setattr(app, "main_menu", lambda: called.setdefault("mm", True))
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: called.setdefault("mm", True))
     app.entry_point()
     assert called.get("mm") is True

@@ -24,6 +24,7 @@ import src.setup.app_prompts as app_prompts
 import src.setup.app_venv as app_venv
 import src.setup.app_runner as app_runner
 import src.setup.app_pipeline as app_pipeline
+import src.setup.azure_env as azure_env
 
 setattr(sp, "ui_rule", app_ui.ui_rule)
 setattr(sp, "ui_header", app_ui.ui_header)
@@ -49,6 +50,8 @@ setattr(sp, "ensure_azure_openai_env", app_runner.ensure_azure_openai_env)
 setattr(sp, "run_ai_connectivity_check_silent", app_runner.run_ai_connectivity_check_silent)
 setattr(sp, "entry_point", app_runner.entry_point)
 setattr(sp, "main_menu", app_runner.main_menu)
+setattr(sp, "find_missing_env_keys", app_runner.find_missing_env_keys)
+setattr(sp, "REQUIRED_AZURE_KEYS", getattr(azure_env, "REQUIRED_AZURE_KEYS", []))
 
 setattr(sp, "_run_processing_pipeline_plain", app_pipeline._run_processing_pipeline_plain)
 setattr(sp, "_run_processing_pipeline_rich", app_pipeline._run_processing_pipeline_rich)

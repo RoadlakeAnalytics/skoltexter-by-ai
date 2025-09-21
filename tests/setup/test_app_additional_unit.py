@@ -33,15 +33,9 @@ _app_ns = types.SimpleNamespace(
     sys=__import__("sys"),
 )
 
-from types import ModuleType
+app = _app_ns
 import sys as _sys
-
-_mod = ModuleType("src.setup.app")
-for _k, _v in vars(_app_ns).items():
-    setattr(_mod, _k, _v)
-_sys.modules["src.setup.app"] = _mod
-# Expose the module object to the rest of the test as `app`.
-app = _mod
+_sys.modules["src.setup.app"] = app
 
 
 def test_parse_cli_args_defaults() -> None:

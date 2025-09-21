@@ -56,7 +56,7 @@ if __name__ == "__main__":
 # Import inside a try/except so module remains importable even when the
 # refactored application package is not available in some test contexts.
 try:
-    from src.setup.app import (
+    from src.setup.app_venv import (
         get_python_executable,
         get_venv_bin_dir,
         get_venv_python_executable,
@@ -65,107 +65,16 @@ try:
         is_venv_active,
         run_program,
         manage_virtual_environment,
-        ask_text,
-        ask_confirm,
-        ui_info,
-        ui_success,
-        ui_warning,
-        ui_error,
-        ui_menu,
     )
+    from src.setup.app_prompts import ask_text, ask_confirm
+    from src.setup.app_ui import ui_info, ui_success, ui_warning, ui_error, ui_menu
 except Exception:
-    # If the refactored module isn't importable, leave the names absent but
-    # don't raise during import; tests that require the functions will fail
-    # later with a clear AttributeError which is preferable to an import-time
-    # crash.
+    # Best-effort: do not fail on import-time if refactored modules are not
+    # available in some constrained test environments.
     pass
 
 
-def _propagate_patchable_names_to_app() -> None:
-    """Propagate monkeypatched names on this module into `src.setup.app`.
-
-    Tests historically monkeypatch attributes on the top-level
-    ``setup_project`` module (for convenience). The refactor moved the
-    implementation into ``src.setup.app`` which means those monkeypatches
-    would not affect the behaviour used by the implementation. This helper
-    copies a small set of well-known names into the implementation module
-    immediately before delegation so tests can continue to patch the
-    top-level module as they used to.
-    """
-    try:
-        import importlib
-
-        this = importlib.import_module(__name__)
-        app = importlib.import_module("src.setup.app")
-
-        # Names that are implemented as lightweight wrappers in this module
-        # and must not be propagated back into the implementation (would
-        # otherwise cause recursive calls).
-        WRAPPER_NAMES = {
-            "run_program",
-            "manage_virtual_environment",
-            "is_venv_active",
-            "get_python_executable",
-        }
-
-        for name in (
-            "ask_text",
-            "ask_confirm",
-            "get_venv_pip_executable",
-            "get_venv_python_executable",
-            "get_python_executable",
-            "is_venv_active",
-            "VENV_DIR",
-            "subprocess",
-            "venv",
-        ):
-            # Only propagate when the attribute was explicitly set on this
-            # module and differs from the value already present on the
-            # implementation module. This avoids overwriting the
-            # implementation with our own local wrappers unless the test
-            # intentionally patched the top-level name.
-            if name in this.__dict__:
-                this_val = this.__dict__[name]
-                app_val = getattr(app, name, object())
-                if this_val is app_val:
-                    continue
-                # Never propagate our own wrapper functions into the
-                # implementation to avoid recursion.
-                if (
-                    name in WRAPPER_NAMES
-                    and getattr(this_val, "__module__", None) == __name__
-                ):
-                    continue
-                setattr(app, name, this_val)
-
-        # Also propagate to the lower-level venv helpers module but only
-        # when the top-level attribute has been patched by tests. This is
-        # conservative and avoids replacing implementation functions with
-        # our own wrappers.
-        try:
-            venvmod = importlib.import_module("src.setup.venv")
-            for name in (
-                "is_venv_active",
-                "get_venv_python_executable",
-                "get_venv_pip_executable",
-                "get_python_executable",
-            ):
-                if name in this.__dict__:
-                    this_val = this.__dict__[name]
-                    venv_val = getattr(venvmod, name, object())
-                    if this_val is venv_val:
-                        continue
-                    if (
-                        name in WRAPPER_NAMES
-                        and getattr(this_val, "__module__", None) == __name__
-                    ):
-                        continue
-                    setattr(venvmod, name, this_val)
-        except Exception:
-            pass
-    except Exception:
-        # Best-effort; don't raise during import or test setup.
-        pass
+# No propagation helper: tests should patch concrete modules directly.
 
 
 def run_program(program_name, program_file, stream_output: bool = False) -> bool:
@@ -174,31 +83,27 @@ def run_program(program_name, program_file, stream_output: bool = False) -> bool
     This wrapper ensures that tests which monkeypatch the top-level
     ``setup_project`` module continue to influence behaviour.
     """
-    _propagate_patchable_names_to_app()
-    from src.setup.app import run_program as _run
+    from src.setup.app_venv import run_program as _run
 
     return _run(program_name, program_file, stream_output=stream_output)
 
 
 def manage_virtual_environment() -> None:
     """Delegate to the refactored virtualenv manager after syncing names."""
-    _propagate_patchable_names_to_app()
-    from src.setup.app import manage_virtual_environment as _m
+    from src.setup.app_venv import manage_virtual_environment as _m
 
     return _m()
 
 
 def is_venv_active() -> bool:
     """Delegate venv active check to the refactored module (after sync)."""
-    _propagate_patchable_names_to_app()
-    from src.setup.app import is_venv_active as _i
+    from src.setup.app_venv import is_venv_active as _i
 
     return _i()
 
 
 def get_python_executable() -> str:
     """Return the system/python executable used by the refactored runner."""
-    _propagate_patchable_names_to_app()
-    from src.setup.app import get_python_executable as _g
+    from src.setup.app_venv import get_python_executable as _g
 
     return _g()

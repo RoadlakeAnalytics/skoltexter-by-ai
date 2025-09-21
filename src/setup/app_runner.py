@@ -42,20 +42,19 @@ def run(args: argparse.Namespace) -> None:
         ui_header(i18n.translate("welcome"))
     except Exception:
         pass
-    # Delegate to the menu implementation. Allow tests to inject a fake
-    # module onto the app module for deterministic behaviour.
-    app_mod = sys.modules.get("src.setup.app")
-    menu = getattr(app_mod, "menu", None)
-    if menu is None:
-        try:
-            menu = importlib.import_module("src.setup.ui.menu")
-        except Exception:
-            menu = None
-    if menu is not None:
+    # Delegate to the UI menu implementation. Tests should patch the
+    # concrete UI module (``src.setup.ui.menu``) when needed rather than
+    # injecting a module into ``sys.modules``.
+    try:
+        from src.setup.ui import menu
+
         try:
             menu.main_menu()
         except Exception:
             pass
+    except Exception:
+        # No UI available in this environment; continue silently.
+        pass
 
 
 def parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -73,77 +72,47 @@ def entry_point() -> None:
     This orchestrates parsing, optional venv management and launching the
     interactive menu.
     """
-    # Allow tests to override the CLI parsing routine by patching the
-    # attribute on the app shim module; fall back to the local parser
-    # when not present.
-    app_mod = sys.modules.get("src.setup.app")
-    _parse = getattr(app_mod, "parse_cli_args", None)
-    if _parse is None:
-        args = parse_cli_args()
-    else:
-        args = _parse()
+    # Parse CLI args. Tests can monkeypatch this module's ``parse_cli_args``
+    # if they need to alter parsing behaviour.
+    args = parse_cli_args()
 
     if getattr(args, "lang", None):
         i18n.LANG = args.lang if args.lang in i18n.TEXTS else "en"
     if not os.environ.get("SETUP_SKIP_LANGUAGE_PROMPT"):
-        # Prefer a patched implementation on the app shim module so tests
-        # that monkeypatch ``app.set_language`` work deterministically.
-        app_mod = sys.modules.get("src.setup.app")
-        set_lang = getattr(app_mod, "set_language", None)
-        if set_lang is None:
-            try:
-                from src.setup.app_prompts import set_language as _set
+        # Call the canonical set_language implementation; tests should
+        # patch ``src.setup.app_prompts.set_language`` when needed.
+        try:
+            from src.setup.app_prompts import set_language as _set
 
-                _set()
-            except Exception:
-                pass
-        else:
-            try:
-                set_lang()
-            except Exception:
-                pass
+            _set()
+        except Exception:
+            pass
     if not getattr(args, "no_venv", False):
-        # Prefer a possibly patched implementation on the central app shim
-        # so tests that monkeypatch ``app.is_venv_active`` are honoured.
-        app_mod = sys.modules.get("src.setup.app")
-        is_venv_active = getattr(app_mod, "is_venv_active", None)
-        if is_venv_active is None:
+        # Determine if a venv is active and optionally manage it. Tests
+        # should patch the concrete helpers in ``src.setup.app_venv`` and
+        # ``src.setup.app_prompts`` when necessary.
+        try:
             from src.setup.app_venv import is_venv_active as _is_venv_active
+            from src.setup.app_prompts import prompt_virtual_environment_choice as _prompt_choice
+            from src.setup.app_venv import manage_virtual_environment as _manage
 
-            is_venv_active = _is_venv_active
-
-        if not is_venv_active():
-            try:
-                # Prefer patched implementations on the central app shim so
-                # tests can monkeypatch behaviour by setting attributes on
-                # ``src.setup.app``.
-                app_mod = sys.modules.get("src.setup.app")
-                prompt_choice = getattr(app_mod, "prompt_virtual_environment_choice", None)
-                if prompt_choice is None:
-                    from src.setup.app_prompts import prompt_virtual_environment_choice as _prompt_choice
-
-                    prompt_choice = _prompt_choice
-                if prompt_choice():
-                    manage_func = getattr(app_mod, "manage_virtual_environment", None)
-                    if manage_func is None:
-                        from src.setup.app_venv import manage_virtual_environment as _manage
-
-                        manage_func = _manage
-                    manage_func()
-            except Exception:
-                pass
+            if not _is_venv_active():
+                try:
+                    if _prompt_choice():
+                        _manage()
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     try:
-        from src.setup.app_runner import ensure_azure_openai_env as _ensure
-
-        _ensure()
+        ensure_azure_openai_env()
     except Exception:
-        # The real function may prompt; ignore in a minimal CLI run.
         pass
 
     try:
-        from src.setup.app import main_menu
-
+        # Call local main_menu implementation; tests may patch
+        # ``src.setup.ui.menu.main_menu`` as needed.
         main_menu()
     except Exception:
         return

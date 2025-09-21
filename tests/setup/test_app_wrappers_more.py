@@ -23,13 +23,12 @@ _app_ns = types.SimpleNamespace(
     set_language=_app_prompts.set_language,
 )
 
-from types import ModuleType
-import sys as _sys
-_mod = ModuleType("src.setup.app")
-for _k, _v in vars(_app_ns).items():
-    setattr(_mod, _k, _v)
-_sys.modules["src.setup.app"] = _mod
-app = _mod
+# For migration away from the legacy `src.setup.app` shim we no longer
+# inject a synthetic ModuleType into ``sys.modules`` here. Tests should
+# prefer importing the concrete modules under ``src.setup``. For
+# compatibility within this test we expose a simple local ``app``
+# namespace that provides the same helper attributes.
+app = _app_ns
 
 
 def test_manage_virtual_environment_wrapper_propagates(monkeypatch, tmp_path):

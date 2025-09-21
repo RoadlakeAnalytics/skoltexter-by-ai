@@ -18,6 +18,10 @@ root_str = str(ROOT)
 if root_str not in sys.path:
     sys.path.insert(0, root_str)
 
+# The centralized test shim has been removed as part of the shimless
+# migration; tests should import concrete modules directly and avoid
+# relying on a shared module object at `src.setup.app`.
+
 # If any test inserts a synthetic module object at the legacy import path
 # `src.setup.app` without a `__file__` attribute, provide a sensible
 # `__file__` value so import-time tests that rely on `app.__file__` (e.g.

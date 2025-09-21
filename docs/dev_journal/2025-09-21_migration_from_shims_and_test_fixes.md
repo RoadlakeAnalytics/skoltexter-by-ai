@@ -1,316 +1,189 @@
 2025-09-21 — Migration from shims and test fixes
-===============================================
+=================================================
 
 Overview
 --------
-This dev journal records the work performed to migrate test imports away from
-the legacy `src.setup.app` monolith (the "shim"), to stabilize the test
-suite, and to introduce a deterministic diagnostic workflow that identifies
-failing or hanging tests without blocking a full `pytest` run. The focus has
-been on safe, incremental migration: patch a small batch of tests, run the
-affected tests in isolation, and then re-run an automated, per-file test
-diagnostic to confirm the whole suite remains healthy.
 
-This document describes:
+This journal entry documents the analysis, rationale, and concrete plan
+for removing legacy "shim" modules from the codebase and from the test
+suite. It also records the immediate actions taken at the start of the
+safe migration (option A chosen by the project owner) and provides a
+step‑by‑step migration plan, commands to reproduce, and a recommended
+timeline.
 
-- The shim problem and the migration approach.
-- The diagnostic script we created and how it works.
-- How we migrated tests in small batches and the patterns used so tests
-  remain deterministic.
-- Tests and helper changes made during the migration.
-- A concise plan for finishing the job and reaching full coverage.
+Status at start
+---------------
 
-Principles and constraints
---------------------------
-- Do not introduce new tech debt: the compatibility shim (`src/setup/app.py`)
-  is a temporary adapter to allow incremental migration; the goal is to remove
-  it once all tests import the refactored modules directly.
-- Work in small batches and verify locally (run single tests or small files
-  instead of the whole suite) to avoid long blocking runs.
-- Make monkeypatch points deterministic: tests must patch the same module
-  object the production code uses (this was the main source of flakiness).
+- The code was refactored into smaller modules under `src/setup/*`.
+- Many tests and parts of the codebase continued to import or monkey‑
+  patch a large top‑level module (historically `src.setup.app` or the
+  root `setup_project.py`). To keep things working during refactors,
+  temporary compatibility "shims" were introduced both in production
+  (`src/setup/app.py`) and in tests (a centralized `tests/_app_shim.py`,
+  and many per‑test `ModuleType("src.setup.app")` injections).
+- These shims worked as short‑term pragmatics, but they became tech
+  debt: they hide true dependencies, create global mutable state that
+  tests monkeypatch, and make further refactoring costly and brittle.
 
-Background: the shim and why it exists
--------------------------------------
-Historically the repository exposed a large top-level runner module
-(`src.setup.app`) that exported many helpers and global toggles. Tests were
-written to monkeypatch attributes on that module (for example
-`src.setup.app.ask_text`, `src.setup.app._TUI_MODE`, `src.setup.app.manage_virtual_environment`).
+Why shims were created in the first place
+----------------------------------------
 
-When we refactored the code into smaller modules (e.g. `src/setup/app_ui.py`,
-`src/setup/app_prompts.py`, `src/setup/app_venv.py`, `src/setup/app_runner.py`) a
-compatibility shim remained to preserve the old import surface. While this
-shim made the repository runnable, it had two negative effects:
+- Quick migration: when splitting a monolith into many modules it is
+  time‑consuming and risky to update every caller and every test at
+  once. A shim lets the old import surface continue to work while the
+  implementation moves.
+- Test stability: existing tests often patch the top‑level module or
+  its attributes. Creating a test shim allows those tests to keep
+  working without changing them immediately.
 
-1. Tests were still relying on the shim as a patch point, which hid the
-   opportunity to make tests import the smaller, single-responsibility
-   modules directly.
-2. Some tests used `importlib.reload` or installed stubs into `sys.modules`
-   in ways that resulted in the test monkeypatch and the production module
-   being distinct objects — this caused intermittent loops or infinite
-   interactive prompts in the test run (the reason for the repeated
-   "Select language ... Invalid choice" lines).
+Why the shims are now a problem
+-------------------------------
 
-Our strategy
-------------
+- Implicit global state: tests can silently influence other tests by
+  monkeypatching the same module object.
+- Import‑time complexity: many tests relied on reloads and the shim's
+  `__file__`, causing fragile import ordering and flakiness.
+- Hidden coupling: it's harder to see and enforce module boundaries
+  when code reads `sys.modules['src.setup.app']` or when tests always
+  patch the shim instead of patching the exact dependency.
 
-1. Keep the shim for compatibility while we migrate tests in small batches.
-   The shim is intentionally small and documented — it is a temporary adapter
-   and should be removed once all tests are migrated.
-2. For each test file referencing `src.setup.app`, replace the import with a
-   precise import of the refactored modules it needs. Where tests expect a
-   unified `app` namespace and it is costly to change every call-site in a
-   single pass, create a small `SimpleNamespace` in the test that maps the
-   needed attributes to the refactored modules and register it in
-   `sys.modules['src.setup.app']`. This ensures monkeypatches hit the same
-   object the production code consults.
-3. Validate each patch by running the affected tests in isolation. That
-   avoids long blocking runs and makes it practical to iterate quickly.
-4. Use an automated, per-file diagnostic script that runs each test file in
-   a subprocess and — if a file fails or times out — runs each test node
-   (function) separately to identify the failing node(s). The driver sets
-   `PYTEST_TEST_TIMEOUT` in the subprocess environment so the `conftest.py`
-   alarm timeout is respected consistently.
+High‑level objective
+--------------------
 
-The diagnostic tool
--------------------
+Remove all shims (both production and test shims), and migrate the
+codebase and tests to a clean architecture where:
 
-File: `tools/smarter_diagnose_test_hangs.py`
+- Production code imports its concrete helpers explicitly (e.g.
+  `from src.setup.app_prompts import ask_text`).
+- Tests patch concrete functions/modules (e.g. monkeypatch
+  `src.setup.app_prompts.ask_text`) or use focused local test doubles,
+  rather than patching a single global module object.
 
-Purpose
-~~~~~~~
-Run pytest against each test file separately and produce a JSON report.
-This approach avoids locking the main process in a long, potentially
-interactive `pytest` run and isolates problematic files quickly.
+Chosen migration mode: Option A (safe, batch‑wise migration)
+---------------------------------------------------------
 
-Key features
-~~~~~~~~~~~~
-- Walks `tests/` and selects files named `test_*.py`.
-- Runs `python -m pytest <file>` in a subprocess with a per-target timeout
-  (the CLI `--timeout` argument). The subprocess environment receives
-  `PYTEST_TEST_TIMEOUT` so `conftest.py`'s alarm/timer uses the same value.
-- If a file run fails (non-zero exit code) or times out, the script parses
-  the file to enumerate top-level `test_*` functions and test methods inside
-  classes and runs each test node individually to surface the failing node.
-- For failing nodes the driver captures a short stdout/stderr preview and
-  runs simple heuristics to detect interactive patterns (e.g. repeated
-  "Invalid choice" lines, `getpass` references, memory kills, etc.).
-- Writes a JSON report to `--out` (defaults to
-  `tools/smarter_diagnose_results.json`). The driver now removes any
-  existing report before starting so repeated runs are easy to compare.
+The project owner chose Option A: perform a careful, step‑by‑step
+migration in small batches. This is the recommended approach because
+it keeps the repository runnable at every stage and makes debugging
+simple when a batch exposes a failure.
 
-How to run it
-~~~~~~~~~~~~~
-Prefer running the tool under the project venv Python to ensure the same
-interpreter is used as your test runs:
+Detailed migration plan (step‑by‑step)
+------------------------------------
 
-```bash
-source venv/bin/activate
-venv/bin/python tools/smarter_diagnose_test_hangs.py --tests-dir tests --timeout 30 --out tools/smarter_diagnose_results.json
-```
+1. Inventory (discovery)
+   - Use `rg` to list all references to the legacy import path:
+     - `rg "src.setup.app" -n`
+     - `rg 'ModuleType("src.setup.app")' -n tests`
+   - Categorize files:
+     - "production" files that import or read attributes from the shim
+     - "test" files that import or inject shim modules
 
-The produced JSON contains per-file entries with status (`PASS`,
-`FAIL`, `TIMEOUT`, `SKIPPED_NO_TESTS`) and per-node details for failing files.
+2. Prepare a small centralized test shim (transitional) — OPTIONAL
+   - This is only a short‑term convenience if migration will be done
+     gradually across many test authors. The long‑term goal is to
+     remove *all* test shims. Prefer not to add any new shim.
 
-Examples of output interpretation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- If a file is `SKIPPED_NO_TESTS`, pytest collected no tests from that
-  file; it may contain conditional test generation or be a helper module.
-- If a file is `FAIL` and the `items` list shows failing node(s), run the
-  failing node directly (the driver has already done that) and inspect the
-  `stdout`/`stderr` snippets in the JSON to see if interactive prompts are
-  being triggered.
+3. Migrate production modules module‑by‑module
+   - For each production file that reads `sys.modules['src.setup.app']`:
+     a) Replace dynamic lookups with an explicit import of the concrete
+        helper (e.g. `from src.setup.app_prompts import set_language`).
+     b) If a direct import causes a circular import, use a lazy import
+        inside the function body (import inside function) or extract a
+        minimal adapter to break the cycle.
+   - Run the small test subset that touches that module.
 
-Patterns used to stabilize tests
---------------------------------
+4. Migrate tests in batches (≈10 files each)
+   - For each test file that created an isolated `ModuleType("src.setup.app")`:
+     a) Prefer to replace the injection with import of the *concrete*
+        module(s) that the test needs, and patch those functions.
+     b) If the test truly requires a module object (for import‑time
+        behavior), create a local `types.ModuleType("src.setup.app")`
+        only in that test's scope and restore state afterwards.
+   - Run `pytest` for that file (or the small batch). If the file fails,
+     revert the change and mark it for manual refinement.
 
-1. Replace brittle `import src.setup.app as app` usage in tests with
-   explicit imports of the small refactored modules (e.g. `src.setup.app_ui`,
-   `src.setup.app_prompts`, `src.setup.app_venv`, `src/setup/app_runner`).
+5. Remove test shims and global fallbacks
+   - Once all tests are migrated and green, delete any `tests/_app_shim.py`
+     and remove conftest helpers that created shim state.
 
-2. If a test needs the full `app` surface (many references), create a
-   compact `SimpleNamespace` in the test that maps only the symbols needed
-   to the refactored modules and register it as `sys.modules['src.setup.app']`.
-   This allows production code that looks up `sys.modules['src.setup.app']`
-   to see the patched object and makes `monkeypatch.setattr(app, 'X', ...)`
-   effective.
+6. Remove production shim(s)
+   - After all production modules import concrete helpers and tests are
+     green, delete `src/setup/app.py` and any top‑level propagation code.
+   - Run the full test suite and coverage.
 
-3. When tests expect to reload modules with different `sys.modules`
-   entries (import variants tests), use `importlib.util.spec_from_file_location`
-   and create a temporary module object so import-time logic runs against
-   the manipulated `sys.modules` entries.
+7. Clean up and enforce policy
+   - Add a small check in CI to detect re‑introductions of the shim
+     import path (fail builds if `src.setup.app` is imported in new code).
+   - Document the expected testing pattern in CONTRIBUTING.md: tests
+     should mock concrete modules, not a shared global module.
 
-4. Avoid running real external tools in tests: stub `subprocess.*`, `venv.create`,
-   and any `os.execve` calls. Where tests need to assert that the code attempted
-   to call `subprocess`, stub the `subprocess` object and assert the stub was called.
+Commands & tools
+----------------
 
-What we changed (high‑level list)
-----------------------------------
-- Added and hardened `tools/smarter_diagnose_test_hangs.py` (diagnose per-file
-  and per-node, export `PYTEST_TEST_TIMEOUT`, clear output file before writing).
-- Migrated many tests in `tests/setup/` to import the new modules or to
-  create an `app` SimpleNamespace and register it in `sys.modules` so
-  monkeypatches work reliably. Example test files migrated:
-  - `tests/setup/test_app_wrappers_unit.py`
-  - `tests/setup/test_run_full_quality_unit.py`
-  - `tests/setup/test_app_manage_venv.py`
-  - `tests/setup/test_app_additional_unit.py`
-  - `tests/setup/test_app_targeted_unit.py`
-  - `tests/setup/test_app_wrappers_more.py`
-  - `tests/setup/test_app_additional_branches.py`
-  - `tests/setup/test_app_more_cov.py`
-  - `tests/setup/test_app_entrypoint_and_misc_unit.py`
-  - `tests/setup/test_app_additional_cov.py`
-  - `tests/setup/test_setup_project_more_unit.py`
+- Inventory:
+  - `rg "src.setup.app" -n`
+  - `rg 'ModuleType("src.setup.app")' -n tests`
+- Run a single test file:
+  - `pytest -q tests/setup/test_xxx.py -q`
+- Run a per‑file diagnosis script (we provide one):
+  - `python tools/smarter_diagnose_test_hangs.py --tests-dir tests --timeout 30 --out tools/smarter_diagnose_results.json`
+- Run whole test suite with coverage:
+  - `pytest --cov=src --cov-report=term-missing`
 
-  (These are representative — the process was repeated in small batches.)
+Immediate actions performed (start of Option A)
+-----------------------------------------------
 
-- Left a small, documented compatibility adapter in place at
-  `src/setup/app.py` to avoid breaking all tests at once. This shim re-exports
-  the refactored functions while we migrate tests; it is temporary and the
-  plan is to remove it once no test imports `src.setup.app`.
+1. Created this dev‑journal entry (this file).
+2. Removed the centralized test shim that had been used as a long‑term
+   workaround (the test suite was subsequently partially migrated).
+3. Began migrating tests to use per‑test SimpleNamespace or direct
+   imports of concrete modules.
 
-Tests created/modified
-----------------------
-- Many tests were updated to import the precise refactored modules. When a
-  test referenced many `app` symbols we created a `SimpleNamespace` in the
-  test and registered it in `sys.modules['src.setup.app']` — this ensured
-  that `monkeypatch.setattr(sp, 'X', ...)` and the production code used the
-  same object.
-- Tests to exercise TUI behavior (tty vs non-tty, getpass vs input, questionary
-  fallbacks) were left isolated and made to stub the optional interactive
-  dependencies (Rich, questionary). We added small `rich.panel` stubs when a
-  test expected a `Panel` to be constructed.
-
-Coverage snapshot and remaining work
+Next batch (what I will execute now)
 -----------------------------------
-After the migration and a set of targeted tests, we re-ran the diagnostic
-passes and coverage checks. The overall coverage increased but there are
-modules that still need targeted unit tests to hit branches. Prioritized
-modules to add tests for (based on the coverage output):
 
-- `src/setup/app_pipeline.py` — pipeline wrapper branches and content_updater
-- `src/setup/app_runner.py` — entrypoint variants, venv prompt flows
-- `src/setup/app_venv.py` & `src/setup/venv_manager.py` — execve/restart
-  and pip fallback flows
-- `src/setup/azure_env.py` — .env parsing and connectivity fallback
-- `src/pipeline/ai_processor/cli.py` — error handling when OpenAIConfig
-  raises and `asyncio.run` stubbing
+I will proceed with the next migration batch of test files (10 at a time).
+Each file will be changed to avoid importing `src.setup.app` and to
+patch the concrete `src/setup/*` module(s) instead. After each file I
+will run that file's tests in isolation. If a file fails, I will revert
+the file and record it in the migration log for manual intervention.
 
-Plan to finish
---------------
-Short term (next 1–2 days):
+Batch checklist (per file)
 
-1. Continue migrating remaining test files that still import
-   `src.setup.app` into explicit imports or small `app` namespaces.
-2. After all tests import concrete modules, delete `src/setup/app.py` and
-   run full diagnostics + coverage.
-3. Add focused unit tests for the high priority modules listed above. Use
-   monkeypatch and small fake modules in `sys.modules` to avoid heavy
-   optional deps (Rich, questionary) during unit tests.
+- Try to patch the test so it imports the real, concrete module(s).
+- Run `pytest -q <file>`.
+- If green: commit change (or record in working area).
+- If fails: revert and mark for manual fix.
 
-Medium term:
+Risks and mitigations
+---------------------
 
-1. Split very large files that exceed a single responsibility (for
-   example `src/setup/app_pipeline.py` and `src/setup/app_runner.py`) to
-   adhere to SRP and keep file sizes under ~350 lines. Write tests for
-   the extracted submodules.
-2. Add CI checks that run the diagnostic script as a pre-merge step to
-   avoid accidental re‑introductions of interactive or environment‑sensitive
-   tests.
+- Risk: import‑time tests that rely on `__file__` or reloads are
+  fragile. Mitigation: handle these manually by using `importlib.util` to
+  load the specific module file or by rewriting the test to avoid reloads.
+- Risk: circular imports when replacing lookups with concrete imports.
+  Mitigation: use lazy imports inside functions and small adapter modules.
+- Risk: accidental reintroduction of new shims. Mitigation: add CI check
+  to detect `src.setup.app` imports in new code.
 
-Risks & caveats
---------------
-- Be careful with tests that intentionally exercise import-time code via
-  `importlib` and manual module construction. These tests require special
-  handling and should be migrated manually (not automatically) to avoid
-  subtle differences in global state.
-- Avoid swallowing broad `Exception` types in production code unless
-  accompanied with logging — we made a few defensive catches to stabilize
-  tests (e.g. file writes) but flagged these places as TODOs to ensure we
-  do not silence programming errors permanently.
+Metrics and goals
+-----------------
 
-Appendix: useful commands
--------------------------
+- Short term: keep test suite runnable and reduce the set of files that
+  rely on shims each day.
+- Medium term: remove all test shims and `src/setup/app.py` within this
+  work stream (target: within a few days of iterative work).
+- Long term: add CI guard and update CONTRIBUTING to prevent shim
+  reintroductions; increase coverage for modules touched.
 
-- Run the per-file diagnostic (recommended):
+Appendix — change log (live)
+----------------------------
 
-  ```bash
-  source venv/bin/activate
-  venv/bin/python tools/smarter_diagnose_test_hangs.py --tests-dir tests --timeout 30 --out tools/smarter_diagnose_results.json
-  ```
+- 2025-09-21T<now>: This journal entry created. Started batch migration.
 
-- Open the JSON report (short):
+---
 
-  ```bash
-  python -c "import json;print(json.load(open('tools/smarter_diagnose_results.json'))['summary'])"
-  ```
-
-- Run a single test function with extended timeout:
-
-  ```bash
-  PYTEST_TEST_TIMEOUT=60 venv/bin/python -m pytest tests/setup/test_app_more_unit.py::test_ask_wrappers_restore_orchestrator_flags -q
-  ```
-
-Closing notes
--------------
-This migration pattern — small test batches, isolated verification, and a
-per-file diagnostic driver — allowed us to stabilize a previously flaky test
-suite without aggressive, large-scale changes. The compatibility shim kept
-the repository runnable throughout the process; the shim itself is now
-temporary infrastructure and should be removed once the migration is
-complete and all tests import the refactored modules directly.
-
-If you want I can now:
-
-- Continue the migration automatically in the next batch (patch 4–6 more
-  test files and run the diagnostic), or
-- Prepare a PR containing the set of deterministic test changes for
-  review before applying the remainder.
-
-Tell me which you prefer and I will proceed.
-
-Update: 2025-09-21 (migration batch: quick pass)
-------------------------------------------------
-
-Summary of actions in this quick pass:
-
-- Migrated several test files to remove brittle imports and to ensure the
-  tests monkeypatch the same module objects the runtime code consults. The
-  files modified in this pass were:
-  - `tests/setup/test_app_wrappers_unit.py`
-  - `tests/setup/test_app_more_unit.py`
-  - `tests/setup/test_setup_project_unit.py`
-  - `tests/setup/test_venv_manager.py`
-  - `tests/setup/test_app_import_variants_unit.py`
-  - `tests/setup/test_console_and_fs_and_i18n.py`
-  - `tests/setup/test_setup_project_shim_unit.py`
-
-- For each patched file I:
-  1. Replaced brittle `import src.setup.app as ...` usages with an explicit
-     `importlib.import_module("src.setup.app")` call when the test expected
-     a module object (so `importlib.reload()` continues to work).
-  2. When a test needed to act as a lightweight compatibility layer we
-     registered a `SimpleNamespace` in `sys.modules['src.setup.app']` that
-     delegates to the new `src.setup.*` modules. This preserves the test
-     semantics while making monkeypatching deterministic.
-  3. Executed the changed tests in isolation to ensure deterministic
-     behaviour and to avoid locking a full `pytest` run during migration.
-
-Result: The modified test files run successfully when executed individually
-in the project's venv. I verified representative tests from the changed
-files (examples: `test_app_wrappers_unit.py`, `test_app_more_unit.py`, and
-several `venv_manager` tests) and adjusted import/mapping patterns until the
-tests were stable.
-
-Next steps (recommended):
-
-1. Continue in small batches (4–6 files) until no tests import
-   `src.setup.app`. After that, remove `src/setup/app.py` (the shim) in a
-   single commit and run the diagnosis + coverage to ensure no regressions.
-2. Focus on adding unit tests for modules with remaining coverage gaps
-   (`app_pipeline`, `app_runner`, `app_venv`, `azure_env`, `ai_processor/cli`).
-3. When the suite is stable and no tests rely on the shim, split large files
-   (>~400 lines) into SRP-compliant modules and keep tests targeted.
-
-If you approve I will continue with the next batch of test migrations now.
+If you confirm I should proceed I will immediately start the first
+controlled batch (10 files) and report results per file. I will also
+keep this dev journal updated with a record of every test migration and
+any manual decisions that were needed.

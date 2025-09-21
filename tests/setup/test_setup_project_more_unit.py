@@ -12,17 +12,16 @@ import src.setup.pipeline.orchestrator as orchestrator
 # by this test file. We register a real module object in
 # ``sys.modules['src.setup.app']`` so code that expects a module (and
 # uses importlib.reload) behaves deterministically.
-_mod = types.ModuleType("src.setup.app")
-setattr(_mod, "_build_dashboard_layout", _app_ui._build_dashboard_layout)
-setattr(_mod, "view_program_descriptions", _app_prompts.view_program_descriptions)
-setattr(_mod, "ask_text", _app_prompts.ask_text)
-setattr(_mod, "_run_processing_pipeline_rich", _app_pipeline._run_processing_pipeline_rich)
-setattr(_mod, "_run_processing_pipeline_plain", _app_pipeline._run_processing_pipeline_plain)
-setattr(_mod, "ui_menu", _app_ui.ui_menu)
-setattr(_mod, "ui_rule", _app_ui.ui_rule)
-setattr(_mod, "ui_has_rich", _app_ui.ui_has_rich)
-_sys.modules["src.setup.app"] = _mod
-sp = _mod
+import types
+sp = types.SimpleNamespace()
+setattr(sp, "_build_dashboard_layout", _app_ui._build_dashboard_layout)
+setattr(sp, "view_program_descriptions", _app_prompts.view_program_descriptions)
+setattr(sp, "ask_text", _app_prompts.ask_text)
+setattr(sp, "_run_processing_pipeline_rich", _app_pipeline._run_processing_pipeline_rich)
+setattr(sp, "_run_processing_pipeline_plain", _app_pipeline._run_processing_pipeline_plain)
+setattr(sp, "ui_menu", _app_ui.ui_menu)
+setattr(sp, "ui_rule", _app_ui.ui_rule)
+setattr(sp, "ui_has_rich", _app_ui.ui_has_rich)
 
 
 def test_build_dashboard_layout_smoke():

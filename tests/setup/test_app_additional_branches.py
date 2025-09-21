@@ -39,13 +39,9 @@ _app_ns = types.SimpleNamespace(
     subprocess=__import__("subprocess"),
 )
 
-from types import ModuleType
+app = _app_ns
 import sys as _sys
-_mod = ModuleType("src.setup.app")
-for _k, _v in vars(_app_ns).items():
-    setattr(_mod, _k, _v)
-_sys.modules["src.setup.app"] = _mod
-app = _mod
+_sys.modules["src.setup.app"] = app
 
 
 def test_parse_cli_args_and_sync_console_helpers(monkeypatch) -> None:
@@ -110,12 +106,12 @@ def test_venv_bin_and_executables(monkeypatch, tmp_path: Path) -> None:
     # `sys` object on the app module and restoring the original afterwards.
     orig_sys = getattr(app, "sys", None)
     try:
-        app.sys = SimpleNamespace(platform="linux")
+        monkeypatch.setitem(_sys.modules, "src.setup.app", SimpleNamespace(sys=SimpleNamespace(platform="linux")))
         assert app.get_venv_bin_dir(v).name == "bin"
         assert app.get_venv_python_executable(v).name == "python"
         assert app.get_venv_pip_executable(v).name == "pip"
 
-        app.sys = SimpleNamespace(platform="win32")
+        monkeypatch.setitem(_sys.modules, "src.setup.app", SimpleNamespace(sys=SimpleNamespace(platform="win32")))
         assert app.get_venv_bin_dir(v).name == "Scripts"
         assert app.get_venv_python_executable(v).name == "python.exe"
         assert app.get_venv_pip_executable(v).name == "pip.exe"
@@ -152,18 +148,18 @@ def test_prompt_virtual_environment_choice_and_set_language(monkeypatch) -> None
     The functions are small and deterministic when provided with
     controlled responses from ``ask_text``.
     """
-    # Virtual env choice -> '1' returns True
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "1", raising=False)
+    # Virtual env choice -> '1' returns True (patch concrete prompt)
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "1")
     assert app.prompt_virtual_environment_choice() is True
     # Virtual env choice -> '2' returns False and ui_info called
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "2", raising=False)
-    monkeypatch.setattr(app, "ui_info", lambda m: None, raising=False)
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "2")
+    monkeypatch.setattr("src.setup.app_ui.ui_info", lambda m: None)
     assert app.prompt_virtual_environment_choice() is False
 
-    # set_language: choose '1' and '2'
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "1", raising=False)
+    # set_language: choose '1' and '2' (patch concrete prompt implementation)
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "1")
     app.set_language()
     assert i18n.LANG == "en"
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "2", raising=False)
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "2")
     app.set_language()
     assert i18n.LANG == "sv"

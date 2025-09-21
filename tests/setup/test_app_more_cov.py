@@ -27,21 +27,12 @@ _app_ns = types.SimpleNamespace(
     run_ai_connectivity_check_silent=_app_runner.run_ai_connectivity_check_silent,
 )
 
-from types import ModuleType
-import sys as _sys
-_mod = ModuleType("src.setup.app")
-for _k, _v in vars(_app_ns).items():
-    setattr(_mod, _k, _v)
-_sys.modules["src.setup.app"] = _mod
-app = _mod
+app = _app_ns
+_sys.modules["src.setup.app"] = app
 
 
 def test_entry_point_minimal(monkeypatch):
-    monkeypatch.setattr(
-        app,
-        "parse_cli_args",
-        lambda: SimpleNamespace(lang="en", no_venv=True, ui="rich"),
-    )
+    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=True, ui="rich"))
     monkeypatch.setattr(app, "set_language", lambda: None)
     monkeypatch.setattr(app, "ensure_azure_openai_env", lambda: None)
     called = {}
@@ -51,11 +42,7 @@ def test_entry_point_minimal(monkeypatch):
 
 
 def test_entry_point_with_venv(monkeypatch):
-    monkeypatch.setattr(
-        app,
-        "parse_cli_args",
-        lambda: SimpleNamespace(lang="en", no_venv=False, ui="rich"),
-    )
+    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=False, ui="rich"))
     monkeypatch.setattr(app, "set_language", lambda: None)
     monkeypatch.setattr(app, "is_venv_active", lambda: False)
     monkeypatch.setattr(app, "prompt_virtual_environment_choice", lambda: True)
