@@ -124,10 +124,10 @@ def main_menu() -> None:
     Exposed so tests can monkeypatch the entry point behaviour.
     """
     try:
-        app_mod = sys.modules.get("src.setup.app")
-        menu = getattr(app_mod, "menu", None)
-        if menu is None:
-            import src.setup.ui.menu as menu
+        # Prefer the concrete UI package. Tests should patch
+        # `src.setup.ui.menu.main_menu` when they need to alter behaviour.
+        import src.setup.ui.menu as menu
+
         try:
             menu.main_menu()
         except Exception:
@@ -170,9 +170,9 @@ def parse_env_file(env_path: Path) -> dict[str, str]:
 
 def prompt_and_update_env(missing_keys: list[str], env_path: Path, existing: dict[str, str], ui: Any = None) -> None:
     from src.setup.azure_env import prompt_and_update_env as _p
-
-    if ui is None:
-        ui = sys.modules.get("src.setup.app")
+    # Forward the explicit `ui` when provided; otherwise let the azure
+    # helper discover a suitable UI implementation on its own. Avoid
+    # reaching into a legacy shim in ``sys.modules``.
     return _p(missing_keys, env_path, existing, ui=ui)
 
 
@@ -229,34 +229,30 @@ def run_ai_connectivity_check_interactive() -> bool:
     # Prefer a possibly patched implementation on the central shim module
     # but fall back to the concrete UI helpers so tests can patch the
     # real modules instead of relying on a global shim object.
-    app_mod = sys.modules.get("src.setup.app")
-    _r = getattr(app_mod, "run_ai_connectivity_check_silent", run_ai_connectivity_check_silent)
-    ok, detail = _r()
+    # Call the silent connectivity check implementation directly. Tests
+    # can patch `run_ai_connectivity_check_silent` on this module when
+    # necessary.
+    ok, detail = run_ai_connectivity_check_silent()
 
-    # Attempt to import concrete UI helpers as a safe fallback when the
-    # legacy shim is not present. Tests should patch the concrete
-    # ``src.setup.app_ui`` functions when appropriate.
+    # Use the concrete UI helpers; tests should patch these where
+    # necessary. This avoids consulting a legacy shim in ``sys.modules``.
     try:
         from src.setup.app_ui import ui_success as _ui_success_fallback, ui_error as _ui_error_fallback
     except Exception:
         _ui_success_fallback = None
         _ui_error_fallback = None
 
-    # Refresh potential shim reference and choose the correct UI callables.
-    app_mod = sys.modules.get("src.setup.app")
     if ok:
-        ui_success = getattr(app_mod, "ui_success", _ui_success_fallback)
-        if ui_success is not None:
+        if _ui_success_fallback is not None:
             try:
-                ui_success(i18n.translate("ai_check_ok"))
+                _ui_success_fallback(i18n.translate("ai_check_ok"))
             except Exception:
                 pass
         return True
-    ui_error = getattr(app_mod, "ui_error", _ui_error_fallback)
-    if ui_error is not None:
+    if _ui_error_fallback is not None:
         try:
-            ui_error(i18n.translate("ai_check_fail"))
-            ui_error(str(detail))
+            _ui_error_fallback(i18n.translate("ai_check_fail"))
+            _ui_error_fallback(str(detail))
         except Exception:
             pass
     return False

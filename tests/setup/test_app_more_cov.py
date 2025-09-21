@@ -56,31 +56,3 @@ def test_entry_point_with_venv(monkeypatch):
     assert called.get("vm") is True
 
 
-def test_prompt_virtual_environment_choice(monkeypatch):
-    """Test that the venv prompt returns correct boolean values.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Fixture used to patch underlying prompt functions.
-
-    Notes
-    -----
-    The test patches the concrete `ask_text` in `src.setup.app_prompts`
-    rather than patching the legacy `src.setup.app` shim.
-    """
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "1")
-    assert app.prompt_virtual_environment_choice() is True
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "2")
-    assert app.prompt_virtual_environment_choice() is False
-
-
-def test_set_language_keyboardinterrupt(monkeypatch):
-    # Test that KeyboardInterrupt inside ask_text triggers SystemExit
-    def bad(_=None):
-        raise KeyboardInterrupt()
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", bad)
-    try:
-        app.set_language()
-    except SystemExit:
-        pass

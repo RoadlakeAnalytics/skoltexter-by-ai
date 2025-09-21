@@ -15,15 +15,10 @@ import types
 
 import importlib
 
-# Import the central module object so tests that reload it behave
-# deterministically. Ensure commonly used attributes are mapped to the
-# refactored implementations to reduce reliance on the old monolith.
-sp = importlib.import_module("src.setup.app")
+# Avoid reliance on the legacy shim `src.setup.app` in tests. Import the
+# concrete modules directly so tests patch focused implementation points
+# (e.g. `src.setup.venv`) rather than a mutable global shim object.
 import src.setup.app_venv as app_venv
-
-# Delegate manage_virtual_environment and subprocess to the refactored helpers
-setattr(sp, "manage_virtual_environment", app_venv.manage_virtual_environment)
-setattr(sp, "subprocess", _sub)
 import src.setup.venv_manager as vm
 from src import config as cfg
 from src.setup import venv as venvmod
@@ -80,6 +75,94 @@ def test_manage_virtual_environment_remove_error(monkeypatch, tmp_path: Path):
     vm.manage_virtual_environment(
         cfg.PROJECT_ROOT, vdir, cfg.REQUIREMENTS_FILE, cfg.REQUIREMENTS_LOCK_FILE, ui
     )
+
+
+class _SafetyUI:
+    """Lightweight UI adapter used for testing manager safety branches.
+
+    The adapter provides the minimal attributes exercised by
+    :func:`src.setup.venv_manager.manage_virtual_environment`.
+
+    Parameters
+    ----------
+    responses : list[str]
+        Sequence of responses that the adapter will yield for prompts.
+    """
+
+    def __init__(self, responses):
+        self._ = lambda k: k
+        self._seq = iter(responses)
+        self.ui_has_rich = lambda: False
+        self.logger = types.SimpleNamespace(error=lambda *a, **k: None, warning=lambda *a, **k: None)
+        # Use the real subprocess module but allow tests to patch check_call
+        self.subprocess = _sub
+        self.venv = types.SimpleNamespace(create=lambda *a, **k: None)
+        self.os = __import__("os")
+        self.shutil = __import__("shutil")
+        # ui helpers used by the manager
+        self.ui_info = lambda *a, **k: None
+        self.rprint = lambda *a, **k: None
+        self.sys = __import__("sys")
+
+    def ask_text(self, prompt, default="y"):
+        """Return the next configured response for a prompt.
+
+        Parameters
+        ----------
+        prompt : str
+            Prompt text (ignored by this test adapter).
+        default : str, optional
+            Default value to return if the response iterator is exhausted.
+
+        Returns
+        -------
+        str
+            Next response from the configured sequence or the default.
+        """
+        try:
+            return next(self._seq)
+        except StopIteration:
+            return default
+
+
+def test_do_not_remove_project_venv_under_pytest(monkeypatch, tmp_path: Path):
+    """Do not remove the project's VENV_DIR when running under pytest.
+
+    Parameters
+    ----------
+    monkeypatch : _pytest.monkeypatch.MonkeyPatch
+        Fixture used to set environment and patch functions.
+    tmp_path : pathlib.Path
+        Temporary filesystem path used to host a fake project venv.
+
+    Returns
+    -------
+    None
+        The test asserts that ``safe_rmtree`` is not invoked for the
+        canonical project venv when ``PYTEST_CURRENT_TEST`` is present.
+    """
+    # Arrange: point the concrete config value at a temporary venv inside tmp_path
+    proj_venv = tmp_path / "venv_project"
+    proj_venv.mkdir()
+    monkeypatch.setattr(cfg, "VENV_DIR", proj_venv, raising=True)
+
+    # Ensure code believes we're running under pytest and answer prompts 'y','y'
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
+
+    ui = _SafetyUI(["y", "y"])  # proceed and confirm recreate
+
+    called = {}
+
+    # Patch the destructive helper to record invocations if any
+    monkeypatch.setattr("src.setup.fs_utils.safe_rmtree", lambda p: called.setdefault("invoked", True), raising=True)
+    # Prevent actual subprocess calls (pip install etc.) during the test
+    monkeypatch.setattr(_sub, "check_call", lambda *a, **k: None, raising=True)
+
+    # Act
+    vm.manage_virtual_environment(cfg.PROJECT_ROOT, cfg.VENV_DIR, cfg.REQUIREMENTS_FILE, cfg.REQUIREMENTS_LOCK_FILE, ui)
+
+    # Assert: safe_rmtree must not have been called for the canonical project venv
+    assert called.get("invoked", False) is False
 
 
 def test_manage_virtual_environment_create_error(monkeypatch, tmp_path: Path):
@@ -392,10 +475,28 @@ def test_manage_virtual_environment_recreate_existing(monkeypatch, tmp_path: Pat
 
 
 def test_manage_virtual_environment_skip(monkeypatch):
-    """Skip venv management when user declines."""
-    monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": "n")
-    monkeypatch.setattr(sp, "is_venv_active", lambda: False)
-    sp.manage_virtual_environment()
+    r"""Skip venv management when user declines.
+
+    The test patches concrete prompt and environment detection helpers and
+    invokes the concrete venv manager directly to ensure the manager exits
+    early when the user answers 'n' to the initial prompt.
+
+    Parameters
+    ----------
+    monkeypatch : _pytest.monkeypatch.MonkeyPatch
+        Fixture used to patch functions during the test.
+
+    Returns
+    -------
+    None
+        The test asserts the manager returns without raising.
+    """
+    # Patch the concrete prompt helper and concrete venv helper directly
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt, default="y": "n", raising=True)
+    monkeypatch.setattr("src.setup.venv.is_venv_active", lambda: False, raising=True)
+    # Call the concrete manager with an explicit UI adapter to avoid relying
+    # on the legacy `src.setup.app` shim or global module state.
+    vm.manage_virtual_environment(cfg.PROJECT_ROOT, cfg.VENV_DIR, cfg.REQUIREMENTS_FILE, cfg.REQUIREMENTS_LOCK_FILE, _UI)
 
 
 def test_manage_virtual_environment_install_fallback_when_no_lock(
@@ -420,20 +521,27 @@ def test_manage_virtual_environment_install_fallback_when_no_lock(
     None
         The test asserts behaviour by observing mocked subprocess calls.
     """
-    import importlib
-    sp_local = importlib.import_module("src.setup.app")
-
     # Prepare venv dir and paths (patch concrete config used by production code)
-    monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv_fb", raising=True)
-    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
-    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
-    # Ensure lock file path is non-existent
-    monkeypatch.setattr(sp_local, "REQUIREMENTS_LOCK_FILE", tmp_path / "no.lock")
+    vdir = tmp_path / "venv_fb"
+    monkeypatch.setattr(cfg, "VENV_DIR", vdir, raising=True)
+    monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
+    ui = _UI
+    monkeypatch.setattr(ui, "ask_text", staticmethod(lambda prompt, default="y": "y"), raising=True)
+    # Ensure lock file path is non-existent for the lockfile argument
+    lockfile = tmp_path / "no.lock"
 
     # Create fake python/pip inside venv when created
     def create_with_python(path, with_pip=True):
-        """Test Create with python."""
-        bindir = sp_local.get_venv_bin_dir(sp_local.VENV_DIR)
+        """Create a fake python/pip inside the venv bin directory.
+
+        Parameters
+        ----------
+        path : pathlib.Path
+            The path where the venv should be created.
+        with_pip : bool, optional
+            Whether pip should be created alongside python (default True).
+        """
+        bindir = vdir / ("Scripts" if sys.platform == "win32" else "bin")
         bindir.mkdir(parents=True, exist_ok=True)
         (bindir / ("python.exe" if sys.platform == "win32" else "python")).write_text(
             "", encoding="utf-8"
@@ -442,19 +550,72 @@ def test_manage_virtual_environment_install_fallback_when_no_lock(
             "", encoding="utf-8"
         )
 
-    monkeypatch.setattr(sp_local.venv, "create", create_with_python)
+    monkeypatch.setattr(ui.venv, "create", create_with_python, raising=True)
 
     calls = []
 
     def record(args):
-        """Test Record."""
+        """Record subprocess invocations for assertion."""
         calls.append(tuple(map(str, args)))
 
-    monkeypatch.setattr(sp_local.subprocess, "check_call", record)
-    sp_local.manage_virtual_environment()
+    monkeypatch.setattr(ui.subprocess, "check_call", record, raising=True)
+    vm.manage_virtual_environment(cfg.PROJECT_ROOT, vdir, cfg.REQUIREMENTS_FILE, lockfile, ui)
+    # Ensure that the fallback path installing from requirements.txt was attempted
+    assert any("-r" in c and str(cfg.REQUIREMENTS_FILE) in c for c in calls)
 
 
 # --- Consolidated tests moved from other files for venv_manager ---
+
+
+def test_manage_virtual_environment_delegates(monkeypatch) -> None:
+    """When a venv manager is present, the app_venv wrapper calls it.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to install a fake venv_manager module.
+
+    Returns
+    -------
+    None
+    """
+    called = {}
+
+    fake_vm = type(sys)("src.setup.venv_manager")
+
+    def _manage(*a, **k):
+        called["ok"] = True
+
+    fake_vm.manage_virtual_environment = _manage
+    monkeypatch.setitem(sys.modules, "src.setup.venv_manager", fake_vm)
+    if "src.setup" in sys.modules:
+        monkeypatch.setattr(sys.modules["src.setup"], "venv_manager", fake_vm, raising=False)
+
+    # Call the wrapper which should import and delegate to the fake manager
+    app_venv.manage_virtual_environment()
+    assert called.get("ok", False) is True
+
+
+def test_manage_virtual_environment_no_manager_is_noop(monkeypatch) -> None:
+    """If no venv_manager is importable the wrapper does nothing.
+
+    The test ensures that when the underlying ``src.setup.venv_manager``
+    module cannot be imported the wrapper ``app_venv.manage_virtual_environment``
+    returns without raising an exception.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to remove or alter entries in ``sys.modules``.
+
+    Returns
+    -------
+    None
+        The test asserts no exception is raised.
+    """
+    # Ensure module is not present
+    monkeypatch.delitem(sys.modules, "src.setup.venv_manager", raising=False)
+    app_venv.manage_virtual_environment()  # should not raise
 
 
 def test_manage_virtual_environment_create_and_install(monkeypatch, tmp_path: Path):
@@ -751,34 +912,32 @@ def test_manage_virtual_environment_venv_exists_no_python_fallback(
     None
         The test asserts expected branching behaviour without side effects.
     """
-    import importlib
-    sp_local = importlib.import_module("src.setup.app")
-
     vdir = tmp_path / "vdir"
     vdir.mkdir()
     monkeypatch.setattr(cfg, "VENV_DIR", vdir, raising=True)
-    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
     seq = iter(["y", "y"])  # yes to manage; yes to recreate
-    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": next(seq))
+    ui = _UI
+    monkeypatch.setattr(ui, "ask_text", staticmethod(lambda prompt, default="y": next(seq)), raising=True)
 
     def fake_create(path, with_pip=True):
-        """Test Fake create."""
-        # Create venv directory structure without python executable
+        """Create venv directory structure without python executable."""
         (vdir / ("Scripts" if sys.platform == "win32" else "bin")).mkdir(
             parents=True, exist_ok=True
         )
 
-    monkeypatch.setattr(sp_local.venv, "create", fake_create)
+    monkeypatch.setattr(ui.venv, "create", fake_create, raising=True)
     # Ensure get_venv_python_executable returns a non-existent path
     monkeypatch.setattr(
-        sp_local,
+        venvmod,
         "get_venv_python_executable",
         lambda p: vdir
         / ("Scripts" if sys.platform == "win32" else "bin")
         / ("python.exe" if sys.platform == "win32" else "python"),
+        raising=True,
     )
-    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
-    sp_local.manage_virtual_environment()
+    monkeypatch.setattr(ui.subprocess, "check_call", lambda *a, **k: None, raising=True)
+    vm.manage_virtual_environment(cfg.PROJECT_ROOT, vdir, cfg.REQUIREMENTS_FILE, cfg.REQUIREMENTS_LOCK_FILE, ui)
 
 
 def test_manage_virtual_environment_restart_with_invalid_lang(

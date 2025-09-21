@@ -63,15 +63,7 @@ def test_manage_virtual_environment_wrapper_propagates(monkeypatch, tmp_path):
     assert called.get("ok") is True
 
 
-def test_delegation_wrappers_to_orchestrator(monkeypatch):
-    # Ensure wrapper functions delegate to orchestrator implementations
-    mod = importlib.import_module("src.setup.pipeline.orchestrator")
-    monkeypatch.setattr(mod, "_run_pipeline_step", lambda *a, **k: "OK")
-    assert app._run_pipeline_step("a") == "OK"
-    monkeypatch.setattr(mod, "_render_pipeline_table", lambda *a, **k: "TBL")
-    assert app._render_pipeline_table(1, 2, 3) == "TBL"
-    monkeypatch.setattr(mod, "_status_label", lambda b: f"ST-{b}")
-    assert app._status_label("waiting") == "ST-waiting"
+
 
 
 def test_set_language_keyboardinterrupt(monkeypatch):

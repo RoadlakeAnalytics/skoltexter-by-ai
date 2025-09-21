@@ -239,6 +239,44 @@ def test_entry_point_invokes_main_menu_added(monkeypatch):
     assert called.get("mm") is True
 
 
+def test_parse_and_prompt_env_delegation_migrated(monkeypatch, tmp_path: Path) -> None:
+    """parse_env_file and prompt_and_update_env delegate into azure_env correctly.
+
+    This test ensures that :func:`src.setup.app_runner.parse_env_file`
+    delegates to the concrete :mod:`src.setup.azure_env` implementation and
+    that :func:`src.setup.app_runner.prompt_and_update_env` forwards the
+    optional ``ui`` parameter as ``None`` when it is omitted.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture for patching module state.
+    tmp_path : pathlib.Path
+        Temporary path used as a fake env file.
+
+    Returns
+    -------
+    None
+    """
+    fake_map = {"AZURE_API_KEY": "k"}
+
+    # Patch the concrete azure_env parser used by the runner
+    monkeypatch.setattr(
+        "src.setup.azure_env.parse_env_file", lambda p: fake_map, raising=False
+    )
+    res = ar.parse_env_file(tmp_path / ".env")
+    assert res == fake_map
+
+    # Patch the concrete prompt helper and assert the runner forwards ui as None
+    def fake_prompt(missing, path, existing, ui=None):
+        assert ui is None
+
+    monkeypatch.setattr(
+        "src.setup.azure_env.prompt_and_update_env", fake_prompt, raising=False
+    )
+    ar.prompt_and_update_env(["A"], tmp_path / ".env", {})
+
+
 def test_entry_point_triggers_manage_virtualenv_when_needed(monkeypatch):
     """`entry_point` should call `manage_virtual_environment` when appropriate.
 

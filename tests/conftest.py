@@ -80,7 +80,7 @@ except Exception:
 try:
     import src.config as _cfg
 
-    _cfg.INTERACTIVE_MAX_INVALID_ATTEMPTS = 999
+    _cfg.INTERACTIVE_MAX_INVALID_ATTEMPTS = 15
 except Exception:
     # If config cannot be imported for any reason we do nothing; tests
     # will set their own values as needed.

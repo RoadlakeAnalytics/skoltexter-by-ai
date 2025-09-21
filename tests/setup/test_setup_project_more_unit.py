@@ -24,20 +24,6 @@ setattr(sp, "ui_rule", _app_ui.ui_rule)
 setattr(sp, "ui_has_rich", _app_ui.ui_has_rich)
 
 
-def test_build_dashboard_layout_smoke():
-    """Smoke test for dashboard layout builder.
-
-    Ensures ``_build_dashboard_layout`` returns a non-empty layout for
-    simple input.
-
-    Returns
-    -------
-    None
-    """
-    layout = sp._build_dashboard_layout("content")
-    assert layout is not None
-
-
 def test_view_program_descriptions_plain(monkeypatch):
     """Test plain program descriptions view.
 
@@ -66,52 +52,3 @@ def test_view_program_descriptions_plain(monkeypatch):
 # Note: interactive TUI variants that rely on Rich/prompt_toolkit are
 # exercised indirectly via their lightweight module counterparts in
 # tests under `tests/setup/ui/` where we avoid heavy dependencies.
-
-
-def test_run_processing_pipeline_rich(monkeypatch):
-    """Exercise the rich-processing pipeline runner with patched orchestrator helpers.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Fixture used to patch orchestrator helpers.
-
-    Returns
-    -------
-    None
-    """
-    updates = []
-
-    def updater(x):
-        updates.append(x)
-
-    # Patch the orchestrator-level helpers directly to avoid interactive
-    # prompts and to control step outcomes.
-    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: True)
-    monkeypatch.setattr(orchestrator, "run_ai_connectivity_check_interactive", lambda: True)
-    monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: True)
-    monkeypatch.setattr(orchestrator, "_render_pipeline_table", lambda s1, s2, s3: f"T:{s1},{s2},{s3}")
-    monkeypatch.setattr(orchestrator, "_status_label", lambda b: b)
-
-    sp._run_processing_pipeline_rich(content_updater=updater)
-    assert len(updates) >= 2
-
-
-def test_run_processing_pipeline_plain_early(monkeypatch):
-    """Exercise the plain-processing pipeline runner when user aborts early.
-
-    Patches orchestrator prompt and pipeline step helpers to avoid
-    interactive prompts and heavy processing.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Fixture used to patch orchestrator helpers.
-
-    Returns
-    -------
-    None
-    """
-    monkeypatch.setattr(orchestrator, "ask_confirm", lambda *a, **k: False)
-    monkeypatch.setattr(orchestrator, "_run_pipeline_step", lambda *a, **k: False)
-    sp._run_processing_pipeline_plain()

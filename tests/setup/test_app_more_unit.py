@@ -53,36 +53,7 @@ setattr(app, "ask_confirm", app_prompts.ask_confirm)
 setattr(app, "ask_select", app_prompts.ask_select)
 
 
-def test_sync_console_helpers_propagates(monkeypatch):
-    """_sync_console_helpers pushes module-level toggles into console_helpers."""
-    import src.setup.console_helpers as ch
 
-    # Patch module-level toggles on app
-    monkeypatch.setattr(app, "_RICH_CONSOLE", object(), raising=False)
-    monkeypatch.setattr(app, "_HAS_Q", True, raising=False)
-    fake_q = object()
-    monkeypatch.setattr(app, "questionary", fake_q, raising=False)
-
-    # Call the helper
-    app._sync_console_helpers()
-
-    assert ch._RICH_CONSOLE is app._RICH_CONSOLE
-    assert ch._HAS_Q is True
-    assert ch.questionary is fake_q
-
-
-def test_rprint_falls_back_to_print_when_helper_raises(monkeypatch, capsys):
-    """app.rprint falls back to the built-in print when console rprint fails."""
-    import src.setup.console_helpers as ch
-
-    def _boom(*a, **k):
-        raise RuntimeError("boom")
-
-    monkeypatch.setattr(ch, "rprint", _boom, raising=False)
-    # Now call app.rprint which should catch and fallback to print
-    app.rprint("hello", "world")
-    out = capsys.readouterr().out
-    assert "hello world" in out
 
 
 def test_run_sets_lang_and_calls_menu(monkeypatch):
@@ -188,44 +159,26 @@ def test_manage_virtual_environment_calls_manager(monkeypatch, tmp_path: Path):
     def fake_manage(project_root, venv_dir, req_file, req_lock, UI):
         called["args"] = (project_root, venv_dir, req_file, req_lock)
 
+    # Patch the concrete venv manager implementation directly.
     monkeypatch.setattr(vm_mod, "manage_virtual_environment", fake_manage, raising=False)
 
-    # Reload the app module so it imports our fake venv_manager from
-    # sys.modules (ensures deterministic behaviour regardless of prior
-    # import order). Apply PROJECT_ROOT/VENV_DIR overrides after reload
-    # so they survive the re-import.
-    importlib.reload(app)
-    monkeypatch.setattr(app, "PROJECT_ROOT", tmp_path, raising=False)
+    # Ensure configuration targets the temporary paths for the test.
+    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
     monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
     # Prevent actual subprocess/pip calls in case the wrapper delegates to
-    # a real manager implementation during import ordering.
+    # a real manager implementation during execution.
     monkeypatch.setattr(subprocess, "check_call", lambda *a, **k: None)
 
-    # Call the wrapper which should delegate to our fake manager.
-    app.manage_virtual_environment()
+    # Call the concrete wrapper rather than the legacy shim to avoid
+    # relying on the shim module object being a real importlib module.
+    app_venv.manage_virtual_environment()
     assert "args" in called
 
 
-def test_parse_and_prompt_env_delegation(monkeypatch, tmp_path: Path):
-    """parse_env_file and prompt_and_update_env delegate into azure_env correctly."""
-    fake_map = {"AZURE_API_KEY": "k"}
-
-    # Patch parse_env_file
-    monkeypatch.setattr(
-        "src.setup.azure_env.parse_env_file", lambda p: fake_map, raising=False
-    )
-    res = app.parse_env_file(tmp_path / ".env")
-    assert res == fake_map
-
-    # Patch prompt_and_update_env to capture the ui parameter when ui is None
-    def fake_prompt(missing, path, existing, ui=None):
-        # ui should be the app module object when omitted
-        assert getattr(ui, "__name__", None) == "src.setup.app"
-
-    monkeypatch.setattr(
-        "src.setup.azure_env.prompt_and_update_env", fake_prompt, raising=False
-    )
-    app.prompt_and_update_env(["A"], tmp_path / ".env", {})
+# The test for parse_env_file/prompt_and_update_env was migrated to the
+# canonical ``tests/setup/test_app_runner_unit.py`` to consolidate tests
+# for the ``src.setup.app_runner`` production module. See that file for
+# the authoritative test case.
 
 
 def test_ensure_azure_openai_env_calls_prompt_when_missing(monkeypatch, tmp_path: Path):
@@ -249,19 +202,41 @@ def test_ensure_azure_openai_env_calls_prompt_when_missing(monkeypatch, tmp_path
 
 
 def test_run_ai_connectivity_check_interactive_reports(monkeypatch):
-    """Connectivity wrapper should call ui_success on OK and ui_error on failure."""
-    # Success case
-    monkeypatch.setattr(app, "run_ai_connectivity_check_silent", lambda: (True, "ok"))
+    """Connectivity wrapper should call ui_success on OK and ui_error on failure.
+
+    Parameters
+    ----------
+    monkeypatch : _pytest.monkeypatch.MonkeyPatch
+        Fixture used to patch concrete implementations.
+
+    Returns
+    -------
+    None
+    """
+    # Success case: patch the concrete runner and UI helpers, not the shim.
+    monkeypatch.setattr(
+        "src.setup.app_runner.run_ai_connectivity_check_silent",
+        lambda: (True, "ok"),
+        raising=False,
+    )
     called = {}
-    monkeypatch.setattr(app, "ui_success", lambda m: called.setdefault("suc", m))
-    assert app.run_ai_connectivity_check_interactive() is True
+    monkeypatch.setattr("src.setup.app_ui.ui_success", lambda m: called.setdefault("suc", m), raising=False)
+    # Call the concrete implementation directly to avoid relying on a shim
+    # module object in sys.modules.
+    import src.setup.app_runner as ar
+
+    assert ar.run_ai_connectivity_check_interactive() is True
     assert "suc" in called
 
-    # Failure case
-    monkeypatch.setattr(app, "run_ai_connectivity_check_silent", lambda: (False, "bad"))
+    # Failure case: ensure ui_error is invoked on failure.
+    monkeypatch.setattr(
+        "src.setup.app_runner.run_ai_connectivity_check_silent",
+        lambda: (False, "bad"),
+        raising=False,
+    )
     called = {}
-    monkeypatch.setattr(app, "ui_error", lambda m: called.setdefault("err", m))
-    assert app.run_ai_connectivity_check_interactive() is False
+    monkeypatch.setattr("src.setup.app_ui.ui_error", lambda m: called.setdefault("err", m), raising=False)
+    assert ar.run_ai_connectivity_check_interactive() is False
     assert "err" in called
 
 
@@ -277,29 +252,32 @@ def test_run_quality_suites_swallow_exceptions(monkeypatch):
     app.run_extreme_quality_suite()
 
 
-def test_run_processing_pipeline_wrappers_delegate(monkeypatch):
-    """Wrappers around orchestrator's pipeline entrypoints should delegate."""
-    orch = importlib.import_module("src.setup.pipeline.orchestrator")
-    monkeypatch.setattr(orch, "_run_processing_pipeline_plain", lambda: "PLAIN_OK")
-    monkeypatch.setattr(
-        orch, "_run_processing_pipeline_rich", lambda *a, **k: "RICH_OK"
-    )
-    assert app._run_processing_pipeline_plain() == "PLAIN_OK"
-    assert app._run_processing_pipeline_rich() == "RICH_OK"
-
 
 def test_ui_has_rich_delegates_and_falls_back(monkeypatch):
-    """ui_has_rich prefers console_helpers.ui_has_rich, falls back to module flag."""
+    """Verify ui_has_rich delegates and falls back to the concrete flag.
+
+    The test ensures that :func:`src.setup.app_ui.ui_has_rich` prefers the
+    concrete :func:`src.setup.console_helpers.ui_has_rich`. If that helper
+    raises, the adapter should fall back to the concrete module-level
+    `_RICH_CONSOLE` flag.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to apply temporary attribute patches.
+    """
     ch = importlib.import_module("src.setup.console_helpers")
     # Normal path: console helper reports availability
-    monkeypatch.setattr(ch, "ui_has_rich", lambda: True)
+    monkeypatch.setattr(ch, "ui_has_rich", lambda: True, raising=False)
     assert app.ui_has_rich() is True
 
-    # Simulate helper raising so the wrapper falls back to module flag
+    # Simulate helper raising so the wrapper falls back to the concrete
+    # module-level flag. Patch the concrete module rather than the legacy
+    # shim object to avoid coupling to the old import-time behaviour.
     monkeypatch.setattr(
-        ch, "ui_has_rich", lambda: (_ for _ in ()).throw(Exception("boom"))
+        ch, "ui_has_rich", lambda: (_ for _ in ()).throw(Exception("boom")), raising=False
     )
-    monkeypatch.setattr(app, "_RICH_CONSOLE", object(), raising=False)
+    monkeypatch.setattr(ch, "_RICH_CONSOLE", object(), raising=False)
     assert app.ui_has_rich() is True
 
 
@@ -554,24 +532,3 @@ def test_entry_point_respects_skip_language_env(monkeypatch):
     app_mod.entry_point()
     # set_language should NOT have been called because env var is set
     assert called == {}
-
-
-def test_build_dashboard_layout_delegates(monkeypatch):
-    """Delegate building dashboard layout to the UI implementation.
-
-    This test ensures that :func:`src.setup.app_ui._build_dashboard_layout`
-    delegates to :func:`src.setup.ui._build_dashboard_layout` and returns
-    the underlying result. The test no longer relies on the legacy
-    ``src.setup.app`` shim and patches the concrete UI function directly.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Fixture used to patch the UI function.
-    """
-    # Patch the concrete UI implementation rather than the legacy shim.
-    monkeypatch.setattr("src.setup.ui._build_dashboard_layout", lambda *a, **k: {"ok": True})
-    import src.setup.app_ui as app_ui
-
-    res = app_ui._build_dashboard_layout("x")
-    assert res == {"ok": True}

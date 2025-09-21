@@ -110,13 +110,6 @@ def _view_logs_tui(
         return
     # Enforce a per-view attempts limit to avoid infinite loops in TUI
     try:
-        import sys as _sys
-
-        _app_mod = _sys.modules.get("src.setup.app")
-    except Exception:
-        _app_mod = None
-
-    try:
         from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
@@ -175,13 +168,6 @@ def view_logs() -> None:
         rprint(translate("no_logs"))
         return
     # Limit invalid attempts to avoid infinite reprompts
-    try:
-        import sys as _sys
-
-        _app_mod = _sys.modules.get("src.setup.app")
-    except Exception:
-        _app_mod = None
-
     try:
         from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
     except Exception:

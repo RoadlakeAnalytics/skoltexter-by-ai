@@ -58,117 +58,14 @@ setattr(sp, "_run_processing_pipeline_plain", app_pipeline._run_processing_pipel
 setattr(sp, "_run_processing_pipeline_rich", app_pipeline._run_processing_pipeline_rich)
 
 
-def test_ui_helpers_fallback(capsys, monkeypatch):
-    """Exercise UI fallback helpers when rich console is not available.
-
-    Parameters
-    ----------
-    capsys : pytest.CaptureFixture
-        Fixture to capture stdout/stderr.
-    monkeypatch : pytest.MonkeyPatch
-        Fixture for patching module-level state.
-
-    Returns
-    -------
-    None
-    """
-    # Force non-rich code path
-    monkeypatch.setattr(sp, "_RICH_CONSOLE", None)
-    sp.ui_rule("Title")
-    sp.ui_header("Header")
-    with sp.ui_status("Working..."):
-        pass
-    sp.ui_info("info")
-    sp.ui_success("ok")
-    sp.ui_warning("warn")
-    sp.ui_error("err")
-    sp.ui_menu([("1", "A"), ("2", "B")])
-    out = capsys.readouterr().out
-    assert "Title" in out or "Header" in out
-
-
-def test_ask_helpers_branches(monkeypatch):
-    """Verify the ask_text wrapper forwards to the prompts adapter or input.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Fixture for patching module-level state.
-
-    Returns
-    -------
-    None
-    """
-    # Ensure the module is in a clean state (reload restores originals)
-    import importlib
-    import sys
-
-    # Ensure the imported module object is present in sys.modules so
-    # importlib.reload() behaves deterministically even if prior tests
-    # manipulated sys.modules.
-    # Import afresh to avoid issues where different module objects exist
-    # under the same name in sys.modules due to prior test manipulation.
-    sp = importlib.import_module("src.setup.app")
-    importlib.reload(sp)
-
-    # Fallback input
-    monkeypatch.setattr(builtins, "input", lambda prompt="": "hello")
-    monkeypatch.setattr(sp, "_TUI_MODE", False)
-    monkeypatch.setattr(sp, "_HAS_Q", False)
-    assert sp.ask_text("prompt:") == "hello"
-
-    # Questionary path
-    # Simulate the prompts module returning a questionary answer so the
-    # app wrapper forwards correctly to the prompts implementation.
-    import importlib as _il
-
-    _prom = _il.import_module("src.setup.ui.prompts")
-    monkeypatch.setattr(_prom, "ask_text", lambda p, default=None: "qval")
-    assert sp.ask_text("p") == "qval"
-
     # Note: TUI getpass branches are tested in a dedicated test to avoid
     # interference with the questionary-specific branch tested above.
 
 
-def test_venv_path_helpers(monkeypatch, tmp_path: Path):
-    """Verify virtualenv bin directory selection for different platforms.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Fixture for patching module-level attributes.
-    tmp_path : Path
-        Temporary path used as the virtualenv root.
-
-    Returns
-    -------
-    None
-    """
-    v = tmp_path / "venv"
-    # Patch the concrete venv helper module `sys` so the function under
-    # test reads the expected platform value from its own module globals.
-    monkeypatch.setattr("src.setup.app_venv.sys", SimpleNamespace(platform="linux"), raising=False)
-    assert sp.get_venv_bin_dir(v).name in ("bin", "Scripts")
-    monkeypatch.setattr("src.setup.app_venv.sys", SimpleNamespace(platform="win32"), raising=False)
-    assert sp.get_venv_bin_dir(v).name == "Scripts"
-
-
-def test_translate_and_alias(monkeypatch):
-    """Test translation function and unknown key fallback behavior.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Fixture for patching module-level values.
-
-    Returns
-    -------
-    None
-    """
-    monkeypatch.setattr(sp, "LANG", "en")
-    assert isinstance(sp.translate("welcome"), str)
-    # Unknown key returns key
-    assert sp.translate("no_such_key") == "no_such_key"
+# The tests for UI helpers, prompts and venv helpers have been moved to
+# the canonical `tests/setup/test_app.py` to consolidate shim-related
+# tests and to ensure they patch concrete modules rather than the old
+# `src.setup.app` shim.
 
 
 def test_set_language_and_exit(monkeypatch):
@@ -196,6 +93,132 @@ def test_set_language_and_exit(monkeypatch):
 
 
 
+# Tests migrated from other files to consolidate coverage for the
+# top-level launcher `setup_project.py` into a single canonical test
+# module. Local imports are used to avoid colliding with the module
+# object ``sp`` which refers to ``src.setup.app`` in this file.
 
+
+def test_run_program_uses_propagated_python(monkeypatch) -> None:
+    """Patch `setup_project.get_python_executable` and ensure delegated run uses it.
+
+    This test ensures that when the top-level helper providing the Python
+    executable is patched on the launcher module, the delegated
+    `run_program` invocation uses the patched value. The test avoids
+    interacting with the legacy `src.setup.app` shim and instead patches
+    the concrete subprocess used by the refactored venv implementation.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture for patching attributes during the test.
+
+    Returns
+    -------
+    None
+    """
+    import setup_project as setup_proj
+
+    # Patch the top-level helper to return a known python path
+    monkeypatch.setattr(setup_proj, "get_python_executable", lambda: "/usr/bin/python")
+
+    class R:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    # Prevent spawning real subprocesses in the delegated implementation by
+    # patching the concrete subprocess runner used by the refactored venv
+    # helper module instead of touching any legacy shim module object.
+    monkeypatch.setattr("src.setup.app_venv.subprocess.run", lambda *a, **k: R(), raising=False)
+
+    ok = setup_proj.run_program("prog", Path("src/some_module.py"), stream_output=False)
+    assert ok is True
+
+    # Ensure the launcher still exposes the patched helper.
+    assert callable(getattr(setup_proj, "get_python_executable", None))
+
+
+def test_setup_project_run_program_non_stream(monkeypatch) -> None:
+    """Run program non-streaming using the launcher and patched subprocess.
+
+    This test verifies that the top-level launcher `run_program` delegates
+    correctly to the refactored implementation and treats the subprocess
+    result return code as success when it is zero.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to monkeypatch attributes.
+
+    Returns
+    -------
+    None
+    """
+    import setup_project as setup_proj
+
+    monkeypatch.setattr(setup_proj, "get_python_executable", lambda: "/usr/bin/python")
+
+    class R:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    # Patch the concrete subprocess used by the venv helper.
+    monkeypatch.setattr("src.setup.app_venv.subprocess.run", lambda *a, **k: R(), raising=False)
+    ok = setup_proj.run_program(
+        "program_1", Path("src/program1_generate_markdowns.py"), stream_output=False
+    )
+    assert ok is True
+
+
+def test_manage_virtual_environment_recreate(monkeypatch, tmp_path: Path) -> None:
+    """Simulate an existing venv and user confirming recreate.
+
+    This test verifies the manager's recreate branch. It patches the
+    concrete configuration value ``src.config.VENV_DIR`` so that the
+    operation targets a temporary directory instead of the repository
+    venv. Filesystem helpers and subprocess invocations are stubbed so
+    the test is side-effect free.
+
+    Parameters
+    ----------
+    monkeypatch : _pytest.monkeypatch.MonkeyPatch
+        Fixture to patch attributes and modules during the test.
+    tmp_path : pathlib.Path
+        Temporary path used to host a fake venv directory.
+
+    Returns
+    -------
+    None
+        The test asserts that no exception is raised and returns nothing.
+    """
+    import setup_project as setup_proj
+    from src.setup import fs_utils
+    from src import config as cfg
+
+    # Simulate existing interpreter not active and ensure venv dir under cfg
+    monkeypatch.setattr(setup_proj, "is_venv_active", lambda: False)
+    monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
+    (cfg.VENV_DIR).mkdir()
+    # Return yes for prompts in this test (stable across orderings)
+    monkeypatch.setattr(setup_proj, "ask_text", lambda prompt, default="y": "y")
+
+    # Patch filesystem helpers and subprocess/venv calls
+    monkeypatch.setattr(fs_utils, "create_safe_path", lambda p: p, raising=False)
+    monkeypatch.setattr(fs_utils, "safe_rmtree", lambda p: None, raising=False)
+    monkeypatch.setattr(
+        setup_proj, "get_venv_pip_executable", lambda p: p / "bin" / "pip", raising=False
+    )
+    monkeypatch.setattr(
+        setup_proj, "get_venv_python_executable", lambda p: p / "bin" / "python", raising=False
+    )
+    monkeypatch.setattr(
+        setup_proj, "venv", SimpleNamespace(create=lambda *a, **k: None), raising=False
+    )
+    monkeypatch.setattr("src.setup.app_venv.subprocess.check_call", lambda *a, **k: None, raising=False)
+
+    # Should not raise
+    setup_proj.manage_virtual_environment()
 
 

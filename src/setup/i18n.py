@@ -237,21 +237,15 @@ def set_language() -> None:
     new_lang = "en"
     # Allow per-module override via the central shim
     try:
-        import sys as _sys
-
-        _app_mod = _sys.modules.get("src.setup.app")
-    except Exception:
-        _app_mod = None
-
-    try:
         import importlib
 
         _cfg = importlib.import_module("src.config")
         max_attempts = getattr(_cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID)
     except Exception:
+        # Fall back to the module-level default when configuration cannot be
+        # loaded. Tests should patch `src.config.LANGUAGE_PROMPT_MAX_INVALID`
+        # directly if they need to influence this behaviour.
         max_attempts = LANGUAGE_PROMPT_MAX_INVALID
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "LANGUAGE_PROMPT_MAX_INVALID", max_attempts)
 
     attempts = 0
     while True:

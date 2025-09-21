@@ -7,7 +7,6 @@ tests can reliably monkeypatch behaviour.
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 
@@ -35,11 +34,31 @@ def _run_processing_pipeline_plain() -> None:
 
         orch = importlib.import_module("src.setup.pipeline.orchestrator")
         replaced: dict[str, object | None] = {}
-        app_mod = sys.modules.get("src.setup.app")
-        for _n in ("ask_confirm", "ask_text", "run_ai_connectivity_check_interactive"):
-            if hasattr(app_mod, _n):
+
+        # Prefer explicit, concrete helpers so production code does not
+        # depend on a legacy shim module in ``sys.modules``. Tests should
+        # patch the concrete modules (for example ``src.setup.app_prompts``
+        # or ``src.setup.app_runner``) rather than injecting a global
+        # module object.
+        try:
+            from src.setup.app_prompts import ask_confirm as _ask_confirm, ask_text as _ask_text
+        except Exception:
+            _ask_confirm = getattr(orch, "ask_confirm", None)
+            _ask_text = getattr(orch, "ask_text", None)
+
+        try:
+            from src.setup.app_runner import run_ai_connectivity_check_interactive as _run_check
+        except Exception:
+            _run_check = getattr(orch, "run_ai_connectivity_check_interactive", None)
+
+        for _n, _f in (
+            ("ask_confirm", _ask_confirm),
+            ("ask_text", _ask_text),
+            ("run_ai_connectivity_check_interactive", _run_check),
+        ):
+            if _f is not None:
                 replaced[_n] = getattr(orch, _n, None)
-                setattr(orch, _n, getattr(app_mod, _n))
+                setattr(orch, _n, _f)
     except Exception:
         orch = None
         replaced = {}
@@ -68,11 +87,29 @@ def _run_processing_pipeline_rich(*args: Any, **kwargs: Any) -> None:
 
         orch = importlib.import_module("src.setup.pipeline.orchestrator")
         replaced: dict[str, object | None] = {}
-        app_mod = sys.modules.get("src.setup.app")
-        for _n in ("ask_confirm", "ask_text", "run_ai_connectivity_check_interactive"):
-            if hasattr(app_mod, _n):
+
+        # Use explicit concrete helpers instead of reading from a legacy
+        # shim module. This makes behaviour predictable and easier for
+        # tests to patch without relying on global module state.
+        try:
+            from src.setup.app_prompts import ask_confirm as _ask_confirm, ask_text as _ask_text
+        except Exception:
+            _ask_confirm = getattr(orch, "ask_confirm", None)
+            _ask_text = getattr(orch, "ask_text", None)
+
+        try:
+            from src.setup.app_runner import run_ai_connectivity_check_interactive as _run_check
+        except Exception:
+            _run_check = getattr(orch, "run_ai_connectivity_check_interactive", None)
+
+        for _n, _f in (
+            ("ask_confirm", _ask_confirm),
+            ("ask_text", _ask_text),
+            ("run_ai_connectivity_check_interactive", _run_check),
+        ):
+            if _f is not None:
                 replaced[_n] = getattr(orch, _n, None)
-                setattr(orch, _n, getattr(app_mod, _n))
+                setattr(orch, _n, _f)
     except Exception:
         orch = None
         replaced = {}
@@ -102,4 +139,3 @@ __all__ = [
     "_run_processing_pipeline_plain",
     "_run_processing_pipeline_rich",
 ]
-

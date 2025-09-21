@@ -35,23 +35,16 @@ def _sync_console_helpers() -> None:
         # Console helpers are optional; nothing to propagate.
         return
 
-    # Prefer an explicit, lazy import of the legacy app module so that
-    # import-ordering is deterministic and easier to test. If the legacy
-    # module is not present or cannot be imported, fall back to defaults.
-    app_mod = None
-    try:
-        import importlib
-
-        try:
-            app_mod = importlib.import_module("src.setup.app")
-        except Exception:
-            app_mod = None
-    except Exception:
-        app_mod = None
-
-    ch._RICH_CONSOLE = getattr(app_mod, "_RICH_CONSOLE", None) if app_mod is not None else None
-    ch._HAS_Q = getattr(app_mod, "_HAS_Q", False) if app_mod is not None else False
-    ch.questionary = getattr(app_mod, "questionary", None) if app_mod is not None else None
+    # Do not rely on the legacy shim module for runtime toggles. Tests
+    # should patch the concrete `src.setup.console_helpers` module when
+    # they need to control these values. Preserve any explicit, pre-
+    # existing Console object and only fill missing toggle values from
+    # the concrete module itself.
+    if not hasattr(ch, "_RICH_CONSOLE"):
+        ch._RICH_CONSOLE = None
+    # Respect any explicit setting on the concrete console_helpers module.
+    ch._HAS_Q = getattr(ch, "_HAS_Q", False)
+    ch.questionary = getattr(ch, "questionary", None)
 
 
 def rprint(*objects: Any, **kwargs: Any) -> None:
@@ -147,15 +140,33 @@ def _build_dashboard_layout(*args: Any, **kwargs: Any) -> dict[str, Any]:
 
 
 def ui_has_rich() -> bool:
-    """Return True when Rich console is available or when patched on app module."""
+    """Return True when Rich console is available or when patched on the concrete module.
+
+    This adapter prefers the concrete `src.setup.console_helpers.ui_has_rich`
+    function. If the concrete helper cannot be used (for example because it
+    raises an exception under test conditions), the function falls back to the
+    concrete module's internal `_RICH_CONSOLE` flag. Avoiding a dynamic
+    lookup of the legacy shim keeps behaviour deterministic when other tests
+    manipulate ``sys.modules``.
+    """
     try:
         import src.setup.console_helpers as ch
 
         _sync_console_helpers()
         return ch.ui_has_rich()
     except Exception:
-        app_mod = sys.modules.get("src.setup.app")
-        return bool(getattr(app_mod, "_RICH_CONSOLE", None))
+        # If the concrete console helpers cannot be used for any reason,
+        # fall back to the concrete module's internal flag rather than
+        # performing a dynamic lookup of the legacy shim. This keeps the
+        # behaviour deterministic and prevents accidental coupling to a
+        # mutated `sys.modules['src.setup.app']` introduced by other
+        # tests.
+        try:
+            import src.setup.console_helpers as ch2
+
+            return bool(getattr(ch2, "_RICH_CONSOLE", None))
+        except Exception:
+            return False
 
 
 __all__ = [
