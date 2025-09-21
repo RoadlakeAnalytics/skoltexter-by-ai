@@ -34,7 +34,7 @@ def test_rprint_prefers_rich_and_falls_back(monkeypatch, capsys):
     called = {}
 
     def fake_print(*args, **kwargs):
-        called['ok'] = True
+        called["ok"] = True
 
     fake_rich.print = fake_print
     monkeypatch.setitem(sys.modules, "rich", fake_rich)
@@ -42,11 +42,10 @@ def test_rprint_prefers_rich_and_falls_back(monkeypatch, capsys):
     # When console reports available, rprint tries rich.print
     monkeypatch.setattr(ch, "ui_has_rich", lambda: True, raising=False)
     ch.rprint("hello")
-    assert called.get('ok') is True
+    assert called.get("ok") is True
 
     # Force rich_path to fail and ensure fallback prints to stdout
     monkeypatch.setattr(ch, "ui_has_rich", lambda: False, raising=False)
     ch.rprint("fallback")
     out = capsys.readouterr().out
     assert "fallback" in out
-

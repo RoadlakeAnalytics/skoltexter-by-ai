@@ -23,6 +23,7 @@ from src.setup.ui.basic import ui_info, ui_rule, ui_success, ui_warning
 from src.setup.ui.prompts import ask_confirm, ask_text
 
 from ..azure_env import run_ai_connectivity_check_silent
+
 # Avoid importing run_program at module import time to prevent circular
 # imports with the run module. Import locally where needed.
 from .status import _render_pipeline_table as _render_table_impl

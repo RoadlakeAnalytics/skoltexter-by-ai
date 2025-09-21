@@ -37,4 +37,3 @@ def test_run_processing_pipeline_rich_calls_updater(monkeypatch):
     assert len(calls) >= 3
     # At least one received object should expose either .items or be non-empty
     assert any(hasattr(c, "items") or c for c in calls)
-

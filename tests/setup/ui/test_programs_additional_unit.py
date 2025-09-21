@@ -24,7 +24,9 @@ def test_view_program_descriptions_tui_renders_panel(monkeypatch):
         pass
 
     # Ensure we pick a known program id
-    monkeypatch.setattr(programs, "get_program_descriptions", lambda: {"1": ("T", "BODY")})
+    monkeypatch.setattr(
+        programs, "get_program_descriptions", lambda: {"1": ("T", "BODY")}
+    )
     # Make the TUI prompt return '1' so a description is displayed
     monkeypatch.setattr(programs, "ask_text", lambda prompt: "1")
 
@@ -67,4 +69,3 @@ def test_view_logs_tui_with_file(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(programs, "ask_text", _ask)
     programs._view_logs_tui(update_right, lambda p: None)
     assert outputs, "Should have rendered something for the selected log"
-

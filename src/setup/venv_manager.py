@@ -126,7 +126,10 @@ def manage_virtual_environment(
 
             if pytest_running:
                 try:
-                    if cfg_vdir is not None and venv_dir.resolve() == cfg_vdir.resolve():
+                    if (
+                        cfg_vdir is not None
+                        and venv_dir.resolve() == cfg_vdir.resolve()
+                    ):
                         ui.logger.warning(
                             "Skipping removal of project VENV_DIR while running under pytest"
                         )

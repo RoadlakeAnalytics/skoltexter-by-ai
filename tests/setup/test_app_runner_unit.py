@@ -31,13 +31,13 @@ def test_parse_env_file_delegates(monkeypatch, tmp_path: Path) -> None:
     called = {}
 
     def fake_parse(p):
-        called['p'] = str(p)
-        return {'AZURE_API_KEY': 'k'}
+        called["p"] = str(p)
+        return {"AZURE_API_KEY": "k"}
 
-    monkeypatch.setattr('src.setup.azure_env.parse_env_file', fake_parse, raising=False)
-    res = ar.parse_env_file(tmp_path / '.env')
-    assert res.get('AZURE_API_KEY') == 'k'
-    assert 'p' in called
+    monkeypatch.setattr("src.setup.azure_env.parse_env_file", fake_parse, raising=False)
+    res = ar.parse_env_file(tmp_path / ".env")
+    assert res.get("AZURE_API_KEY") == "k"
+    assert "p" in called
 
 
 def test_prompt_and_update_env_passes_ui(monkeypatch, tmp_path: Path) -> None:
@@ -49,28 +49,37 @@ def test_prompt_and_update_env_passes_ui(monkeypatch, tmp_path: Path) -> None:
     called = {}
 
     def fake_prompt(missing, path, existing, ui=None):
-        called['args'] = (tuple(missing), str(path), dict(existing), getattr(ui, '__name__', None))
+        called["args"] = (
+            tuple(missing),
+            str(path),
+            dict(existing),
+            getattr(ui, "__name__", None),
+        )
 
-    monkeypatch.setattr('src.setup.azure_env.prompt_and_update_env', fake_prompt, raising=False)
-    ar.prompt_and_update_env(['K'], tmp_path / '.env', {})
-    assert 'args' in called
+    monkeypatch.setattr(
+        "src.setup.azure_env.prompt_and_update_env", fake_prompt, raising=False
+    )
+    ar.prompt_and_update_env(["K"], tmp_path / ".env", {})
+    assert "args" in called
 
 
-def test_ensure_azure_openai_env_calls_prompt_when_missing(monkeypatch, tmp_path: Path) -> None:
+def test_ensure_azure_openai_env_calls_prompt_when_missing(
+    monkeypatch, tmp_path: Path
+) -> None:
     """When required keys are missing ensure_azure_openai_env invokes the prompt.
 
     We patch the parsing and missing-key detection to force the prompt path.
     """
-    monkeypatch.setattr(ar, 'parse_env_file', lambda p: {})
-    monkeypatch.setattr(ar, 'find_missing_env_keys', lambda existing, req: ['K'])
+    monkeypatch.setattr(ar, "parse_env_file", lambda p: {})
+    monkeypatch.setattr(ar, "find_missing_env_keys", lambda existing, req: ["K"])
     called = {}
 
     def fake_prompt(missing, path, existing, ui=None):
-        called['ok'] = True
+        called["ok"] = True
 
-    monkeypatch.setattr(ar, 'prompt_and_update_env', fake_prompt)
+    monkeypatch.setattr(ar, "prompt_and_update_env", fake_prompt)
     ar.ensure_azure_openai_env()
-    assert called.get('ok') is True
+    assert called.get("ok") is True
 
 
 def test_parse_cli_and_prompt_venv(monkeypatch) -> None:
@@ -113,7 +122,9 @@ def test_parse_env_and_find_missing(tmp_path: Path) -> None:
     env.write_text('AZURE_API_KEY="abc"\nOTHER=1\n')
     parsed = ar.parse_env_file(env)
     assert parsed.get("AZURE_API_KEY") == "abc"
-    missing = ar.find_missing_env_keys(parsed, ["AZURE_API_KEY", "GPT4O_DEPLOYMENT_NAME"]) 
+    missing = ar.find_missing_env_keys(
+        parsed, ["AZURE_API_KEY", "GPT4O_DEPLOYMENT_NAME"]
+    )
     assert "GPT4O_DEPLOYMENT_NAME" in missing
 
 
@@ -156,13 +167,17 @@ def test_entry_point_minimal(monkeypatch) -> None:
     from types import SimpleNamespace
 
     monkeypatch.setattr(
-        'src.setup.app_runner.parse_cli_args',
+        "src.setup.app_runner.parse_cli_args",
         lambda: SimpleNamespace(lang="en", no_venv=True, ui="rich"),
         raising=False,
     )
-    monkeypatch.setattr('src.setup.app_prompts.set_language', lambda: None, raising=False)
-    monkeypatch.setattr('src.setup.app_runner.ensure_azure_openai_env', lambda: None, raising=False)
-    monkeypatch.setattr('src.setup.app_runner.main_menu', lambda: None, raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.set_language", lambda: None, raising=False
+    )
+    monkeypatch.setattr(
+        "src.setup.app_runner.ensure_azure_openai_env", lambda: None, raising=False
+    )
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None, raising=False)
     try:
         ar.entry_point()
     except SystemExit:
@@ -193,15 +208,28 @@ def test_run_ai_connectivity_interactive_branches_added(monkeypatch):
     The test patches the concrete runner and UI helpers so it does not
     rely on a global shim object.
     """
-    monkeypatch.setattr("src.setup.app_runner.run_ai_connectivity_check_silent", lambda: (True, "ok"))
+    monkeypatch.setattr(
+        "src.setup.app_runner.run_ai_connectivity_check_silent", lambda: (True, "ok")
+    )
     called = {}
-    monkeypatch.setattr("src.setup.app_ui.ui_success", lambda m: called.setdefault("ok", m), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_ui.ui_success",
+        lambda m: called.setdefault("ok", m),
+        raising=False,
+    )
     assert ar.run_ai_connectivity_check_interactive() is True
     assert "ok" in called
 
-    monkeypatch.setattr("src.setup.app_runner.run_ai_connectivity_check_silent", lambda: (False, "detail"))
+    monkeypatch.setattr(
+        "src.setup.app_runner.run_ai_connectivity_check_silent",
+        lambda: (False, "detail"),
+    )
     called = {}
-    monkeypatch.setattr("src.setup.app_ui.ui_error", lambda m: called.setdefault("err", m), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_ui.ui_error",
+        lambda m: called.setdefault("err", m),
+        raising=False,
+    )
     assert ar.run_ai_connectivity_check_interactive() is False
     assert "err" in called
 
@@ -217,7 +245,9 @@ def test_run_quality_suites_added(monkeypatch):
     def fake_run(*a, **k):
         called["args"] = a
 
-    monkeypatch.setattr("src.setup.app_runner.get_python_executable", lambda: "/usr/bin/python")
+    monkeypatch.setattr(
+        "src.setup.app_runner.get_python_executable", lambda: "/usr/bin/python"
+    )
     monkeypatch.setattr(subprocess, "run", fake_run)
     ar.run_full_quality_suite()
     ar.run_extreme_quality_suite()
@@ -230,11 +260,16 @@ def test_entry_point_invokes_main_menu_added(monkeypatch):
     The test patches parsing, prompts and environment helpers so the
     entry point proceeds directly to the main menu.
     """
-    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=True))
+    monkeypatch.setattr(
+        "src.setup.app_runner.parse_cli_args",
+        lambda: SimpleNamespace(lang="en", no_venv=True),
+    )
     monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
     monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
     called = {}
-    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: called.setdefault("mm", True))
+    monkeypatch.setattr(
+        "src.setup.app_runner.main_menu", lambda: called.setdefault("mm", True)
+    )
     ar.entry_point()
     assert called.get("mm") is True
 
@@ -285,7 +320,10 @@ def test_entry_point_triggers_manage_virtualenv_when_needed(monkeypatch):
     venv must be created/managed.
     """
     # Simulate CLI args that do not set a language and request venv handling
-    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang=None, no_venv=False, ui="rich"))
+    monkeypatch.setattr(
+        "src.setup.app_runner.parse_cli_args",
+        lambda: SimpleNamespace(lang=None, no_venv=False, ui="rich"),
+    )
     monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
     monkeypatch.setattr("src.setup.app_venv.is_venv_active", lambda: False)
 
@@ -297,7 +335,9 @@ def test_entry_point_triggers_manage_virtualenv_when_needed(monkeypatch):
     def fake_manage():
         called["managed"] = True
 
-    monkeypatch.setattr("src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True
+    )
     monkeypatch.setattr("src.setup.app_venv.manage_virtual_environment", fake_manage)
     monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
     # Patch the concrete runner main_menu so the interactive menu does not run
@@ -307,7 +347,9 @@ def test_entry_point_triggers_manage_virtualenv_when_needed(monkeypatch):
     monkeypatch.delenv("SETUP_SKIP_LANGUAGE_PROMPT", raising=False)
 
     # Prevent interactive language prompt from blocking the test
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "1", raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.ask_text", lambda prompt: "1", raising=False
+    )
     # Call entry_point; should call manage_virtual_environment
     ar.entry_point()
     assert called.get("managed") is True
@@ -319,6 +361,7 @@ def test_main_menu_swallows_exceptions(monkeypatch):
     We patch the concrete UI module's `main_menu` to raise and ensure the
     wrapper in :mod:`src.setup.app_runner` does not propagate the exception.
     """
+
     def _boom():
         raise RuntimeError("boom")
 

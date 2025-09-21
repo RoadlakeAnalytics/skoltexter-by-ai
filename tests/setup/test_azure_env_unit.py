@@ -23,7 +23,9 @@ def test_parse_env_file_and_find_missing(tmp_path: Path) -> None:
     assert missing == ["MISSING_KEY"]
 
 
-def test_ensure_azure_openai_env_prompts_when_missing(monkeypatch, tmp_path: Path) -> None:
+def test_ensure_azure_openai_env_prompts_when_missing(
+    monkeypatch, tmp_path: Path
+) -> None:
     """When required keys are missing, ``prompt_and_update_env`` is invoked."""
     fake_env = {}
     monkeypatch.setattr(az, "ENV_PATH", tmp_path / ".env")
@@ -37,4 +39,3 @@ def test_ensure_azure_openai_env_prompts_when_missing(monkeypatch, tmp_path: Pat
     # Trigger
     az.ensure_azure_openai_env()
     assert "args" in called
-

@@ -26,6 +26,7 @@ def test_ask_text_questionary_exception_falls_back(monkeypatch) -> None:
     """
     # Ensure questionary is present but will raise when used
     monkeypatch.setattr(ch, "_HAS_Q", True, raising=False)
+
     class BadQ:
         @staticmethod
         def text(prompt, default=None):
@@ -56,14 +57,23 @@ def test_ask_confirm_getpass_exception_fallback(monkeypatch) -> None:
     # Install a fake orchestrator module so the TUI branch is taken. Set
     # the attribute on the package module if present so ``from pkg import"
     # semantics resolve to our fake.
-    fake = SimpleNamespace(_TUI_MODE=True, _TUI_UPDATER=lambda v: None, _TUI_PROMPT_UPDATER=lambda v: None)
+    fake = SimpleNamespace(
+        _TUI_MODE=True, _TUI_UPDATER=lambda v: None, _TUI_PROMPT_UPDATER=lambda v: None
+    )
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", fake)
     if "src.setup.pipeline" in sys.modules:
-        monkeypatch.setattr(sys.modules["src.setup.pipeline"], "orchestrator", fake, raising=False)
+        monkeypatch.setattr(
+            sys.modules["src.setup.pipeline"], "orchestrator", fake, raising=False
+        )
     # Make getpass.getpass raise so the code uses input()
     import getpass
 
-    monkeypatch.setattr(getpass, "getpass", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("gpfail")), raising=False)
+    monkeypatch.setattr(
+        getpass,
+        "getpass",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("gpfail")),
+        raising=False,
+    )
     monkeypatch.setattr(builtins, "input", lambda prompt="": "y")
     # Ensure questionary is not used in this test (avoid prompt_toolkit)
     monkeypatch.setattr(ch, "questionary", None, raising=False)
@@ -84,6 +94,7 @@ def test_ask_select_questionary_select_raises(monkeypatch) -> None:
     -------
     None
     """
+
     # Provide a questionary stub with select that raises
     class Q:
         @staticmethod

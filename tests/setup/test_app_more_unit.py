@@ -39,11 +39,19 @@ setattr(app, "manage_virtual_environment", app_venv.manage_virtual_environment)
 setattr(app, "parse_env_file", app_runner.parse_env_file)
 setattr(app, "prompt_and_update_env", app_runner.prompt_and_update_env)
 setattr(app, "ensure_azure_openai_env", app_runner.ensure_azure_openai_env)
-setattr(app, "run_ai_connectivity_check_interactive", app_runner.run_ai_connectivity_check_interactive)
+setattr(
+    app,
+    "run_ai_connectivity_check_interactive",
+    app_runner.run_ai_connectivity_check_interactive,
+)
 setattr(app, "run_full_quality_suite", app_runner.run_full_quality_suite)
 setattr(app, "run_extreme_quality_suite", app_runner.run_extreme_quality_suite)
-setattr(app, "_run_processing_pipeline_plain", app_pipeline._run_processing_pipeline_plain)
-setattr(app, "_run_processing_pipeline_rich", app_pipeline._run_processing_pipeline_rich)
+setattr(
+    app, "_run_processing_pipeline_plain", app_pipeline._run_processing_pipeline_plain
+)
+setattr(
+    app, "_run_processing_pipeline_rich", app_pipeline._run_processing_pipeline_rich
+)
 setattr(app, "ui_has_rich", app_ui.ui_has_rich)
 setattr(app, "ui_menu", app_ui.ui_menu)
 setattr(app, "get_program_descriptions", app_prompts.get_program_descriptions)
@@ -51,9 +59,6 @@ setattr(app, "view_program_descriptions", app_prompts.view_program_descriptions)
 setattr(app, "ask_text", app_prompts.ask_text)
 setattr(app, "ask_confirm", app_prompts.ask_confirm)
 setattr(app, "ask_select", app_prompts.ask_select)
-
-
-
 
 
 def test_run_sets_lang_and_calls_menu(monkeypatch):
@@ -87,6 +92,7 @@ def test_run_sets_lang_and_calls_menu(monkeypatch):
     assert importlib.import_module("src.setup.i18n").LANG == "sv"
     assert called.get("main") is True
 
+
 # Venv-related tests were migrated to ``tests/setup/test_app_venv.py`` to
 # avoid reliance on the legacy shim module object (`src.setup.app`).
 
@@ -113,6 +119,7 @@ def test_ensure_azure_openai_env_calls_prompt_when_missing(monkeypatch, tmp_path
     # Call via the shim entrypoint to exercise the same call path used
     # by the application (entry_point typically calls this helper).
     import src.setup.app as _app_shim
+
     _app_shim.ensure_azure_openai_env()
     assert called.get("ok") is True
 
@@ -136,7 +143,11 @@ def test_run_ai_connectivity_check_interactive_reports(monkeypatch):
         raising=False,
     )
     called = {}
-    monkeypatch.setattr("src.setup.app_ui.ui_success", lambda m: called.setdefault("suc", m), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_ui.ui_success",
+        lambda m: called.setdefault("suc", m),
+        raising=False,
+    )
     # Call the concrete implementation directly to avoid relying on a shim
     # module object in sys.modules.
     import src.setup.app_runner as ar
@@ -151,7 +162,11 @@ def test_run_ai_connectivity_check_interactive_reports(monkeypatch):
         raising=False,
     )
     called = {}
-    monkeypatch.setattr("src.setup.app_ui.ui_error", lambda m: called.setdefault("err", m), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_ui.ui_error",
+        lambda m: called.setdefault("err", m),
+        raising=False,
+    )
     assert ar.run_ai_connectivity_check_interactive() is False
     assert "err" in called
 
@@ -166,7 +181,6 @@ def test_run_quality_suites_swallow_exceptions(monkeypatch):
     # Should not raise
     app.run_full_quality_suite()
     app.run_extreme_quality_suite()
-
 
 
 def test_ui_has_rich_delegates_and_falls_back(monkeypatch):
@@ -191,7 +205,10 @@ def test_ui_has_rich_delegates_and_falls_back(monkeypatch):
     # module-level flag. Patch the concrete module rather than the legacy
     # shim object to avoid coupling to the old import-time behaviour.
     monkeypatch.setattr(
-        ch, "ui_has_rich", lambda: (_ for _ in ()).throw(Exception("boom")), raising=False
+        ch,
+        "ui_has_rich",
+        lambda: (_ for _ in ()).throw(Exception("boom")),
+        raising=False,
     )
     monkeypatch.setattr(ch, "_RICH_CONSOLE", object(), raising=False)
     assert app.ui_has_rich() is True
@@ -273,7 +290,9 @@ def test_ask_wrappers_restore_orchestrator_flags(monkeypatch):
     # Stub prompt implementations to avoid interactive input. Patch the
     # concrete implementation in `src.setup.app_ui` rather than the legacy
     # shim module so tests do not rely on the global shim object.
-    monkeypatch.setattr("src.setup.app_ui._sync_console_helpers", lambda: None, raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_ui._sync_console_helpers", lambda: None, raising=False
+    )
     monkeypatch.setattr(
         "src.setup.ui.prompts.ask_text", lambda p, default=None: "x", raising=False
     )
@@ -342,7 +361,9 @@ def test_ask_text_when_orch_import_fails(monkeypatch):
 
     # Patch prompts.ask_text to a simple stub on the actual prompts module
     prom = importlib.import_module("src.setup.ui.prompts")
-    monkeypatch.setattr(prom, "ask_text", lambda p, default=None: "from_prompts", raising=False)
+    monkeypatch.setattr(
+        prom, "ask_text", lambda p, default=None: "from_prompts", raising=False
+    )
 
     # Ensure we are not in TUI mode
     monkeypatch.setattr(app_mod, "_TUI_MODE", False, raising=False)
@@ -393,7 +414,9 @@ def test_entry_point_handles_venv_prompt_and_manage(monkeypatch):
         lambda: SimpleNamespace(lang=None, no_venv=False, ui="rich"),
     )
     monkeypatch.setattr("src.setup.app_venv.is_venv_active", lambda: False)
-    monkeypatch.setattr("src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True
+    )
     called = {}
     monkeypatch.setattr(
         "src.setup.app_venv.manage_virtual_environment",

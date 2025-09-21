@@ -84,4 +84,3 @@ def test_run_pipeline_step_skip_and_invalid(monkeypatch, tmp_path: Path):
         "confirm_key",
     )
     assert ok2 is False
-

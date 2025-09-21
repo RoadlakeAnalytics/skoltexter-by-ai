@@ -69,12 +69,16 @@ def test_ask_helpers_branches(monkeypatch):
     """
     # Fallback input path
     monkeypatch.setattr(builtins, "input", lambda prompt="": "hello")
-    monkeypatch.setattr(app_prompts, "_get_tui_flags", lambda: (False, None, None), raising=False)
+    monkeypatch.setattr(
+        app_prompts, "_get_tui_flags", lambda: (False, None, None), raising=False
+    )
     assert app_prompts.ask_text("prompt:") == "hello"
 
     # Prompts adapter path
     _prom = importlib.import_module("src.setup.ui.prompts")
-    monkeypatch.setattr(_prom, "ask_text", lambda p, default=None: "qval", raising=False)
+    monkeypatch.setattr(
+        _prom, "ask_text", lambda p, default=None: "qval", raising=False
+    )
     assert app_prompts.ask_text("p") == "qval"
 
 
@@ -93,9 +97,13 @@ def test_venv_path_helpers(monkeypatch, tmp_path: "pathlib.Path"):
     None
     """
     v = tmp_path / "venv"
-    monkeypatch.setattr("src.setup.app_venv.sys", SimpleNamespace(platform="linux"), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_venv.sys", SimpleNamespace(platform="linux"), raising=False
+    )
     assert app_venv.get_venv_bin_dir(v).name in ("bin", "Scripts")
-    monkeypatch.setattr("src.setup.app_venv.sys", SimpleNamespace(platform="win32"), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_venv.sys", SimpleNamespace(platform="win32"), raising=False
+    )
     assert app_venv.get_venv_bin_dir(v).name == "Scripts"
 
 

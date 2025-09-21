@@ -9,11 +9,13 @@ import src.setup.app_ui as _app_ui
 import src.setup.app_runner as _app_runner
 
 import types
+
 app = types.SimpleNamespace()
 setattr(app, "rprint", _app_ui.rprint)
 setattr(app, "run_extreme_quality_suite", _app_runner.run_extreme_quality_suite)
 setattr(app, "run_full_quality_suite", _app_runner.run_full_quality_suite)
 import sys as _sys
+
 _sys.modules["src.setup.app"] = app
 from src import config as cfg
 

@@ -28,4 +28,3 @@ def test_run_processing_pipeline_plain_abort_on_confirm_false(monkeypatch):
     monkeypatch.setattr(orch, "ask_confirm", lambda *a, **k: False)
     # Should simply return without raising
     orch._run_processing_pipeline_plain()
-

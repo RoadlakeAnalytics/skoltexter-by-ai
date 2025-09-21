@@ -9,7 +9,6 @@ from pathlib import Path
 import sys
 
 
-
 def test_run_program_streaming_parses_and_updates(monkeypatch) -> None:
     """Streaming output with percent, fraction and done patterns updates progress.
 
@@ -32,6 +31,7 @@ def test_run_program_streaming_parses_and_updates(monkeypatch) -> None:
     fake_orch._compose_and_update = lambda: None
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", fake_orch)
     import importlib
+
     runmod = importlib.import_module("src.setup.pipeline.run")
 
     # Ensure updater on orchestrator is captured
@@ -41,13 +41,17 @@ def test_run_program_streaming_parses_and_updates(monkeypatch) -> None:
         orch = None
 
     if orch is not None:
-        monkeypatch.setattr(orch, "_TUI_UPDATER", lambda obj: recorded.append(obj), raising=False)
+        monkeypatch.setattr(
+            orch, "_TUI_UPDATER", lambda obj: recorded.append(obj), raising=False
+        )
     # Also set a local updater on the run module to ensure it is invoked
     # even if the orchestrator module used by the run implementation is
     # not the same object we patched above.
     # Ensure the run module object has a local updater attribute patched
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.run", runmod)
-    monkeypatch.setattr(runmod, "_TUI_UPDATER", lambda obj: recorded.append(obj), raising=False)
+    monkeypatch.setattr(
+        runmod, "_TUI_UPDATER", lambda obj: recorded.append(obj), raising=False
+    )
 
     # Fake process that yields lines resembling progress output
     class FakeProc:
@@ -63,8 +67,12 @@ def test_run_program_streaming_parses_and_updates(monkeypatch) -> None:
         "AI Processing completed: 4\n",
     ]
 
-    monkeypatch.setattr(runmod, "get_python_executable", lambda: "python", raising=False)
-    monkeypatch.setattr(runmod.subprocess, "Popen", lambda *a, **k: FakeProc(lines), raising=False)
+    monkeypatch.setattr(
+        runmod, "get_python_executable", lambda: "python", raising=False
+    )
+    monkeypatch.setattr(
+        runmod.subprocess, "Popen", lambda *a, **k: FakeProc(lines), raising=False
+    )
 
     ok = runmod.run_program("program_2", Path("src/program_2.py"), stream_output=True)
     assert ok is True

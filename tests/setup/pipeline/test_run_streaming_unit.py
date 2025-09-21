@@ -43,10 +43,11 @@ def test_run_program_streaming_parses_progress_and_calls_updaters(monkeypatch):
     lines = ["10%|", "1/4", "AI Processing completed: 4"]
 
     # Monkeypatch the Popen used by the run module
-    monkeypatch.setattr(run_mod.subprocess, "Popen", lambda *a, **k: FakeProc(lines), raising=False)
+    monkeypatch.setattr(
+        run_mod.subprocess, "Popen", lambda *a, **k: FakeProc(lines), raising=False
+    )
 
     ok = run_mod.run_program("program_2", Path("src/program_2.py"), stream_output=True)
     assert ok is True
     assert captured, "Updater should have been called with a renderable"
     assert composed, "Compose/update hook should have been invoked"
-

@@ -49,13 +49,19 @@ def test_ask_text_tui_updater_and_input(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", fake_orch)
     # Ensure the package attribute also points to our fake so "from pkg import sub" works
     if "src.setup.pipeline" in sys.modules:
-        monkeypatch.setattr(sys.modules["src.setup.pipeline"], "orchestrator", fake_orch, raising=False)
+        monkeypatch.setattr(
+            sys.modules["src.setup.pipeline"], "orchestrator", fake_orch, raising=False
+        )
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
     monkeypatch.setattr("builtins.input", lambda prompt="": "  hello  ")
     # Sanity-check that the fake orchestrator is installed and has our flags
     assert sys.modules["src.setup.pipeline.orchestrator"]._TUI_MODE is True
     assert sys.modules["src.setup.pipeline.orchestrator"]._TUI_UPDATER is not None
-    assert callable(getattr(sys.modules["src.setup.pipeline.orchestrator"], "_TUI_PROMPT_UPDATER", None))
+    assert callable(
+        getattr(
+            sys.modules["src.setup.pipeline.orchestrator"], "_TUI_PROMPT_UPDATER", None
+        )
+    )
 
     out = prom.ask_text("Say hi", default="DEF")
     assert out == "hello"
@@ -93,7 +99,9 @@ def test_ask_text_questionary_branch(monkeypatch) -> None:
     fake_orch2._TUI_PROMPT_UPDATER = None
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", fake_orch2)
     if "src.setup.pipeline" in sys.modules:
-        monkeypatch.setattr(sys.modules["src.setup.pipeline"], "orchestrator", fake_orch2, raising=False)
+        monkeypatch.setattr(
+            sys.modules["src.setup.pipeline"], "orchestrator", fake_orch2, raising=False
+        )
     monkeypatch.setattr(ch, "_HAS_Q", True, raising=False)
     monkeypatch.setattr(
         ch,

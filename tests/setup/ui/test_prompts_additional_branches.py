@@ -57,10 +57,13 @@ def test_ask_select_questionary_raises_and_falls_back_to_input(monkeypatch):
     We enable `ch.questionary` but keep `ch._HAS_Q` False to exercise the
     branch that attempts questionary first and then falls back on exception.
     """
+
     class Q:
         @staticmethod
         def select(prompt, choices=None):
-            return types.SimpleNamespace(ask=lambda: (_ for _ in ()).throw(RuntimeError("qerr")))
+            return types.SimpleNamespace(
+                ask=lambda: (_ for _ in ()).throw(RuntimeError("qerr"))
+            )
 
     monkeypatch.setattr(ch, "questionary", Q)
     monkeypatch.setattr(ch, "_HAS_Q", False)

@@ -27,7 +27,9 @@ def test_stream_parses_percent_and_fraction(monkeypatch):
 
     class FakeProc:
         def __init__(self, *a, **k):
-            self.stdout = iter(["10%|\n", "2/5\n", "AI Processing completed: 2\n"])  # varied formats
+            self.stdout = iter(
+                ["10%|\n", "2/5\n", "AI Processing completed: 2\n"]
+            )  # varied formats
 
         def wait(self):
             return 0
@@ -37,7 +39,9 @@ def test_stream_parses_percent_and_fraction(monkeypatch):
     runmod._orch = stub
     monkeypatch.setattr(stub, "_TUI_UPDATER", lambda v: None, raising=False)
     monkeypatch.setattr(stub, "_compose_and_update", lambda: None, raising=False)
-    ok = runmod.run_program("program_2", Path("src/program2_ai_processor.py"), stream_output=True)
+    ok = runmod.run_program(
+        "program_2", Path("src/program2_ai_processor.py"), stream_output=True
+    )
     assert ok is True
 
 
@@ -56,6 +60,7 @@ def test_stream_handles_nonzero_return(monkeypatch):
     runmod._orch = stub
     monkeypatch.setattr(stub, "_TUI_UPDATER", lambda v: None, raising=False)
     monkeypatch.setattr(stub, "_compose_and_update", lambda: None, raising=False)
-    ok = runmod.run_program("program_2", Path("src/program2_ai_processor.py"), stream_output=True)
+    ok = runmod.run_program(
+        "program_2", Path("src/program2_ai_processor.py"), stream_output=True
+    )
     assert ok is False
-

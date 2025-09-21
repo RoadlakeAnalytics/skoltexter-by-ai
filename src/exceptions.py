@@ -116,10 +116,13 @@ class AppError(Exception):
 
 # --- Specific, concrete error types ---
 
+
 class ConfigurationError(AppError):
     """Raised for invalid or missing configuration."""
 
-    def __init__(self, message: str, *, context: Mapping[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, *, context: Mapping[str, Any] | None = None
+    ) -> None:
         """Initialize a ConfigurationError.
 
         Parameters
@@ -141,13 +144,17 @@ class ConfigurationError(AppError):
         >>> isinstance(e, ConfigurationError)
         True
         """
-        super().__init__("CONFIGURATION_ERROR", message, context=context, transient=False)
+        super().__init__(
+            "CONFIGURATION_ERROR", message, context=context, transient=False
+        )
 
 
 class DataValidationError(AppError):
     """Raised for data that fails schema or content validation."""
 
-    def __init__(self, message: str, *, context: Mapping[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, *, context: Mapping[str, Any] | None = None
+    ) -> None:
         """Initialize a DataValidationError.
 
         Parameters
@@ -167,13 +174,17 @@ class DataValidationError(AppError):
         >>> isinstance(e, DataValidationError)
         True
         """
-        super().__init__("DATA_VALIDATION_ERROR", message, context=context, transient=False)
+        super().__init__(
+            "DATA_VALIDATION_ERROR", message, context=context, transient=False
+        )
 
 
 class UserInputError(AppError):
     """Raised when user input is invalid or exceeds attempt limits."""
 
-    def __init__(self, message: str, *, context: Mapping[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, *, context: Mapping[str, Any] | None = None
+    ) -> None:
         """Initialize a UserInputError.
 
         Parameters
@@ -200,7 +211,9 @@ class UserInputError(AppError):
 class APIRateLimitError(AppError):
     """Raised when an external API signals a rate limit has been hit."""
 
-    def __init__(self, message: str, *, context: Mapping[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, *, context: Mapping[str, Any] | None = None
+    ) -> None:
         """Initialize an APIRateLimitError.
 
         Parameters
@@ -221,13 +234,17 @@ class APIRateLimitError(AppError):
         >>> isinstance(e, APIRateLimitError)
         True
         """
-        super().__init__("API_RATE_LIMIT_ERROR", message, context=context, transient=True)
+        super().__init__(
+            "API_RATE_LIMIT_ERROR", message, context=context, transient=True
+        )
 
 
 class RetryExhaustedError(AppError):
     """Raised when all retry attempts for a transient error have failed."""
 
-    def __init__(self, message: str, *, context: Mapping[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, *, context: Mapping[str, Any] | None = None
+    ) -> None:
         """Initialize a RetryExhaustedError.
 
         Parameters
@@ -247,13 +264,17 @@ class RetryExhaustedError(AppError):
         >>> isinstance(e, RetryExhaustedError)
         True
         """
-        super().__init__("RETRY_EXHAUSTED_ERROR", message, context=context, transient=False)
+        super().__init__(
+            "RETRY_EXHAUSTED_ERROR", message, context=context, transient=False
+        )
 
 
 class TimeoutExceededError(AppError):
     """Raised when a configured timeout or deadline is exceeded."""
 
-    def __init__(self, message: str, *, context: Mapping[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, *, context: Mapping[str, Any] | None = None
+    ) -> None:
         """Initialize a TimeoutExceededError.
 
         Parameters
@@ -273,7 +294,9 @@ class TimeoutExceededError(AppError):
         >>> isinstance(e, TimeoutExceededError)
         True
         """
-        super().__init__("TIMEOUT_EXCEEDED_ERROR", message, context=context, transient=True)
+        super().__init__(
+            "TIMEOUT_EXCEEDED_ERROR", message, context=context, transient=True
+        )
 
 
 class ExternalServiceError(AppError):
@@ -309,4 +332,6 @@ class ExternalServiceError(AppError):
         >>> isinstance(e, ExternalServiceError)
         True
         """
-        super().__init__("EXTERNAL_SERVICE_ERROR", message, context=context, transient=transient)
+        super().__init__(
+            "EXTERNAL_SERVICE_ERROR", message, context=context, transient=transient
+        )

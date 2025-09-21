@@ -88,7 +88,11 @@ def test_run_program_variants(monkeypatch, tmp_path: Path) -> None:
 
     # Patch the concrete module used by the implementation so the test
     # does not rely on the legacy test shim.
-    monkeypatch.setattr("src.setup.app_venv.get_python_executable", lambda: "/usr/bin/python", raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_venv.get_python_executable",
+        lambda: "/usr/bin/python",
+        raising=False,
+    )
     monkeypatch.setattr("src.setup.app_venv.subprocess", _FakeSub(), raising=False)
 
     import src.setup.app_venv as app_venv
@@ -97,12 +101,13 @@ def test_run_program_variants(monkeypatch, tmp_path: Path) -> None:
     assert app_venv.run_program("mod", program_file, stream_output=True) is True
 
 
-
 def test_set_language_and_entry_point_minimal(monkeypatch) -> None:
     """Test setting language and a minimal entry point run that exits cleanly."""
 
     # Test set_language path - patch the concrete prompt implementation
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt="": "2", raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.ask_text", lambda prompt="": "2", raising=False
+    )
     import src.setup.app_prompts as app_prompts
 
     i18n.LANG = "en"
@@ -114,8 +119,16 @@ def test_set_language_and_entry_point_minimal(monkeypatch) -> None:
     monkeypatch.setenv("SETUP_SKIP_LANGUAGE_PROMPT", "1")
     # Patch concrete functions used by the entry point so the test does
     # not rely on the legacy shim object.
-    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang=None, no_venv=True), raising=False)
-    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda ui=None: None, raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_runner.parse_cli_args",
+        lambda: SimpleNamespace(lang=None, no_venv=True),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "src.setup.app_runner.ensure_azure_openai_env",
+        lambda ui=None: None,
+        raising=False,
+    )
 
     def _boom():
         raise RuntimeError("boom")
@@ -123,4 +136,5 @@ def test_set_language_and_entry_point_minimal(monkeypatch) -> None:
     monkeypatch.setattr("src.setup.app_runner.main_menu", _boom, raising=False)
     # Should not raise even if the patched main_menu raises internally.
     import src.setup.app_runner as app_runner
+
     app_runner.entry_point()

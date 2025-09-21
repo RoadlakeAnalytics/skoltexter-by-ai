@@ -36,7 +36,9 @@ def test_view_program_descriptions_rich_and_invalid(monkeypatch) -> None:
         printed.append(obj)
 
     # Provide a simple Markdown-like constructor and ensure ui_has_rich
-    monkeypatch.setattr(programs, "Markdown", lambda s: SimpleNamespace(text=s), raising=False)
+    monkeypatch.setattr(
+        programs, "Markdown", lambda s: SimpleNamespace(text=s), raising=False
+    )
     monkeypatch.setattr(programs, "rprint", _rprint, raising=False)
     monkeypatch.setattr(programs, "ui_menu", lambda items: None, raising=False)
 
@@ -45,7 +47,9 @@ def test_view_program_descriptions_rich_and_invalid(monkeypatch) -> None:
     monkeypatch.setattr(programs, "ask_text", lambda prompt: seq.pop(0), raising=False)
     monkeypatch.setattr(programs, "ui_has_rich", lambda: True, raising=False)
     programs.view_program_descriptions()
-    assert any(hasattr(x, "text") for x in printed), "Markdown-like object should be printed"
+    assert any(
+        hasattr(x, "text") for x in printed
+    ), "Markdown-like object should be printed"
 
     # Reset and test invalid selection path
     printed.clear()

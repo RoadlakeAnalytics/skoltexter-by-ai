@@ -280,8 +280,12 @@ def _main_menu_rich_dashboard() -> None:
                 Panel(translate("invalid_choice"), title="Info", border_style="yellow")
             )
             if attempts >= max_attempts:
-                update_right(Panel(translate("exiting"), title="Info", border_style="red"))
-                raise UserInputError("Exceeded maximum invalid selections in main dashboard menu")
+                update_right(
+                    Panel(translate("exiting"), title="Info", border_style="red")
+                )
+                raise UserInputError(
+                    "Exceeded maximum invalid selections in main dashboard menu"
+                )
 
 
 def main_menu() -> None:

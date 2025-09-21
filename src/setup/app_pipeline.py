@@ -41,13 +41,18 @@ def _run_processing_pipeline_plain() -> None:
         # or ``src.setup.app_runner``) rather than injecting a global
         # module object.
         try:
-            from src.setup.app_prompts import ask_confirm as _ask_confirm, ask_text as _ask_text
+            from src.setup.app_prompts import (
+                ask_confirm as _ask_confirm,
+                ask_text as _ask_text,
+            )
         except Exception:
             _ask_confirm = getattr(orch, "ask_confirm", None)
             _ask_text = getattr(orch, "ask_text", None)
 
         try:
-            from src.setup.app_runner import run_ai_connectivity_check_interactive as _run_check
+            from src.setup.app_runner import (
+                run_ai_connectivity_check_interactive as _run_check,
+            )
         except Exception:
             _run_check = getattr(orch, "run_ai_connectivity_check_interactive", None)
 
@@ -92,13 +97,18 @@ def _run_processing_pipeline_rich(*args: Any, **kwargs: Any) -> None:
         # shim module. This makes behaviour predictable and easier for
         # tests to patch without relying on global module state.
         try:
-            from src.setup.app_prompts import ask_confirm as _ask_confirm, ask_text as _ask_text
+            from src.setup.app_prompts import (
+                ask_confirm as _ask_confirm,
+                ask_text as _ask_text,
+            )
         except Exception:
             _ask_confirm = getattr(orch, "ask_confirm", None)
             _ask_text = getattr(orch, "ask_text", None)
 
         try:
-            from src.setup.app_runner import run_ai_connectivity_check_interactive as _run_check
+            from src.setup.app_runner import (
+                run_ai_connectivity_check_interactive as _run_check,
+            )
         except Exception:
             _run_check = getattr(orch, "run_ai_connectivity_check_interactive", None)
 

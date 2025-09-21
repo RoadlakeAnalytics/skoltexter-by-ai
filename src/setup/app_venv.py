@@ -99,7 +99,9 @@ def is_venv_active() -> bool:
         return False
 
 
-def run_program(program_name: str, program_file: Path, stream_output: bool = False) -> bool:
+def run_program(
+    program_name: str, program_file: Path, stream_output: bool = False
+) -> bool:
     """Run a program as a subprocess using the selected Python executable.
 
     This wrapper consults the app module for patched ``subprocess``/``sys``
@@ -125,10 +127,16 @@ def run_program(program_name: str, program_file: Path, stream_output: bool = Fal
     subprocess_mod = subprocess
     proj_root = PROJECT_ROOT or Path.cwd()
     if stream_output:
-        proc = subprocess_mod.Popen([python, "-m", program_file.with_suffix("").name], cwd=proj_root, env=env)
+        proc = subprocess_mod.Popen(
+            [python, "-m", program_file.with_suffix("").name], cwd=proj_root, env=env
+        )
         return proc.wait() == 0
     result = subprocess_mod.run(
-        [python, "-m", program_file.with_suffix("").name], cwd=proj_root, capture_output=True, text=True, env=env
+        [python, "-m", program_file.with_suffix("").name],
+        cwd=proj_root,
+        capture_output=True,
+        text=True,
+        env=env,
     )
     return getattr(result, "returncode", 0) == 0
 
@@ -152,6 +160,7 @@ def manage_virtual_environment() -> None:
         vm = sys.modules.get("src.setup.venv_manager")
         try:
             import src.setup.fs_utils as fs_utils
+
             if vm is not None:
                 try:
                     vm.create_safe_path = fs_utils.create_safe_path
@@ -165,6 +174,7 @@ def manage_virtual_environment() -> None:
         import logging
 
         logger = logging.getLogger("src.setup.app")
+
         # Delegate to the concrete helper implementations via lazy import.
         def _ask_text(*a, **k):
             """Ask the user for free-text input using the concrete prompt helper.
@@ -258,6 +268,7 @@ def manage_virtual_environment() -> None:
         _venv_orig: dict[str, tuple[bool, object | None]] = {}
         try:
             import src.setup.venv as _venvmod
+
             for _name in (
                 "is_venv_active",
                 "get_venv_python_executable",
@@ -279,7 +290,10 @@ def manage_virtual_environment() -> None:
                         candidate = getattr(concrete_venv, _name, None)
                     except Exception:
                         candidate = None
-                if candidate is not None and getattr(candidate, "__module__", None) != __name__:
+                if (
+                    candidate is not None
+                    and getattr(candidate, "__module__", None) != __name__
+                ):
                     had = hasattr(_venvmod, _name)
                     orig = getattr(_venvmod, _name) if had else None
                     _venv_orig[_name] = (had, orig)

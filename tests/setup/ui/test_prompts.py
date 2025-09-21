@@ -102,6 +102,7 @@ def test_ask_text_questionary_success(monkeypatch) -> None:
     None
     """
     import src.setup.pipeline.orchestrator as orch
+
     monkeypatch.setattr(ch, "_HAS_Q", True, raising=False)
     # Ensure the orchestrator TUI path is disabled so the questionary
     # adapter branch is exercised deterministically in tests.
@@ -115,7 +116,12 @@ def test_ask_text_questionary_success(monkeypatch) -> None:
         def ask(self):
             return "  qval  "
 
-    monkeypatch.setattr(ch, "questionary", SimpleNamespace(text=lambda p, default="": FakeText(p, default)), raising=False)
+    monkeypatch.setattr(
+        ch,
+        "questionary",
+        SimpleNamespace(text=lambda p, default="": FakeText(p, default)),
+        raising=False,
+    )
     assert sp.ask_text("Q") == "qval"
 
 
@@ -126,6 +132,7 @@ def test_ask_text_questionary_raises_fallback_to_input(monkeypatch) -> None:
     stubbed to provide the fallback value.
     """
     import src.setup.pipeline.orchestrator as orch
+
     monkeypatch.setattr(ch, "_HAS_Q", True, raising=False)
     # Ensure orchestrator TUI path is disabled so we hit the questionary
     # adapter and then the standard input fallback when it raises.
@@ -135,7 +142,9 @@ def test_ask_text_questionary_raises_fallback_to_input(monkeypatch) -> None:
     class Q:
         @staticmethod
         def text(prompt, default=""):
-            return SimpleNamespace(ask=lambda prompt=prompt: (_ for _ in ()).throw(Exception("boom")))
+            return SimpleNamespace(
+                ask=lambda prompt=prompt: (_ for _ in ()).throw(Exception("boom"))
+            )
 
     monkeypatch.setattr(ch, "questionary", Q, raising=False)
     monkeypatch.setattr(builtins, "input", lambda prompt="": " fallback ")
@@ -149,6 +158,7 @@ def test_ask_text_tui_prompt_updater_invoked(monkeypatch) -> None:
     updater that captures the passed Panel's title.
     """
     import src.setup.pipeline.orchestrator as orch
+
     monkeypatch.setattr(orch, "_TUI_MODE", True, raising=False)
     monkeypatch.setattr(orch, "_TUI_UPDATER", lambda *a, **k: None, raising=False)
     captured = {}

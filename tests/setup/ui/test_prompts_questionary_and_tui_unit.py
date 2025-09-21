@@ -17,6 +17,7 @@ import src.setup.pipeline.orchestrator as orch
 
 def test_ask_text_questionary(monkeypatch):
     """When questionary is enabled the adapter should be used."""
+
     class FakeAns:
         def __init__(self, val):
             self._v = val

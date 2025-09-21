@@ -12,6 +12,7 @@ from typing import Any
 from src.config import LANGUAGE_PROMPT_MAX_INVALID, INTERACTIVE_MAX_INVALID_ATTEMPTS
 from src.exceptions import UserInputError
 
+
 def _get_tui_flags() -> tuple[bool, Any, Any]:
     """Return runtime TUI flags from the orchestrator module.
 
@@ -268,7 +269,9 @@ def view_program_descriptions() -> None:
         import importlib
 
         _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+        max_attempts = getattr(
+            _cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS
+        )
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
 
@@ -349,7 +352,9 @@ def set_language() -> None:
         import importlib
 
         _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID)
+        max_attempts = getattr(
+            _cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID
+        )
     except Exception:
         max_attempts = LANGUAGE_PROMPT_MAX_INVALID
 
@@ -400,23 +405,28 @@ def prompt_virtual_environment_choice() -> bool:
     """
     from src.setup.app_ui import ui_rule, ui_menu
     import src.setup.i18n as i18n
+
     # Use the concrete, local `ask_text` implementation rather than
     # reading runtime overrides from a legacy shim. Tests should patch
     # the real dependency (`src.setup.app_prompts.ask_text`).
     _ask = ask_text
 
     ui_rule(i18n.translate("venv_menu_title"))
-    ui_menu([
-        ("1", i18n.translate("venv_menu_option_1")[3:]),
-        ("2", i18n.translate("venv_menu_option_2")[3:]),
-    ])
+    ui_menu(
+        [
+            ("1", i18n.translate("venv_menu_option_1")[3:]),
+            ("2", i18n.translate("venv_menu_option_2")[3:]),
+        ]
+    )
 
     # Enforce attempts limit for venv menu
     try:
         import importlib
 
         _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+        max_attempts = getattr(
+            _cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS
+        )
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
 

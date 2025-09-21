@@ -30,7 +30,9 @@ def test_compose_and_update_group_and_single(monkeypatch) -> None:
     recorded = []
 
     monkeypatch.setattr(orch, "_TUI_MODE", True, raising=False)
-    monkeypatch.setattr(orch, "_TUI_UPDATER", lambda obj: recorded.append(obj), raising=False)
+    monkeypatch.setattr(
+        orch, "_TUI_UPDATER", lambda obj: recorded.append(obj), raising=False
+    )
     monkeypatch.setattr(orch, "_STATUS_RENDERABLE", "S", raising=False)
     monkeypatch.setattr(orch, "_PROGRESS_RENDERABLE", "P", raising=False)
 
@@ -83,16 +85,22 @@ def test_run_ai_connectivity_check_interactive(monkeypatch) -> None:
     None
     """
     printed = []
-    monkeypatch.setattr(orch, "rprint", lambda *a, **k: printed.append(a[0] if a else ""), raising=False)
+    monkeypatch.setattr(
+        orch, "rprint", lambda *a, **k: printed.append(a[0] if a else ""), raising=False
+    )
 
     # Success case
-    monkeypatch.setattr(orch, "run_ai_connectivity_check_silent", lambda: (True, "ok"), raising=False)
+    monkeypatch.setattr(
+        orch, "run_ai_connectivity_check_silent", lambda: (True, "ok"), raising=False
+    )
     assert orch.run_ai_connectivity_check_interactive() is True
     assert printed, "Should have printed a success message"
 
     printed.clear()
     # Failure case
-    monkeypatch.setattr(orch, "run_ai_connectivity_check_silent", lambda: (False, "bad"), raising=False)
+    monkeypatch.setattr(
+        orch, "run_ai_connectivity_check_silent", lambda: (False, "bad"), raising=False
+    )
     assert orch.run_ai_connectivity_check_interactive() is False
     assert printed, "Should have printed failure details"
 
@@ -112,26 +120,66 @@ def test__run_pipeline_step_variants(monkeypatch) -> None:
     calls = {}
 
     # Helper stubs for UI notifications
-    monkeypatch.setattr(orch, "ui_success", lambda msg: calls.setdefault("success", []).append(msg), raising=False)
-    monkeypatch.setattr(orch, "ui_warning", lambda msg: calls.setdefault("warning", []).append(msg), raising=False)
-    monkeypatch.setattr(orch, "ui_info", lambda msg: calls.setdefault("info", []).append(msg), raising=False)
+    monkeypatch.setattr(
+        orch,
+        "ui_success",
+        lambda msg: calls.setdefault("success", []).append(msg),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        orch,
+        "ui_warning",
+        lambda msg: calls.setdefault("warning", []).append(msg),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        orch,
+        "ui_info",
+        lambda msg: calls.setdefault("info", []).append(msg),
+        raising=False,
+    )
 
     # Success path: ask 'y' and run_program returns True
-    monkeypatch.setattr(orch, "ask_text", lambda prompt, default="y": "y", raising=False)
-    monkeypatch.setattr(orch, "run_program", lambda name, path, stream_output=False: True, raising=False)
-    ok = orch._run_pipeline_step("run_program_1_prompt", "program_1", None, "program_1_failed", "program_1_complete")
+    monkeypatch.setattr(
+        orch, "ask_text", lambda prompt, default="y": "y", raising=False
+    )
+    monkeypatch.setattr(
+        orch, "run_program", lambda name, path, stream_output=False: True, raising=False
+    )
+    ok = orch._run_pipeline_step(
+        "run_program_1_prompt",
+        "program_1",
+        None,
+        "program_1_failed",
+        "program_1_complete",
+    )
     assert ok is True and "success" in calls
 
     calls.clear()
     # Failure path: ask 'y' and run_program returns False
-    monkeypatch.setattr(orch, "ask_text", lambda prompt, default="y": "y", raising=False)
-    monkeypatch.setattr(orch, "run_program", lambda name, path, stream_output=False: False, raising=False)
-    ok2 = orch._run_pipeline_step("run_program_1_prompt", "program_1", None, "program_1_failed", "program_1_complete")
+    monkeypatch.setattr(
+        orch, "ask_text", lambda prompt, default="y": "y", raising=False
+    )
+    monkeypatch.setattr(
+        orch,
+        "run_program",
+        lambda name, path, stream_output=False: False,
+        raising=False,
+    )
+    ok2 = orch._run_pipeline_step(
+        "run_program_1_prompt",
+        "program_1",
+        None,
+        "program_1_failed",
+        "program_1_complete",
+    )
     assert ok2 is False and "warning" in calls
 
     calls.clear()
     # Skip path: ask 's' and skip_message provided
-    monkeypatch.setattr(orch, "ask_text", lambda prompt, default="y": "s", raising=False)
+    monkeypatch.setattr(
+        orch, "ask_text", lambda prompt, default="y": "s", raising=False
+    )
     ok3 = orch._run_pipeline_step(
         "run_program_2_prompt",
         "program_2",
@@ -144,8 +192,16 @@ def test__run_pipeline_step_variants(monkeypatch) -> None:
 
     calls.clear()
     # Invalid choice: other input
-    monkeypatch.setattr(orch, "ask_text", lambda prompt, default="y": "x", raising=False)
-    ok4 = orch._run_pipeline_step("run_program_3_prompt", "program_3", None, "program_3_failed", "program_3_complete")
+    monkeypatch.setattr(
+        orch, "ask_text", lambda prompt, default="y": "x", raising=False
+    )
+    ok4 = orch._run_pipeline_step(
+        "run_program_3_prompt",
+        "program_3",
+        None,
+        "program_3_failed",
+        "program_3_complete",
+    )
     assert ok4 is False and "warning" in calls
 
 
@@ -168,7 +224,12 @@ def test_compose_and_update_other_branches(monkeypatch) -> None:
     recorded = []
     # Only status
     monkeypatch.setattr(orch, "_TUI_MODE", True, raising=False)
-    monkeypatch.setattr(orch, "_TUI_UPDATER", lambda obj: recorded.append(("only_status", obj)), raising=False)
+    monkeypatch.setattr(
+        orch,
+        "_TUI_UPDATER",
+        lambda obj: recorded.append(("only_status", obj)),
+        raising=False,
+    )
     monkeypatch.setattr(orch, "_STATUS_RENDERABLE", "SINGLE", raising=False)
     monkeypatch.setattr(orch, "_PROGRESS_RENDERABLE", None, raising=False)
     orch._compose_and_update()
@@ -185,7 +246,9 @@ def test_compose_and_update_other_branches(monkeypatch) -> None:
     recorded.clear()
     monkeypatch.setattr(orch, "_STATUS_RENDERABLE", None, raising=False)
     monkeypatch.setattr(orch, "_PROGRESS_RENDERABLE", None, raising=False)
-    monkeypatch.setattr(orch, "_TUI_UPDATER", lambda obj: recorded.append(("empty", obj)), raising=False)
+    monkeypatch.setattr(
+        orch, "_TUI_UPDATER", lambda obj: recorded.append(("empty", obj)), raising=False
+    )
     orch._compose_and_update()
     assert recorded and recorded[0][0] == "empty"
 
@@ -206,6 +269,7 @@ def test_compose_and_update_group_setattr_failure(monkeypatch) -> None:
     -------
     None
     """
+
     class BadGroup:
         def __init__(self, a, b):
             # store but disallow adding new attributes afterwards
@@ -223,7 +287,9 @@ def test_compose_and_update_group_setattr_failure(monkeypatch) -> None:
 
     recorded = []
     monkeypatch.setattr(orch, "_TUI_MODE", True, raising=False)
-    monkeypatch.setattr(orch, "_TUI_UPDATER", lambda obj: recorded.append(obj), raising=False)
+    monkeypatch.setattr(
+        orch, "_TUI_UPDATER", lambda obj: recorded.append(obj), raising=False
+    )
     monkeypatch.setattr(orch, "_STATUS_RENDERABLE", "S", raising=False)
     monkeypatch.setattr(orch, "_PROGRESS_RENDERABLE", "P", raising=False)
     orch._compose_and_update()

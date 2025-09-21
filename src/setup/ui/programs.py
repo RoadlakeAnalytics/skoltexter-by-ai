@@ -148,7 +148,9 @@ def _view_logs_tui(
                 Panel(translate("invalid_choice"), title="Info", border_style="yellow")
             )
             if attempts >= max_attempts:
-                update_right(Panel(translate("exiting"), title="Info", border_style="red"))
+                update_right(
+                    Panel(translate("exiting"), title="Info", border_style="red")
+                )
                 raise UserInputError(
                     "Exceeded maximum invalid selections in logs view",
                     context={"attempts": attempts, "max_attempts": max_attempts},

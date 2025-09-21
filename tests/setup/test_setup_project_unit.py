@@ -39,7 +39,11 @@ setattr(sp, "ui_menu", app_ui.ui_menu)
 setattr(sp, "ask_text", app_prompts.ask_text)
 setattr(sp, "ask_confirm", app_prompts.ask_confirm)
 setattr(sp, "ask_select", app_prompts.ask_select)
-setattr(sp, "prompt_virtual_environment_choice", app_prompts.prompt_virtual_environment_choice)
+setattr(
+    sp,
+    "prompt_virtual_environment_choice",
+    app_prompts.prompt_virtual_environment_choice,
+)
 
 setattr(sp, "get_venv_bin_dir", app_venv.get_venv_bin_dir)
 setattr(sp, "get_python_executable", app_venv.get_python_executable)
@@ -48,18 +52,22 @@ setattr(sp, "parse_cli_args", app_runner.parse_cli_args)
 setattr(sp, "parse_env_file", app_runner.parse_env_file)
 setattr(sp, "prompt_and_update_env", app_runner.prompt_and_update_env)
 setattr(sp, "ensure_azure_openai_env", app_runner.ensure_azure_openai_env)
-setattr(sp, "run_ai_connectivity_check_silent", app_runner.run_ai_connectivity_check_silent)
+setattr(
+    sp, "run_ai_connectivity_check_silent", app_runner.run_ai_connectivity_check_silent
+)
 setattr(sp, "entry_point", app_runner.entry_point)
 setattr(sp, "main_menu", app_runner.main_menu)
 setattr(sp, "find_missing_env_keys", app_runner.find_missing_env_keys)
 setattr(sp, "REQUIRED_AZURE_KEYS", getattr(azure_env, "REQUIRED_AZURE_KEYS", []))
 
-setattr(sp, "_run_processing_pipeline_plain", app_pipeline._run_processing_pipeline_plain)
+setattr(
+    sp, "_run_processing_pipeline_plain", app_pipeline._run_processing_pipeline_plain
+)
 setattr(sp, "_run_processing_pipeline_rich", app_pipeline._run_processing_pipeline_rich)
 
 
-    # Note: TUI getpass branches are tested in a dedicated test to avoid
-    # interference with the questionary-specific branch tested above.
+# Note: TUI getpass branches are tested in a dedicated test to avoid
+# interference with the questionary-specific branch tested above.
 
 
 # The tests for UI helpers, prompts and venv helpers have been moved to
@@ -82,15 +90,6 @@ def test_set_language_and_exit(monkeypatch):
     """
     # This test has been consolidated into the canonical
     # `tests/setup/test_app_prompts.py` and removed from this file.
-
-
-
-
-
-
-
-
-
 
 
 # Tests migrated from other files to consolidate coverage for the
@@ -130,7 +129,9 @@ def test_run_program_uses_propagated_python(monkeypatch) -> None:
     # Prevent spawning real subprocesses in the delegated implementation by
     # patching the concrete subprocess runner used by the refactored venv
     # helper module instead of touching any legacy shim module object.
-    monkeypatch.setattr("src.setup.app_venv.subprocess.run", lambda *a, **k: R(), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_venv.subprocess.run", lambda *a, **k: R(), raising=False
+    )
 
     ok = setup_proj.run_program("prog", Path("src/some_module.py"), stream_output=False)
     assert ok is True
@@ -165,7 +166,9 @@ def test_setup_project_run_program_non_stream(monkeypatch) -> None:
         stderr = ""
 
     # Patch the concrete subprocess used by the venv helper.
-    monkeypatch.setattr("src.setup.app_venv.subprocess.run", lambda *a, **k: R(), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_venv.subprocess.run", lambda *a, **k: R(), raising=False
+    )
     ok = setup_proj.run_program(
         "program_1", Path("src/program1_generate_markdowns.py"), stream_output=False
     )
@@ -208,17 +211,23 @@ def test_manage_virtual_environment_recreate(monkeypatch, tmp_path: Path) -> Non
     monkeypatch.setattr(fs_utils, "create_safe_path", lambda p: p, raising=False)
     monkeypatch.setattr(fs_utils, "safe_rmtree", lambda p: None, raising=False)
     monkeypatch.setattr(
-        setup_proj, "get_venv_pip_executable", lambda p: p / "bin" / "pip", raising=False
+        setup_proj,
+        "get_venv_pip_executable",
+        lambda p: p / "bin" / "pip",
+        raising=False,
     )
     monkeypatch.setattr(
-        setup_proj, "get_venv_python_executable", lambda p: p / "bin" / "python", raising=False
+        setup_proj,
+        "get_venv_python_executable",
+        lambda p: p / "bin" / "python",
+        raising=False,
     )
     monkeypatch.setattr(
         setup_proj, "venv", SimpleNamespace(create=lambda *a, **k: None), raising=False
     )
-    monkeypatch.setattr("src.setup.app_venv.subprocess.check_call", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_venv.subprocess.check_call", lambda *a, **k: None, raising=False
+    )
 
     # Should not raise
     setup_proj.manage_virtual_environment()
-
-

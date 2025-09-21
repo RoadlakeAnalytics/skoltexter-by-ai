@@ -69,6 +69,7 @@ def ui_has_rich() -> bool:
     except Exception:
         return bool(_RICH_CONSOLE)
 
+
 # Prompts
 ask_text = app_prompts.ask_text
 ask_confirm = app_prompts.ask_confirm

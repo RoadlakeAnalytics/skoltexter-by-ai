@@ -33,14 +33,21 @@ _app_ns = types.SimpleNamespace(
     get_venv_python_executable=_app_venv.get_venv_python_executable,
     get_venv_pip_executable=_app_venv.get_venv_pip_executable,
     run_program=_app_venv.run_program,
-    ask_text=_app_prompts.ask_text if hasattr(_app_prompts, 'ask_text') else None,
-    prompt_virtual_environment_choice=_app_prompts.prompt_virtual_environment_choice if hasattr(_app_prompts, 'prompt_virtual_environment_choice') else None,
-    set_language=_app_prompts.set_language if hasattr(_app_prompts, 'set_language') else None,
+    ask_text=_app_prompts.ask_text if hasattr(_app_prompts, "ask_text") else None,
+    prompt_virtual_environment_choice=(
+        _app_prompts.prompt_virtual_environment_choice
+        if hasattr(_app_prompts, "prompt_virtual_environment_choice")
+        else None
+    ),
+    set_language=(
+        _app_prompts.set_language if hasattr(_app_prompts, "set_language") else None
+    ),
     subprocess=__import__("subprocess"),
 )
 
 app = _app_ns
 import sys as _sys
+
 _sys.modules["src.setup.app"] = app
 
 
@@ -62,7 +69,9 @@ def test_parse_cli_args_and_sync_console_helpers(monkeypatch) -> None:
     # Test _sync_console_helpers propagates test toggles
     monkeypatch.setattr(app, "_RICH_CONSOLE", "RC", raising=False)
     monkeypatch.setattr(app, "_HAS_Q", True, raising=False)
-    monkeypatch.setattr(app, "questionary", SimpleNamespace(text=lambda *a, **k: None), raising=False)
+    monkeypatch.setattr(
+        app, "questionary", SimpleNamespace(text=lambda *a, **k: None), raising=False
+    )
     # Call and ensure no exception (propagation happens into console_helpers)
     app._sync_console_helpers()
 
@@ -76,11 +85,31 @@ def test_ui_wrappers_delegate(monkeypatch) -> None:
     called = {}
 
     monkeypatch.setattr(app, "_sync_console_helpers", lambda: None, raising=False)
-    monkeypatch.setattr("src.setup.ui.basic.ui_rule", lambda t: called.setdefault("rule", t), raising=False)
-    monkeypatch.setattr("src.setup.ui.basic.ui_header", lambda t: called.setdefault("header", t), raising=False)
-    monkeypatch.setattr("src.setup.ui.basic.ui_info", lambda m: called.setdefault("info", m), raising=False)
-    monkeypatch.setattr("src.setup.ui.basic.ui_warning", lambda m: called.setdefault("warn", m), raising=False)
-    monkeypatch.setattr("src.setup.ui.basic.ui_success", lambda m: called.setdefault("succ", m), raising=False)
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_rule",
+        lambda t: called.setdefault("rule", t),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_header",
+        lambda t: called.setdefault("header", t),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_info",
+        lambda m: called.setdefault("info", m),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_warning",
+        lambda m: called.setdefault("warn", m),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "src.setup.ui.basic.ui_success",
+        lambda m: called.setdefault("succ", m),
+        raising=False,
+    )
 
     app.ui_rule("T")
     app.ui_header("H")
@@ -98,6 +127,7 @@ def test_ui_wrappers_delegate(monkeypatch) -> None:
 # The venv-related tests were migrated to
 # ``tests/setup/test_app_venv.py`` and removed from this file.
 
+
 def test_run_program_subprocess_and_stream(monkeypatch, tmp_path: Path) -> None:
     """run_program uses subprocess.run and Popen depending on stream_output.
 
@@ -109,7 +139,9 @@ def test_run_program_subprocess_and_stream(monkeypatch, tmp_path: Path) -> None:
         def wait(self):
             return 0
 
-    monkeypatch.setattr(app.subprocess, "Popen", lambda *a, **k: FakeProc(), raising=False)
+    monkeypatch.setattr(
+        app.subprocess, "Popen", lambda *a, **k: FakeProc(), raising=False
+    )
     # For stream_output True
     assert app.run_program("m", Path("mod.py"), stream_output=True) is True
 

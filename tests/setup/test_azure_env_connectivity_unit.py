@@ -81,4 +81,3 @@ def test_run_ai_connectivity_check_silent_success(monkeypatch):
     ok, detail = az.run_ai_connectivity_check_silent()
     assert ok is True
     assert detail == "Status: OK"
-

@@ -38,13 +38,17 @@ def test_get_venv_bin_dir_and_executables(monkeypatch, tmp_path: Path) -> None:
     v = tmp_path / "venv"
 
     # Non-Windows
-    monkeypatch.setattr(app_venv, "sys", SimpleNamespace(platform="linux"), raising=False)
+    monkeypatch.setattr(
+        app_venv, "sys", SimpleNamespace(platform="linux"), raising=False
+    )
     assert app_venv.get_venv_bin_dir(v).name == "bin"
     assert app_venv.get_venv_python_executable(v).name == "python"
     assert app_venv.get_venv_pip_executable(v).name == "pip"
 
     # Windows
-    monkeypatch.setattr(app_venv, "sys", SimpleNamespace(platform="win32"), raising=False)
+    monkeypatch.setattr(
+        app_venv, "sys", SimpleNamespace(platform="win32"), raising=False
+    )
     assert app_venv.get_venv_bin_dir(v).name == "Scripts"
     assert app_venv.get_venv_python_executable(v).name == "python.exe"
     assert app_venv.get_venv_pip_executable(v).name == "pip.exe"
@@ -94,7 +98,9 @@ def test_run_program_invokes_subprocess(monkeypatch, tmp_path: Path) -> None:
     -------
     None
     """
-    monkeypatch.setattr(app_venv, "get_python_executable", lambda: "/usr/bin/python", raising=False)
+    monkeypatch.setattr(
+        app_venv, "get_python_executable", lambda: "/usr/bin/python", raising=False
+    )
 
     class DummyProc:
         def wait(self):
@@ -189,9 +195,12 @@ def test_manage_virtual_environment_calls_manager(monkeypatch, tmp_path: Path) -
     def fake_manage(project_root, venv_dir, req_file, req_lock, UI):
         called["args"] = (project_root, venv_dir, req_file, req_lock)
 
-    monkeypatch.setattr(vm_mod, "manage_virtual_environment", fake_manage, raising=False)
+    monkeypatch.setattr(
+        vm_mod, "manage_virtual_environment", fake_manage, raising=False
+    )
 
     import src.config as cfg
+
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
     monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
     monkeypatch.setattr(subprocess, "check_call", lambda *a, **k: None, raising=False)
@@ -229,10 +238,14 @@ def test_manage_virtual_environment_propagates_and_restores(monkeypatch) -> None
         return "/tmp/fake"
 
     # Install a fake manager that simply records it was called
-    monkeypatch.setattr(vm_mod, "manage_virtual_environment", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        vm_mod, "manage_virtual_environment", lambda *a, **k: None, raising=False
+    )
 
     # Patch the concrete app_venv helper so the wrapper will propagate it
-    monkeypatch.setattr(app_venv, "get_python_executable", fake_get_python_executable, raising=False)
+    monkeypatch.setattr(
+        app_venv, "get_python_executable", fake_get_python_executable, raising=False
+    )
 
     # Call the wrapper which should propagate and then restore the attribute
     app_venv.manage_virtual_environment()

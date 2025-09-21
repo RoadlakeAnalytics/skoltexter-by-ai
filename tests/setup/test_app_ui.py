@@ -31,12 +31,16 @@ def test_sync_console_helpers_propagates(monkeypatch):
     import src.setup.console_helpers as ch
 
     fake_q = object()
-    fake_app = types.SimpleNamespace(_RICH_CONSOLE=object(), _HAS_Q=True, questionary=fake_q)
+    fake_app = types.SimpleNamespace(
+        _RICH_CONSOLE=object(), _HAS_Q=True, questionary=fake_q
+    )
 
     # Patch the concrete console_helpers attributes directly so the
     # sync helper observes the expected toggles. Tests should avoid
     # registering or relying on the legacy shim in ``sys.modules``.
-    monkeypatch.setattr("src.setup.console_helpers._RICH_CONSOLE", fake_app._RICH_CONSOLE, raising=False)
+    monkeypatch.setattr(
+        "src.setup.console_helpers._RICH_CONSOLE", fake_app._RICH_CONSOLE, raising=False
+    )
     monkeypatch.setattr("src.setup.console_helpers._HAS_Q", True, raising=False)
     monkeypatch.setattr("src.setup.console_helpers.questionary", fake_q, raising=False)
 
@@ -88,7 +92,10 @@ def test_ui_has_rich_delegates_and_falls_back(monkeypatch):
     # Simulate helper raising so the wrapper falls back to the concrete
     # module-level flag.
     monkeypatch.setattr(
-        ch, "ui_has_rich", lambda: (_ for _ in ()).throw(Exception("boom")), raising=False
+        ch,
+        "ui_has_rich",
+        lambda: (_ for _ in ()).throw(Exception("boom")),
+        raising=False,
     )
     monkeypatch.setattr(ch, "_RICH_CONSOLE", object(), raising=False)
     assert app_ui.ui_has_rich() is True
@@ -102,7 +109,9 @@ def test_build_dashboard_layout_delegates(monkeypatch):
     monkeypatch : pytest.MonkeyPatch
         Fixture used to patch the UI function.
     """
-    monkeypatch.setattr("src.setup.ui._build_dashboard_layout", lambda *a, **k: {"ok": True})
+    monkeypatch.setattr(
+        "src.setup.ui._build_dashboard_layout", lambda *a, **k: {"ok": True}
+    )
     res = app_ui._build_dashboard_layout("x")
     assert res == {"ok": True}
 

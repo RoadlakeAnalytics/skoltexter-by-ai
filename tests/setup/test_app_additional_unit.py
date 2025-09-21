@@ -35,6 +35,7 @@ _app_ns = types.SimpleNamespace(
 
 app = _app_ns
 import sys as _sys
+
 _sys.modules["src.setup.app"] = app
 
 

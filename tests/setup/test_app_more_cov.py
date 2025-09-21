@@ -32,27 +32,36 @@ _sys.modules["src.setup.app"] = app
 
 
 def test_entry_point_minimal(monkeypatch):
-    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=True, ui="rich"))
+    monkeypatch.setattr(
+        "src.setup.app_runner.parse_cli_args",
+        lambda: SimpleNamespace(lang="en", no_venv=True, ui="rich"),
+    )
     monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
     monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
     called = {}
-    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: called.setdefault("main", True))
+    monkeypatch.setattr(
+        "src.setup.app_runner.main_menu", lambda: called.setdefault("main", True)
+    )
     app.entry_point()
     assert called.get("main") is True
 
 
 def test_entry_point_with_venv(monkeypatch):
-    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=False, ui="rich"))
+    monkeypatch.setattr(
+        "src.setup.app_runner.parse_cli_args",
+        lambda: SimpleNamespace(lang="en", no_venv=False, ui="rich"),
+    )
     monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
     monkeypatch.setattr("src.setup.app_venv.is_venv_active", lambda: False)
-    monkeypatch.setattr("src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True
+    )
     called = {}
     monkeypatch.setattr(
-        "src.setup.app_venv.manage_virtual_environment", lambda: called.setdefault("vm", True)
+        "src.setup.app_venv.manage_virtual_environment",
+        lambda: called.setdefault("vm", True),
     )
     monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
     monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
     app.entry_point()
     assert called.get("vm") is True
-
-

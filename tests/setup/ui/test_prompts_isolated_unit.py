@@ -28,7 +28,9 @@ def _load_prompts_with_console(monkeypatch, console_mod, orchestrator_mod=None):
         pipkg = types.ModuleType("src.setup.pipeline")
         pipkg.orchestrator = orchestrator_mod
         monkeypatch.setitem(sys.modules, "src.setup.pipeline", pipkg)
-        monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orchestrator_mod)
+        monkeypatch.setitem(
+            sys.modules, "src.setup.pipeline.orchestrator", orchestrator_mod
+        )
 
     src = Path("src/setup/ui/prompts.py").resolve()
     spec = importlib.util.spec_from_file_location("tmp_prompts", str(src))
@@ -110,7 +112,7 @@ def test_isolated_tui_updater_calls_panel(monkeypatch):
     captured = {}
 
     def prompt_updater(obj):
-        captured['obj'] = obj
+        captured["obj"] = obj
 
     fake_orch = types.ModuleType("src.setup.pipeline.orchestrator")
     fake_orch._TUI_MODE = True
@@ -127,4 +129,4 @@ def test_isolated_tui_updater_calls_panel(monkeypatch):
     prompts = _load_prompts_with_console(monkeypatch, ch, orchestrator_mod=fake_orch)
     val = prompts.ask_text("Q?", default="d")
     assert val == "got"
-    assert 'obj' in captured
+    assert "obj" in captured

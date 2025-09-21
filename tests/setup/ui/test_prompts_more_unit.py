@@ -50,7 +50,9 @@ def test_ask_text_tui_getpass_and_fallback(monkeypatch):
     assert prom.ask_text("P?", default="d") == "inpval"
 
     # And when input raises EOFError default is returned
-    monkeypatch.setattr(builtins, "input", lambda prompt="": (_ for _ in ()).throw(EOFError()))
+    monkeypatch.setattr(
+        builtins, "input", lambda prompt="": (_ for _ in ()).throw(EOFError())
+    )
     assert prom.ask_text("P?", default="dflt") == "dflt"
 
 
@@ -77,6 +79,7 @@ def test_ask_select_non_tty_returns_last_choice(monkeypatch):
 
 def test_isatty_exception_is_handled(monkeypatch):
     """If sys.stdin.isatty raises, prompts treat that as non-tty gracefully."""
+
     def _raise():
         raise RuntimeError("nope")
 
@@ -88,10 +91,13 @@ def test_isatty_exception_is_handled(monkeypatch):
 
 def test_ask_confirm_questionary_exception_fallback(monkeypatch):
     """When questionary.confirm raises, ask_confirm falls back to input."""
+
     class Q:
         @staticmethod
         def confirm(prompt, default=True):
-            return SimpleNamespace(ask=lambda: (_ for _ in ()).throw(RuntimeError("qerr")))
+            return SimpleNamespace(
+                ask=lambda: (_ for _ in ()).throw(RuntimeError("qerr"))
+            )
 
     monkeypatch.setattr(ch, "questionary", Q, raising=False)
     monkeypatch.setattr(ch, "_HAS_Q", False, raising=False)

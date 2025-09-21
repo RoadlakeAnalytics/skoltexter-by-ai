@@ -240,7 +240,9 @@ def set_language() -> None:
         import importlib
 
         _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID)
+        max_attempts = getattr(
+            _cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID
+        )
     except Exception:
         # Fall back to the module-level default when configuration cannot be
         # loaded. Tests should patch `src.config.LANGUAGE_PROMPT_MAX_INVALID`

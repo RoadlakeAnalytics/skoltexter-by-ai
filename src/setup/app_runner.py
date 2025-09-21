@@ -93,7 +93,9 @@ def entry_point() -> None:
         # ``src.setup.app_prompts`` when necessary.
         try:
             from src.setup.app_venv import is_venv_active as _is_venv_active
-            from src.setup.app_prompts import prompt_virtual_environment_choice as _prompt_choice
+            from src.setup.app_prompts import (
+                prompt_virtual_environment_choice as _prompt_choice,
+            )
             from src.setup.app_venv import manage_virtual_environment as _manage
 
             if not _is_venv_active():
@@ -157,7 +159,9 @@ def run_extreme_quality_suite() -> None:
     try:
         import subprocess
 
-        subprocess.run([get_python_executable(), str(helper), "--extreme"], cwd=PROJECT_ROOT)
+        subprocess.run(
+            [get_python_executable(), str(helper), "--extreme"], cwd=PROJECT_ROOT
+        )
     except Exception:
         pass
 
@@ -168,8 +172,11 @@ def parse_env_file(env_path: Path) -> dict[str, str]:
     return _p(env_path)
 
 
-def prompt_and_update_env(missing_keys: list[str], env_path: Path, existing: dict[str, str], ui: Any = None) -> None:
+def prompt_and_update_env(
+    missing_keys: list[str], env_path: Path, existing: dict[str, str], ui: Any = None
+) -> None:
     from src.setup.azure_env import prompt_and_update_env as _p
+
     # Forward the explicit `ui` when provided; otherwise let the azure
     # helper discover a suitable UI implementation on its own. Avoid
     # reaching into a legacy shim in ``sys.modules``.
@@ -237,7 +244,10 @@ def run_ai_connectivity_check_interactive() -> bool:
     # Use the concrete UI helpers; tests should patch these where
     # necessary. This avoids consulting a legacy shim in ``sys.modules``.
     try:
-        from src.setup.app_ui import ui_success as _ui_success_fallback, ui_error as _ui_error_fallback
+        from src.setup.app_ui import (
+            ui_success as _ui_success_fallback,
+            ui_error as _ui_error_fallback,
+        )
     except Exception:
         _ui_success_fallback = None
         _ui_error_fallback = None

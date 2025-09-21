@@ -58,6 +58,7 @@ def run_pytest_target(target: str, timeout: int) -> Tuple[int, str, str]:
     tuple[int, str, str]
         Return code, stdout and stderr (trimmed by the caller if desired).
     """
+
     def _to_text(v: object) -> str:
         if isinstance(v, bytes):
             try:
@@ -74,7 +75,13 @@ def run_pytest_target(target: str, timeout: int) -> Tuple[int, str, str]:
         env = dict(**dict(os.environ)) if "os" in globals() else None
         if env is not None:
             env.update({"PYTEST_TEST_TIMEOUT": str(timeout)})
-        proc = subprocess.run([sys.executable, "-m", "pytest", target, "-q"], capture_output=True, text=True, timeout=timeout, env=env)
+        proc = subprocess.run(
+            [sys.executable, "-m", "pytest", target, "-q"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
         return proc.returncode, _to_text(proc.stdout), _to_text(proc.stderr)
     except subprocess.TimeoutExpired as exc:
         out = _to_text(getattr(exc, "output", "") or "")
@@ -123,8 +130,16 @@ def analyze_output_snippets(text: str) -> Dict[str, object]:
     found = [p for p in patterns if p in text]
     lines = [l for l in text.splitlines() if l.strip()]
     repeats = any(lines.count(l) > 10 for l in set(lines)) if lines else False
-    mem_issue = any(k in text for k in ("MemoryError", "Killed", "OOM", "OutOfMemory", "out of memory"))
-    return {"patterns": found, "repeated_lines": repeats, "memory_issue": mem_issue, "preview": lines[:40]}
+    mem_issue = any(
+        k in text
+        for k in ("MemoryError", "Killed", "OOM", "OutOfMemory", "out of memory")
+    )
+    return {
+        "patterns": found,
+        "repeated_lines": repeats,
+        "memory_issue": mem_issue,
+        "preview": lines[:40],
+    }
 
 
 def diagnose(tests_dir: Path, timeout: int, out: Path) -> int:
@@ -170,7 +185,12 @@ def diagnose(tests_dir: Path, timeout: int, out: Path) -> int:
         else:
             status = "FAIL"
 
-        entry = {"status": status, "rc": rc, "stdout": out_str[:2000], "stderr": err_str[:2000]}
+        entry = {
+            "status": status,
+            "rc": rc,
+            "stdout": out_str[:2000],
+            "stderr": err_str[:2000],
+        }
         report["files"][key] = entry
         if status not in ("PASS", "SKIPPED_NO_TESTS"):
             any_problem = True
@@ -179,13 +199,29 @@ def diagnose(tests_dir: Path, timeout: int, out: Path) -> int:
             for node in nodeids:
                 print("  Running node:", node)
                 rc2, out2, err2 = run_pytest_target(node, timeout)
-                stat2 = "PASS" if rc2 == 0 else ("TIMEOUT" if rc2 == -1 else ("NO_TESTS" if rc2 == 5 else "FAIL"))
-                info = {"nodeid": node, "status": stat2, "rc": rc2, "stdout": out2[:2000], "stderr": err2[:2000]}
+                stat2 = (
+                    "PASS"
+                    if rc2 == 0
+                    else (
+                        "TIMEOUT" if rc2 == -1 else ("NO_TESTS" if rc2 == 5 else "FAIL")
+                    )
+                )
+                info = {
+                    "nodeid": node,
+                    "status": stat2,
+                    "rc": rc2,
+                    "stdout": out2[:2000],
+                    "stderr": err2[:2000],
+                }
                 info.update(analyze_output_snippets((out2 or "") + (err2 or "")))
                 entry["items"].append(info)
 
     report["summary"]["total_files"] = len(files)
-    report["summary"]["problem_files"] = sum(1 for v in report["files"].values() if v["status"] not in ("PASS", "SKIPPED_NO_TESTS"))
+    report["summary"]["problem_files"] = sum(
+        1
+        for v in report["files"].values()
+        if v["status"] not in ("PASS", "SKIPPED_NO_TESTS")
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print("Wrote report to", out)
@@ -196,7 +232,9 @@ def main(argv: List[str] | None = None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--tests-dir", type=Path, default=Path("tests"))
     p.add_argument("--timeout", type=int, default=30)
-    p.add_argument("--out", type=Path, default=Path("tools/smarter_diagnose_results.json"))
+    p.add_argument(
+        "--out", type=Path, default=Path("tools/smarter_diagnose_results.json")
+    )
     args = p.parse_args(argv)
     return diagnose(args.tests_dir, args.timeout, args.out)
 

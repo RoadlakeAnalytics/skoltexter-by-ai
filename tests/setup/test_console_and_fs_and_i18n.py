@@ -33,7 +33,9 @@ def test_rprint_fallback_to_print(capsys, monkeypatch) -> None:
     assert "hello" in captured.out
 
 
-def test_create_safe_path_pycache_allowed_and_outside(monkeypatch, tmp_path: Path) -> None:
+def test_create_safe_path_pycache_allowed_and_outside(
+    monkeypatch, tmp_path: Path
+) -> None:
     """__pycache__ inside project root is allowed; outside path is denied.
 
     Parameters
@@ -47,7 +49,9 @@ def test_create_safe_path_pycache_allowed_and_outside(monkeypatch, tmp_path: Pat
     None
     """
     # Patch project root
-    monkeypatch.setattr(fs_utils, "_ValidatedPath", fs_utils._ValidatedPath, raising=False)
+    monkeypatch.setattr(
+        fs_utils, "_ValidatedPath", fs_utils._ValidatedPath, raising=False
+    )
     import src.config as cfg
 
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=False)
@@ -81,6 +85,7 @@ def test_set_language_keyboard_interrupt(monkeypatch) -> None:
     -------
     None
     """
+
     def _raise(_=None):
         raise KeyboardInterrupt()
 

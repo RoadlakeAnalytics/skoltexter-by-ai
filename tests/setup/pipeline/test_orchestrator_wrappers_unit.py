@@ -14,8 +14,14 @@ def test_run_processing_pipeline_chooses_plain_or_rich(monkeypatch):
     is selected.
     """
     called = {}
-    monkeypatch.setattr(orch, "_run_processing_pipeline_plain", lambda: called.setdefault("plain", True))
-    monkeypatch.setattr(orch, "_run_processing_pipeline_rich", lambda *a, **k: called.setdefault("rich", True))
+    monkeypatch.setattr(
+        orch, "_run_processing_pipeline_plain", lambda: called.setdefault("plain", True)
+    )
+    monkeypatch.setattr(
+        orch,
+        "_run_processing_pipeline_rich",
+        lambda *a, **k: called.setdefault("rich", True),
+    )
 
     # Force plain path
     monkeypatch.setattr(orch, "ui_has_rich", lambda: False)
@@ -44,4 +50,3 @@ def test_run_pipeline_by_name_maps_to_runners(monkeypatch):
     called.clear()
     assert orch.run_pipeline_by_name("program_3") is True
     assert "w" in called
-

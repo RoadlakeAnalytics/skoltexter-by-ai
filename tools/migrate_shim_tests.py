@@ -31,7 +31,10 @@ def find_candidate_files() -> List[Path]:
     for p in TEST_DIR.rglob("*.py"):
         text = p.read_text(encoding="utf-8")
         # Skip files that explicitly import the legacy shim at top-level
-        if 'import src.setup.app' in text or 'importlib.import_module("src.setup.app")' in text:
+        if (
+            "import src.setup.app" in text
+            or 'importlib.import_module("src.setup.app")' in text
+        ):
             continue
         if 'ModuleType("src.setup.app")' in text:
             files.append(p)
@@ -42,27 +45,27 @@ def try_migrate_file(p: Path) -> bool:
     text = p.read_text(encoding="utf-8")
 
     # Heuristic: find the block that defines ModuleType("src.setup.app")
-    mstart = text.find('from types import ModuleType')
+    mstart = text.find("from types import ModuleType")
     if mstart == -1:
         return False
     mend = text.find('_sys.modules["src.setup.app"] = _mod', mstart)
     if mend == -1:
         return False
     # Include the trailing line and possible 'app = _mod'
-    mend_line_end = text.find('\n', mend)
+    mend_line_end = text.find("\n", mend)
     if mend_line_end == -1:
         mend_line_end = mend
     # Try to include an 'app = _mod' line if present immediately after
     tail = text[mend_line_end + 1 : mend_line_end + 200]
-    if tail.startswith('\n'):
+    if tail.startswith("\n"):
         tail = tail[1:]
-    if tail.startswith('app = _mod'):
+    if tail.startswith("app = _mod"):
         # find end of that line too
-        second_end = text.find('\n', mend_line_end + 1)
+        second_end = text.find("\n", mend_line_end + 1)
         if second_end != -1:
             mend_line_end = second_end
 
-    new_text = text[:mstart] + 'app = _app_ns\n' + text[mend_line_end + 1 :]
+    new_text = text[:mstart] + "app = _app_ns\n" + text[mend_line_end + 1 :]
 
     # Backup original
     orig = text

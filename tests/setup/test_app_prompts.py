@@ -53,6 +53,7 @@ def test_set_language_keyboardinterrupt_raises_userinputerror(monkeypatch):
     -------
     None
     """
+
     def _kb(_=None):
         raise KeyboardInterrupt()
 
@@ -84,7 +85,9 @@ def test_prompt_virtual_environment_choice_branches(monkeypatch):
     # Choose '2' -> False, and ensure ui_info is called
     called = {}
     monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "2")
-    monkeypatch.setattr("src.setup.app_ui.ui_info", lambda m: called.setdefault("info", m))
+    monkeypatch.setattr(
+        "src.setup.app_ui.ui_info", lambda m: called.setdefault("info", m)
+    )
     assert app_prompts.prompt_virtual_environment_choice() is False
     assert "info" in called
 
@@ -105,8 +108,14 @@ def test_ask_text_tui_branch(monkeypatch) -> None:
     None
     """
     # Ensure TUI mode is active on the canonical orchestrator and provide prompt updaters
-    monkeypatch.setattr("src.setup.pipeline.orchestrator._TUI_MODE", True, raising=False)
-    monkeypatch.setattr("src.setup.pipeline.orchestrator._TUI_UPDATER", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        "src.setup.pipeline.orchestrator._TUI_MODE", True, raising=False
+    )
+    monkeypatch.setattr(
+        "src.setup.pipeline.orchestrator._TUI_UPDATER",
+        lambda *a, **k: None,
+        raising=False,
+    )
 
     captured = {}
 
@@ -114,7 +123,11 @@ def test_ask_text_tui_branch(monkeypatch) -> None:
         # record that updater was called and the provided title
         captured["title"] = getattr(panel, "title", None)
 
-    monkeypatch.setattr("src.setup.pipeline.orchestrator._TUI_PROMPT_UPDATER", _prompt_updater, raising=False)
+    monkeypatch.setattr(
+        "src.setup.pipeline.orchestrator._TUI_PROMPT_UPDATER",
+        _prompt_updater,
+        raising=False,
+    )
 
     class _Panel:
         def __init__(self, renderable, title=""):
@@ -161,8 +174,12 @@ def test_ask_text_delegates_to_prompts(monkeypatch) -> None:
     None
     """
 
-    monkeypatch.setattr("src.setup.pipeline.orchestrator._TUI_MODE", False, raising=False)
-    monkeypatch.setattr("src.setup.ui.prompts.ask_text", lambda p, d=None: "delegated", raising=False)
+    monkeypatch.setattr(
+        "src.setup.pipeline.orchestrator._TUI_MODE", False, raising=False
+    )
+    monkeypatch.setattr(
+        "src.setup.ui.prompts.ask_text", lambda p, d=None: "delegated", raising=False
+    )
 
     assert app_prompts.ask_text("Q", default=None) == "delegated"
 
@@ -184,17 +201,29 @@ def test_prompt_virtual_environment_choice_and_view_programs(monkeypatch) -> Non
     """
     # prompt_virtual_environment_choice: '1' -> True, '2' -> False
     monkeypatch.setattr("src.setup.app_ui.ui_menu", lambda items: None, raising=False)
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt="": "1", raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.ask_text", lambda prompt="": "1", raising=False
+    )
     assert app_prompts.prompt_virtual_environment_choice() is True
 
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt="": "2", raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.ask_text", lambda prompt="": "2", raising=False
+    )
     assert app_prompts.prompt_virtual_environment_choice() is False
 
     # view_program_descriptions: exercise printing of a program body
-    monkeypatch.setattr("src.setup.app_prompts.get_program_descriptions", lambda: {"1": ("T", "BODY")}, raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_prompts.get_program_descriptions",
+        lambda: {"1": ("T", "BODY")},
+        raising=False,
+    )
     monkeypatch.setattr("src.setup.app_ui.ui_has_rich", lambda: False, raising=False)
     printed = []
-    monkeypatch.setattr("src.setup.app_ui.rprint", lambda *a, **k: printed.append(" ".join(map(str, a))), raising=False)
+    monkeypatch.setattr(
+        "src.setup.app_ui.rprint",
+        lambda *a, **k: printed.append(" ".join(map(str, a))),
+        raising=False,
+    )
 
     seq = ["1", "0"]
 

@@ -41,7 +41,9 @@ def test_import_app_without_rich(monkeypatch):
     # top-level import logic in the module under test uses the stubbed
     # value rather than any previously-imported real package.
     fake_panel = types.ModuleType("rich.panel")
-    mod = _reload_with_stubs({"src.setup.ui.menu": fake_menu, "rich": fake_rich, "rich.panel": fake_panel})
+    mod = _reload_with_stubs(
+        {"src.setup.ui.menu": fake_menu, "rich": fake_rich, "rich.panel": fake_panel}
+    )
     assert getattr(mod, "Panel", None) is None
 
 

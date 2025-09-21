@@ -2079,4 +2079,3 @@ Ingen produktionskod ändrades. Ändringen påverkar endast testkonfigurationen 
 
 **5. Verifiering**
 Körde `timeout 30s venv/bin/pytest --maxfail=1 -q` efter ändringen — testsviten kördes igenom och varningarna `GetPassWarning` rapporterades inte längre.
-

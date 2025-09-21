@@ -28,7 +28,9 @@ def test_run_program_non_stream_error(monkeypatch):
     run_mod = importlib.import_module("src.setup.pipeline.run")
 
     # Stub python executable
-    monkeypatch.setattr(run_mod, "get_python_executable", lambda: "/usr/bin/python", raising=False)
+    monkeypatch.setattr(
+        run_mod, "get_python_executable", lambda: "/usr/bin/python", raising=False
+    )
 
     # Stub subprocess.run to mimic a failing process
     def fake_run(*a, **k):

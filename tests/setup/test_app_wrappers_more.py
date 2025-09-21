@@ -63,9 +63,6 @@ def test_manage_virtual_environment_wrapper_propagates(monkeypatch, tmp_path):
     assert called.get("ok") is True
 
 
-
-
-
 def test_set_language_keyboardinterrupt(monkeypatch):
     # Force ask_text to raise KeyboardInterrupt and verify UserInputError
     # (domain-specific error used instead of SystemExit).

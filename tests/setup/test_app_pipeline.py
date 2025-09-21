@@ -61,7 +61,9 @@ def test_run_processing_pipeline_wrappers_delegate(monkeypatch):
     """
     orch = importlib.import_module("src.setup.pipeline.orchestrator")
     monkeypatch.setattr(orch, "_run_processing_pipeline_plain", lambda: "PLAIN_OK")
-    monkeypatch.setattr(orch, "_run_processing_pipeline_rich", lambda *a, **k: "RICH_OK")
+    monkeypatch.setattr(
+        orch, "_run_processing_pipeline_rich", lambda *a, **k: "RICH_OK"
+    )
     assert app_pipeline._run_processing_pipeline_plain() == "PLAIN_OK"
     assert app_pipeline._run_processing_pipeline_rich() == "RICH_OK"
 
@@ -87,9 +89,15 @@ def test_run_processing_pipeline_rich(monkeypatch):
         updates.append(x)
 
     # Patch concrete helpers to avoid interactive prompts and network calls.
-    monkeypatch.setattr("src.setup.pipeline.orchestrator.ask_confirm", lambda *a, **k: True)
-    monkeypatch.setattr("src.setup.azure_env.run_ai_connectivity_check_silent", lambda: (True, "ok"))
-    monkeypatch.setattr("src.setup.pipeline.orchestrator._run_pipeline_step", lambda *a, **k: True)
+    monkeypatch.setattr(
+        "src.setup.pipeline.orchestrator.ask_confirm", lambda *a, **k: True
+    )
+    monkeypatch.setattr(
+        "src.setup.azure_env.run_ai_connectivity_check_silent", lambda: (True, "ok")
+    )
+    monkeypatch.setattr(
+        "src.setup.pipeline.orchestrator._run_pipeline_step", lambda *a, **k: True
+    )
     monkeypatch.setattr(
         "src.setup.pipeline.orchestrator._render_pipeline_table",
         lambda s1, s2, s3: f"T:{s1},{s2},{s3}",
@@ -119,5 +127,7 @@ def test_run_processing_pipeline_plain_early(monkeypatch):
     # behaviour is deterministic even when the wrapper temporarily
     # installs concrete helpers onto the orchestrator module.
     monkeypatch.setattr("src.setup.app_prompts.ask_confirm", lambda *a, **k: False)
-    monkeypatch.setattr("src.setup.pipeline.orchestrator._run_pipeline_step", lambda *a, **k: False)
+    monkeypatch.setattr(
+        "src.setup.pipeline.orchestrator._run_pipeline_step", lambda *a, **k: False
+    )
     app_pipeline._run_processing_pipeline_plain()
