@@ -238,6 +238,52 @@ Produktionskoden i `src/setup/app_ui.py` refaktorerades för att ta bort sin ber
   * **Före:**
 
         ```python
+        ```
+
+### Omgång 2025-09-21 17:23 - Fix av `tests/setup/test_venv_manager.py`
+
+**1. Problembeskrivning**
+*   **Testfil:** `tests/setup/test_venv_manager.py`
+*   **Felmeddelande:** `AttributeError: namespace(...) has no attribute 'is_venv_active'`
+*   **Grundorsak:** Testen importerade det legacy-shimmet `src.setup.app` (via `importlib.import_module("src.setup.app")`) och försökte patcha attribut på det återladdade modulobjektet. Det specifika attributet `is_venv_active` exponerades inte av shim-objektet som användes i testkörningen, vilket ledde till en `AttributeError`. Testet borde i stället patcha de konkreta hjälparmodulerna (t.ex. `src.setup.venv`) eller patcha de faktiska funktionerna som används av `venv_manager`.
+
+**2. Korrigering av Testet**
+Testet modifierades för att sluta förlita sig på shimmen och istället patcha det verkliga beroendet direkt. Det uppdaterades också för att anropa den konkreta `venv_manager.manage_virtual_environment` med ett explicit UI‑adapterobjekt.
+
+*   **Före (utdrag från testet):**
+    ```python
+    import importlib
+    sp_local = importlib.import_module("src.setup.app")
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    sp_local.manage_virtual_environment()
+    ```
+
+*   **Efter (utdrag från testet):**
+    ```python
+    # Patch the concrete helper instead of the legacy shim
+    monkeypatch.setattr("src.setup.venv.is_venv_active", lambda: False)
+    ui = _UI
+    vm.manage_virtual_environment(cfg.PROJECT_ROOT, vdir, cfg.REQUIREMENTS_FILE, cfg.REQUIREMENTS_LOCK_FILE, ui)
+    ```
+
+**3. Konsolidering av Tester**
+Alla tester relaterade till `src/setup/venv_manager.py` har nu konsoliderats till en enda kanonisk fil för att uppnå 1:1-mappning mellan produktionskod och testkod.
+
+*   **Kanonisk Testfil:** `tests/setup/test_venv_manager.py`
+*   **Flyttade och konsoliderade tester från:**
+    *   `tests/setup/test_venv_manager_cov.py`
+    *   `tests/setup/test_venv_manager_extra_unit.py`
+    *   `tests/setup/test_venv_manager_additional.py`
+*   De ursprungliga, utspridda testfilerna har raderats.
+
+**4. Korrigering av Produktionskoden**
+Ingen ändring i produktskoden var nödvändig för detta ärende.
+
+*   **Shim‑beroende:** Ingen (modulen `src/setup/venv_manager.py` använder inte `sys.modules.get("src.setup.app")`).
+*   **Åtgärd:** Ingen produktsändring utfördes; fokus låg på att göra testerna explicita och stabila genom att patcha konkreta moduler.
+
+**5. Verifiering**
+Körde `pytest tests/setup/test_venv_manager.py` - alla tester i filen är nu **GRÖNA**.
         try:
             import src.setup.console_helpers as ch
 
@@ -550,3 +596,203 @@ Produktionskoden i `src/setup/app_runner.py` refaktorerades för att ta bort sit
 
 **5. Verifiering**
 Körde `pytest tests/setup/test_setup_project_unit.py` - alla tester i filen är nu **GRÖNA**.
+
+### Omgång 2025-09-21 17:32 - Fix av `tests/setup/test_app_additional_cov.py`
+
+**1. Problembeskrivning**
+*   **Testfil:** `tests/setup/test_app_additional_cov.py`
+*   **Felmeddelande:** `AssertionError: assert False is True` (failed assertion in `test_sync_console_helpers_propagation`, `ch._HAS_Q` was False)
+*   **Grundorsak:** Testet förlitade sig på ett lokalt, legacy‑shim‑objekt (`app`) som injicerades i `sys.modules` och patchade attribut på detta objekt. Produktionskoden (`src.setup.app_ui._sync_console_helpers`) gör en explicit, lazy import via `importlib.import_module("src.setup.app")` för att läsa toggles; beroendet på ett globalt, icke‑modul‑shim gjorde import‑beteendet och attributupplösningen opålitlig och testen missade att patcha den verkliga underliggande beroendepunkten.
+
+**2. Korrigering av Testet**
+Testet modifierades för att sluta förlita sig på shimmen och istället patcha den verkliga beroendenoden (import‑mekanismen) eller de konkreta modulerna.
+
+*   **Före (utdrag från testet):**
+    ```python
+    # Kodexempel på den gamla, felaktiga patchen
+    monkeypatch.setattr(app, "_RICH_CONSOLE", object(), raising=False)
+    monkeypatch.setattr(app, "_HAS_Q", True, raising=False)
+    fake_q = object()
+    monkeypatch.setattr(app, "questionary", fake_q, raising=False)
+    app._sync_console_helpers()
+    assert ch._HAS_Q is True
+    ```
+
+*   **Efter (utdrag från testet):**
+    ```python
+    # Kodexempel på den nya, korrekta patchen
+    fake_q = object()
+    fake_app = types.SimpleNamespace(_RICH_CONSOLE=object(), _HAS_Q=True, questionary=fake_q)
+    monkeypatch.setattr("importlib.import_module", lambda name: fake_app)
+    _app_ui._sync_console_helpers()
+    assert ch._HAS_Q is True
+    ```
+
+**3. Konsolidering av Tester**
+Alla tester relaterade till `src/setup/app_runner.py` har nu en tydlig, kanonisk plats.
+
+*   **Kanonisk Testfil:** `tests/setup/test_app_runner_unit.py`
+*   **Flyttade och konsoliderade tester från:**
+    *   `tests/setup/test_app_additional_cov.py` (flyttade flera `app_runner`‑relaterade tester hit och uppdaterade dem så att de patchar konkreta moduler istället för shimmen).
+*   De ursprungliga, utspridda testutdragen i `tests/setup/test_app_additional_cov.py` har uppdaterats — filen behåller nu endast UI‑relaterade tester som kräver en mer riktad import‑stub.
+
+**4. Korrigering av Produktionskoden**
+Produktionskoden i `src/setup/app_runner.py` refaktorerades för att minska beroendet av legacy‑shim och för att använda explicita fallback‑importer för UI‑helpers.
+
+*   **Shim-beroende:**
+    *   **Fil:** `src/setup/app_runner.py`
+    *   **Före:**
+
+        ```python
+        app_mod = sys.modules.get("src.setup.app")
+        if ok:
+            ui_success = getattr(app_mod, "ui_success", None)
+            if ui_success is not None:
+                ui_success(...)
+        ```
+
+    *   **Efter:**
+
+        ```python
+        try:
+            from src.setup.app_ui import ui_success as _ui_success_fallback, ui_error as _ui_error_fallback
+        except Exception:
+            _ui_success_fallback = None
+            _ui_error_fallback = None
+
+        ui_success = getattr(app_mod, "ui_success", _ui_success_fallback)
+        if ui_success is not None:
+            ui_success(...)
+        ```
+
+*   **Förbättrad Felhantering:**
+    * Funktionen använder nu explicita importer som fallback vilket gör det möjligt för tester att patcha de konkreta funktionerna (`src.setup.app_ui.ui_success` / `ui_error`) istället för att behöva injicera ett helt modul‑shim i `sys.modules`.
+
+**5. Verifiering**
+Körde `pytest tests/setup/test_app_additional_cov.py` — alla tester i filen är nu **GRÖNA**.
+
+### Omgång 2025-09-21 17:38 - Fix av `tests/setup/test_app_entrypoint_and_misc_unit.py`
+
+**1. Problembeskrivning**
+*   **Testfil:** `tests/setup/test_app_entrypoint_and_misc_unit.py`
+*   **Felmeddelande:** `SystemExit: Exceeded maximum invalid selections in main menu`
+*   **Grundorsak:** Testen förlitade sig på en legacy "shim"-modul (`src.setup.app`) som sattes upp i testernas toppnivå. Produktionskoden i `src/setup/ui/menu.py` och `src/setup/app_prompts.py` gjorde dynamiska lookups i `sys.modules` för att hitta fallback‑attribut (t.ex. `ui_info` eller `menu`) istället för att importera de konkreta modulerna. Detta ledde till att patchning av de konkreta modulerna i testen inte påverkade den kod som faktiskt kördes, vilket orsakade att den verkliga menyn kördes och efter ett par ogiltiga val avslutade processen med `SystemExit`.
+
+**2. Korrigering av Testet**
+Testet modifierades för att sluta förlita sig på shimmen och istället patcha det verkliga beroendet direkt. Det uppdaterades även för att inte patcha den gamla `app`-shim‑instansen.
+
+*   **Före (utdrag från testet):**
+    ```python
+    fake_menu = SimpleNamespace()
+
+    def _boom():
+        raise RuntimeError("boom")
+
+    fake_menu.main_menu = _boom
+    monkeypatch.setattr(app, "menu", fake_menu, raising=False)
+    # Should not raise
+    app.main_menu()
+    ```
+*   **Efter (utdrag från testet):**
+    ```python
+    def _boom():
+        raise RuntimeError("boom")
+
+    import importlib
+    menu = importlib.import_module("src.setup.ui.menu")
+    monkeypatch.setattr(menu, "main_menu", _boom)
+    # Should not raise when the app_runner wrapper swallows UI exceptions
+    app.main_menu()
+    ```
+
+**3. Konsolidering av Tester**
+Alla tester relaterade till `src.setup.app_runner` har nu konsoliderats till en enda fil för att uppnå en 1:1-mappning mellan produktionskod och testkod.
+
+*   **Kanonisk Testfil:** `tests/setup/test_app_runner_unit.py`
+*   **Flyttade och konsoliderade tester från:**
+    *   `tests/setup/test_app_entrypoint_and_misc_unit.py`
+*   De ursprungliga, utspridda teständringarna ligger kvar i den gamla filen där andra, icke-relaterade tester finns kvar; de flyttade testfallen har ersatts med en kort kommentar som pekar på den kanoniska filen.
+
+**4. Korrigering av Produktionskoden**
+Produktionskoden refaktorerades för att ta bort sitt beroende av shimmen och för att använda den standardiserade felhanteringen.
+
+*   **Shim-beroende:**
+    *   **Fil:** `src/setup/ui/menu.py`
+    *   **Före:** användning av `sys.modules.get("src.setup.app")` och dynamisk läsning av `INTERACTIVE_MAX_INVALID_ATTEMPTS` samt: `if _app_mod is not None: max_attempts = getattr(_app_mod, ... )`
+    *   **Efter:** explicit import av konfiguration: `from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts` och borttagen lookup i `sys.modules`.
+
+*   **Förbättrad Felhantering:**
+    *   **Fil:** `src/setup/ui/menu.py`
+    *   **Före:** `raise SystemExit("Exceeded maximum invalid selections in main menu")`
+    *   **Efter:** `raise UserInputError("Exceeded maximum invalid selections in main menu")`
+
+*   **Ytterligare förbättring (teststabilitet):**
+    *   **Fil:** `src/setup/app_prompts.py`
+    *   **Före:** när användaren valde att hoppa över venv försökte koden först anropa `ui_info` från shimmen (`_app_mod.ui_info`) och föll sedan tillbaka till `from src.setup.app_ui import ui_info`.
+    *   **Efter:** koden anropar nu direkt `from src.setup.app_ui import ui_info` vilket gör att tester som patchar `src.setup.app_ui.ui_info` faktiskt påverkar beteendet.
+
+**5. Verifiering**
+Körde `timeout 30s venv/bin/pytest tests/setup/test_app_entrypoint_and_misc_unit.py -q -x` - alla tester i filen är nu **GRÖNA**.
+
+### Omgång 2025-09-21 17:43 - Fix av `tests/setup/test_venv_manager.py`
+
+**1. Problembeskrivning**
+*   **Testfil:** `tests/setup/test_venv_manager.py`
+*   **Felmeddelande:** `AttributeError: namespace(...) has no attribute 'VENV_DIR'`
+*   **Grundorsak:** Testet importerade en legacy‑shim via `importlib.import_module("src.setup.app")` som i vissa testordningar kunde vara en syntetisk modul/namespace utan det förväntade attributet `VENV_DIR`. Testet försökte därefter göra en `monkeypatch.setattr` på det returnerade objektet vilket resulterade i en `AttributeError`. Kort sagt: tester patchade och förlitade sig på en global shim istället för att patcha de konkreta modulerna (`src.config`, `src.setup.venv`, eller `src.setup.venv_manager`).
+
+**2. Korrigering av Testet**
+Testet modifierades för att sluta förlita sig på shimmen och istället patcha det verkliga beroendet direkt. Testet anropar nu den konkreta manager‑funktionen och patchar konkreta hjälpfunktioner.
+
+*   **Före (utdrag från testet):**
+    ```python
+    import importlib
+    sp_local = importlib.import_module("src.setup.app")
+
+    vdir = tmp_path / "vnone"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local.venv, "create", lambda *a, **k: None)
+    sp_local.manage_virtual_environment()
+    ```
+
+*   **Efter (utdrag från testet):**
+    ```python
+    # Use concrete modules and pass explicit arguments to the manager
+    vdir = tmp_path / "vnone"
+    monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
+    ui = _UI
+    ui.ask_text = staticmethod(lambda prompt, default="y": "y")
+    monkeypatch.setattr(ui.venv, "create", lambda *a, **k: None)
+    monkeypatch.setattr(venvmod, "get_venv_python_executable", lambda p: vdir / "bin" / "python", raising=True)
+    vm.manage_virtual_environment(cfg.PROJECT_ROOT, vdir, cfg.REQUIREMENTS_FILE, cfg.REQUIREMENTS_LOCK_FILE, ui)
+    ```
+
+**3. Konsolidering av Tester**
+Alla tester relaterade till `src/setup/venv_manager.py` är redan samlade i en kanonisk fil.
+
+*   **Kanonisk Testfil:** `tests/setup/test_venv_manager.py`
+*   **Flyttade och konsoliderade tester från:**
+    *   Inga ytterligare filer behövde flyttas — relevanta tester fanns redan i den kanoniska filen.
+*   De ursprungliga, utspridda testfilerna har inte raderats eftersom inga flyttade tester skapade tomma filer.
+
+**4. Korrigering av Produktionskoden**
+Produktionskoden i `src/setup/app_venv.py` refaktorerades för att ta bort beroendet på att läsa konfiguration/överriden värden från en legacy‑shim i `sys.modules`.
+
+*   **Shim-beroende:**
+    *   **Fil:** `src/setup/app_venv.py`
+    *   **Före:** `proj = getattr(_app, "PROJECT_ROOT", PROJECT_ROOT)` (hämtade konfiguration från `sys.modules.get("src.setup.app")`)
+    *   **Efter:** Importera och använd den konkreta konfigurationsmodulen och dess attribut:
+        ```python
+        import src.config as cfg
+        proj = cfg.PROJECT_ROOT
+        vdir = cfg.VENV_DIR
+        req = cfg.REQUIREMENTS_FILE
+        req_lock = cfg.REQUIREMENTS_LOCK_FILE
+        vm.manage_virtual_environment(proj, vdir, req, req_lock, _UI)
+        ```
+
+    Denna ändring innebär att tester nu ska patcha `src.config` eller de konkreta modulerna (t.ex. `src.setup.venv`) i stället för att försöka patcha en central shim.
+
+**5. Verifiering**
+Körde `timeout 30s venv/bin/pytest -q tests/setup/test_venv_manager.py -x` - alla tester i filen är nu **GRÖNA**.

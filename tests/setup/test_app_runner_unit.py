@@ -7,6 +7,11 @@ keys cause the expected prompt/update flow to be invoked.
 from pathlib import Path
 
 import src.setup.app_runner as ar
+import src.setup.app_ui as _app_ui
+import src.setup.app_venv as _app_venv
+import src.setup.app_prompts as _app_prompts
+import subprocess
+from types import SimpleNamespace
 
 
 def test_parse_env_file_delegates(monkeypatch, tmp_path: Path) -> None:
@@ -162,3 +167,126 @@ def test_entry_point_minimal(monkeypatch) -> None:
         ar.entry_point()
     except SystemExit:
         pass
+
+
+def test_parse_cli_args_and_run_added(monkeypatch):
+    """Parse CLI args and ensure `run` delegates to the concrete UI menu.
+
+    This test was migrated from the legacy shim-based test suite and now
+    patches the concrete UI menu implementation directly.
+    """
+    ns = ar.parse_cli_args(["--lang", "en", "--no-venv", "--ui", "rich"])
+    assert ns.lang == "en" and ns.no_venv is True
+
+    called = {}
+    import src.setup.ui.menu as menu
+
+    monkeypatch.setattr(menu, "main_menu", lambda: called.setdefault("mm", True))
+    args = SimpleNamespace(lang="en")
+    ar.run(args)
+    assert called.get("mm") is True
+
+
+def test_run_ai_connectivity_interactive_branches_added(monkeypatch):
+    """Verify interactive AI connectivity check success and failure flows.
+
+    The test patches the concrete runner and UI helpers so it does not
+    rely on a global shim object.
+    """
+    monkeypatch.setattr("src.setup.app_runner.run_ai_connectivity_check_silent", lambda: (True, "ok"))
+    called = {}
+    monkeypatch.setattr("src.setup.app_ui.ui_success", lambda m: called.setdefault("ok", m), raising=False)
+    assert ar.run_ai_connectivity_check_interactive() is True
+    assert "ok" in called
+
+    monkeypatch.setattr("src.setup.app_runner.run_ai_connectivity_check_silent", lambda: (False, "detail"))
+    called = {}
+    monkeypatch.setattr("src.setup.app_ui.ui_error", lambda m: called.setdefault("err", m), raising=False)
+    assert ar.run_ai_connectivity_check_interactive() is False
+    assert "err" in called
+
+
+def test_run_quality_suites_added(monkeypatch):
+    """Ensure the quality-suite helpers invoke subprocess with the runtime.
+
+    This test patches the runtime detection and subprocess runner so no
+    external commands are executed during the test.
+    """
+    called = {}
+
+    def fake_run(*a, **k):
+        called["args"] = a
+
+    monkeypatch.setattr("src.setup.app_runner.get_python_executable", lambda: "/usr/bin/python")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    ar.run_full_quality_suite()
+    ar.run_extreme_quality_suite()
+    assert "args" in called
+
+
+def test_entry_point_invokes_main_menu_added(monkeypatch):
+    """Entry point should invoke main menu when CLI args indicate so.
+
+    The test patches parsing, prompts and environment helpers so the
+    entry point proceeds directly to the main menu.
+    """
+    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang="en", no_venv=True))
+    monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
+    called = {}
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: called.setdefault("mm", True))
+    ar.entry_point()
+    assert called.get("mm") is True
+
+
+def test_entry_point_triggers_manage_virtualenv_when_needed(monkeypatch):
+    """`entry_point` should call `manage_virtual_environment` when appropriate.
+
+    We monkeypatch `parse_cli_args`, `is_venv_active` and
+    `prompt_virtual_environment_choice` to simulate the branch where a
+    venv must be created/managed.
+    """
+    # Simulate CLI args that do not set a language and request venv handling
+    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang=None, no_venv=False, ui="rich"))
+    monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
+    monkeypatch.setattr("src.setup.app_venv.is_venv_active", lambda: False)
+
+    called = {}
+
+    def fake_prompt():
+        return True
+
+    def fake_manage():
+        called["managed"] = True
+
+    monkeypatch.setattr("src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True)
+    monkeypatch.setattr("src.setup.app_venv.manage_virtual_environment", fake_manage)
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
+    # Patch the concrete runner main_menu so the interactive menu does not run
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
+
+    # Clear any env var that would skip language prompt
+    monkeypatch.delenv("SETUP_SKIP_LANGUAGE_PROMPT", raising=False)
+
+    # Prevent interactive language prompt from blocking the test
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "1", raising=False)
+    # Call entry_point; should call manage_virtual_environment
+    ar.entry_point()
+    assert called.get("managed") is True
+
+
+def test_main_menu_swallows_exceptions(monkeypatch):
+    """`main_menu` wrapper should swallow exceptions from the UI module.
+
+    We patch the concrete UI module's `main_menu` to raise and ensure the
+    wrapper in :mod:`src.setup.app_runner` does not propagate the exception.
+    """
+    def _boom():
+        raise RuntimeError("boom")
+
+    import importlib
+
+    menu = importlib.import_module("src.setup.ui.menu")
+    monkeypatch.setattr(menu, "main_menu", _boom)
+    # Should not raise when the app_runner wrapper swallows UI exceptions
+    ar.main_menu()

@@ -418,25 +418,29 @@ def prompt_virtual_environment_choice() -> bool:
         if choice == "1":
             return True
         if choice == "2":
-            # Prefer patched ui_info on central app shim when present
-            _ui = getattr(_app_mod, "ui_info", None)
-            if _ui is None:
-                from src.setup.app_ui import ui_info as _ui_info
+            # Use the concrete UI helper rather than a legacy shim attribute
+            # on ``src.setup.app``. Tests should patch the concrete
+            # ``src.setup.app_ui.ui_info`` when they need to observe the
+            # notification behaviour.
+            from src.setup.app_ui import ui_info as _ui_info
 
-                _ui = _ui_info
-            _ui(i18n.translate("venv_skipped"))
+            try:
+                _ui_info(i18n.translate("venv_skipped"))
+            except Exception:
+                pass
             return False
         attempts += 1
         print(i18n.translate("invalid_choice"))
         if attempts >= max_attempts:
             try:
-                _ui = getattr(_app_mod, "ui_error", None)
-                if _ui is not None:
-                    _ui("Too many invalid selections. Exiting.")
-                else:
+                from src.setup.app_ui import ui_error as _ui_error
+
+                try:
+                    _ui_error("Too many invalid selections. Exiting.")
+                except Exception:
                     print("Too many invalid selections. Exiting.")
             except Exception:
-                pass
+                print("Too many invalid selections. Exiting.")
             raise SystemExit("Exceeded maximum invalid selections in venv menu")
 
 

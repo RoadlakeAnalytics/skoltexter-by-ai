@@ -249,11 +249,26 @@ def manage_virtual_environment() -> None:
             # Prefer values patched on the central app shim when present so
             # tests that reload and then set attributes on ``src.setup.app``
             # are respected.
-            _app = sys.modules.get("src.setup.app")
-            proj = getattr(_app, "PROJECT_ROOT", PROJECT_ROOT)
-            vdir = getattr(_app, "VENV_DIR", VENV_DIR)
-            req = getattr(_app, "REQUIREMENTS_FILE", REQUIREMENTS_FILE)
-            req_lock = getattr(_app, "REQUIREMENTS_LOCK_FILE", REQUIREMENTS_LOCK_FILE)
+            # Prefer explicit configuration module lookups instead of
+            # relying on a legacy shim module present in ``sys.modules``.
+            # Tests should patch the concrete ``src.config`` module when
+            # altering these values.
+            try:
+                import src.config as cfg
+
+                proj = cfg.PROJECT_ROOT
+                vdir = cfg.VENV_DIR
+                req = cfg.REQUIREMENTS_FILE
+                req_lock = cfg.REQUIREMENTS_LOCK_FILE
+            except Exception:
+                # As a defensive fallback keep the locally imported
+                # constants to preserve prior behaviour when config
+                # cannot be imported (very unlikely).
+                proj = PROJECT_ROOT
+                vdir = VENV_DIR
+                req = REQUIREMENTS_FILE
+                req_lock = REQUIREMENTS_LOCK_FILE
+
             vm.manage_virtual_environment(proj, vdir, req, req_lock, _UI)
         finally:
             if _venvmod is not None:

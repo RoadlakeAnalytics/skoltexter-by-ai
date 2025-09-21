@@ -227,21 +227,32 @@ def run_ai_connectivity_check_silent() -> tuple[bool, str]:
 
 def run_ai_connectivity_check_interactive() -> bool:
     # Prefer a possibly patched implementation on the central shim module
+    # but fall back to the concrete UI helpers so tests can patch the
+    # real modules instead of relying on a global shim object.
     app_mod = sys.modules.get("src.setup.app")
     _r = getattr(app_mod, "run_ai_connectivity_check_silent", run_ai_connectivity_check_silent)
     ok, detail = _r()
-    # Call the UI helpers via the central app module so tests can override
-    # them by monkeypatching attributes on ``src.setup.app``.
+
+    # Attempt to import concrete UI helpers as a safe fallback when the
+    # legacy shim is not present. Tests should patch the concrete
+    # ``src.setup.app_ui`` functions when appropriate.
+    try:
+        from src.setup.app_ui import ui_success as _ui_success_fallback, ui_error as _ui_error_fallback
+    except Exception:
+        _ui_success_fallback = None
+        _ui_error_fallback = None
+
+    # Refresh potential shim reference and choose the correct UI callables.
     app_mod = sys.modules.get("src.setup.app")
     if ok:
-        ui_success = getattr(app_mod, "ui_success", None)
+        ui_success = getattr(app_mod, "ui_success", _ui_success_fallback)
         if ui_success is not None:
             try:
                 ui_success(i18n.translate("ai_check_ok"))
             except Exception:
                 pass
         return True
-    ui_error = getattr(app_mod, "ui_error", None)
+    ui_error = getattr(app_mod, "ui_error", _ui_error_fallback)
     if ui_error is not None:
         try:
             ui_error(i18n.translate("ai_check_fail"))

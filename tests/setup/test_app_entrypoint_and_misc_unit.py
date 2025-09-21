@@ -39,19 +39,15 @@ def test_set_language_sets_module_lang(monkeypatch):
     The function prompts the user; here we patch `ask_text` to return a
     controlled choice and verify `i18n.LANG` and `app.LANG` are updated.
 
-    Examples
-    --------
-    >>> import src.setup.app as app
-    >>> # monkeypatch ask_text to return '1' or '2' in tests
     """
     # Choice '1' -> English
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "1")
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "1")
     app.set_language()
     assert importlib.import_module("src.setup.i18n").LANG == "en"
     assert app.LANG == "en"
 
     # Choice '2' -> Swedish
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "2")
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "2")
     app.set_language()
     assert importlib.import_module("src.setup.i18n").LANG == "sv"
     assert app.LANG == "sv"
@@ -66,7 +62,7 @@ def test_set_language_keyboardinterrupt_raises_systemexit(monkeypatch):
     def _kb(_=None):
         raise KeyboardInterrupt()
 
-    monkeypatch.setattr(app, "ask_text", _kb)
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", _kb)
     try:
         # Expect SystemExit to be raised when user interrupts
         app.set_language()
@@ -83,65 +79,24 @@ def test_prompt_virtual_environment_choice_branches(monkeypatch):
     returns via monkeypatching `ask_text` to exercise both branches.
     """
     # Choose '1' -> True
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "1")
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "1")
     assert app.prompt_virtual_environment_choice() is True
 
     # Choose '2' -> False, and ensure ui_info is called
     called = {}
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "2")
-    monkeypatch.setattr(app, "ui_info", lambda m: called.setdefault("info", m))
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "2")
+    monkeypatch.setattr("src.setup.app_ui.ui_info", lambda m: called.setdefault("info", m))
     assert app.prompt_virtual_environment_choice() is False
     assert "info" in called
 
 
-def test_entry_point_triggers_manage_virtualenv_when_needed(monkeypatch):
-    """`entry_point` should call `manage_virtual_environment` when appropriate.
-
-    We monkeypatch `parse_cli_args`, `is_venv_active` and
-    `prompt_virtual_environment_choice` to simulate the branch where a
-    venv must be created/managed.
-    """
-    # Simulate CLI args that do not set a language and request venv handling
-    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang=None, no_venv=False, ui="rich"))
-    monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
-    monkeypatch.setattr("src.setup.app_venv.is_venv_active", lambda: False)
-
-    called = {}
-
-    def fake_prompt():
-        return True
-
-    def fake_manage():
-        called["managed"] = True
-
-    monkeypatch.setattr("src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True)
-    monkeypatch.setattr("src.setup.app_venv.manage_virtual_environment", fake_manage)
-    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
-    # Patch the concrete runner main_menu so the interactive menu does not run
-    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
-
-    # Clear any env var that would skip language prompt
-    monkeypatch.delenv("SETUP_SKIP_LANGUAGE_PROMPT", raising=False)
-
-    # Prevent interactive language prompt from blocking the test
-    monkeypatch.setattr(app, "ask_text", lambda prompt: "1", raising=False)
-    # Call entry_point; should call manage_virtual_environment
-    app.entry_point()
-    assert called.get("managed") is True
+# Tests for src.setup.app_runner were moved to
+# `tests/setup/test_app_runner_unit.py` to establish a 1:1 mapping between
+# production modules and their canonical test files as part of the shim
+# migration effort.
 
 
-def test_main_menu_swallows_exceptions(monkeypatch):
-    """`main_menu` wrapper should swallow exceptions from the UI module.
-
-    We set `menu` to a fake module where `main_menu` raises and ensure the
-    wrapper does not propagate the exception.
-    """
-    fake_menu = SimpleNamespace()
-
-    def _boom():
-        raise RuntimeError("boom")
-
-    fake_menu.main_menu = _boom
-    monkeypatch.setattr(app, "menu", fake_menu, raising=False)
-    # Should not raise
-    app.main_menu()
+# Tests for src.setup.app_runner were moved to
+# `tests/setup/test_app_runner_unit.py` to establish a 1:1 mapping between
+# production modules and their canonical test files as part of the shim
+# migration effort.

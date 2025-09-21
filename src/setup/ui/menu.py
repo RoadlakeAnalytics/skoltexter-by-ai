@@ -26,6 +26,7 @@ from src.setup.ui.prompts import ask_text
 from src.setup.venv_manager import manage_virtual_environment
 import sys as _sys
 from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS
+from src.exceptions import UserInputError
 
 
 def _ui_items() -> list[tuple[str, str]]:
@@ -145,16 +146,14 @@ def _manage_env() -> None:
 
 def _main_menu_plain() -> None:
     """Plain (non-rich) main menu loop displayed in the terminal."""
-    _app_mod = _sys.modules.get("src.setup.app")
+    # Use the canonical configuration constant for interactive attempts.
+    # Avoid reading a legacy shim from ``sys.modules``; tests and callers
+    # should patch the concrete config value in ``src.config`` if a
+    # different behaviour is required.
     try:
-        import importlib
-
-        _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+        from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
 
     attempts = 0
     while True:
@@ -184,7 +183,7 @@ def _main_menu_plain() -> None:
             rprint(translate("invalid_choice"))
             if attempts >= max_attempts:
                 rprint(translate("exiting"))
-                raise SystemExit("Exceeded maximum invalid selections in main menu")
+                raise UserInputError("Exceeded maximum invalid selections in main menu")
 
 
 def _main_menu_rich_dashboard() -> None:
@@ -211,16 +210,14 @@ def _main_menu_rich_dashboard() -> None:
             rprint(renderable)
 
     # Simple prompt loop with attempts limiting
-    _app_mod = _sys.modules.get("src.setup.app")
+    # Use the canonical configuration constant for interactive attempts.
+    # Avoid reading a legacy shim from ``sys.modules``; tests and callers
+    # should patch the concrete config value in ``src.config`` if a
+    # different behaviour is required.
     try:
-        import importlib
-
-        _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+        from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
 
     attempts = 0
     while True:
@@ -261,7 +258,7 @@ def _main_menu_rich_dashboard() -> None:
             )
             if attempts >= max_attempts:
                 update_right(Panel(translate("exiting"), title="Info", border_style="red"))
-                raise SystemExit("Exceeded maximum invalid selections in main dashboard menu")
+                raise UserInputError("Exceeded maximum invalid selections in main dashboard menu")
 
 
 def main_menu() -> None:
