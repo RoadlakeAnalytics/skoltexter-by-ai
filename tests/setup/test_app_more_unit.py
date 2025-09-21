@@ -99,7 +99,11 @@ def test_run_sets_lang_and_calls_menu(monkeypatch):
 
     fake_menu.main_menu = _main
 
-    monkeypatch.setattr(app, "menu", fake_menu, raising=False)
+    # Patch the concrete UI menu submodule used by `app.run` by inserting
+    # our fake module into ``sys.modules`` so local imports resolve to it.
+    import sys as _sys
+
+    monkeypatch.setitem(_sys.modules, "src.setup.ui.menu", fake_menu)
     args = SimpleNamespace(lang="sv", no_venv=True)
     app.run(args)
     # i18n.LANG should be updated to the requested language
@@ -195,15 +199,21 @@ def test_parse_and_prompt_env_delegation(monkeypatch, tmp_path: Path):
 
 def test_ensure_azure_openai_env_calls_prompt_when_missing(monkeypatch, tmp_path: Path):
     """If keys are missing ensure_azure_openai_env prompts the user."""
-    monkeypatch.setattr(app, "parse_env_file", lambda p: {})
-    monkeypatch.setattr(app, "find_missing_env_keys", lambda existing, req: ["K"])
+    # Patch the concrete functions used by ensure_azure_openai_env
+    monkeypatch.setattr("src.setup.app_runner.parse_env_file", lambda p: {})
+    monkeypatch.setattr(
+        "src.setup.app_runner.find_missing_env_keys", lambda existing, req: ["K"]
+    )
     called = {}
 
     def fake_prompt(missing, path, existing):
         called["ok"] = True
 
-    monkeypatch.setattr(app, "prompt_and_update_env", fake_prompt)
-    app.ensure_azure_openai_env()
+    monkeypatch.setattr("src.setup.app_runner.prompt_and_update_env", fake_prompt)
+    # Call via the shim entrypoint to exercise the same call path used
+    # by the application (entry_point typically calls this helper).
+    import src.setup.app as _app_shim
+    _app_shim.ensure_azure_openai_env()
     assert called.get("ok") is True
 
 
@@ -264,15 +274,17 @@ def test_ui_has_rich_delegates_and_falls_back(monkeypatch):
 
 def test_view_program_descriptions_rich_rprint_fallback(monkeypatch, capsys):
     """When rich rprint raises the function should fallback and still print."""
-    # Provide a minimal programs mapping
-    monkeypatch.setattr(app, "get_program_descriptions", lambda: {"1": ("T", "B")})
-    # ui_menu no-op
-    monkeypatch.setattr(app, "ui_menu", lambda items: None)
-    # Ask text returns '1' then '0' to exit
+    # Provide a minimal programs mapping on the concrete prompt module
+    monkeypatch.setattr(
+        "src.setup.app_prompts.get_program_descriptions", lambda: {"1": ("T", "B")}
+    )
+    # ui_menu no-op on the concrete UI adapter
+    monkeypatch.setattr("src.setup.app_ui.ui_menu", lambda items: None)
+    # Ask text returns '1' then '0' to exit (patch concrete prompts)
     seq = ["1", "0"]
-    monkeypatch.setattr(app, "ask_text", lambda prompt: seq.pop(0))
-    # Force the rich-path and make rprint raise on first call
-    monkeypatch.setattr(app, "ui_has_rich", lambda: True)
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: seq.pop(0))
+    # Force the rich-path and make rprint raise on first call (patch UI adapter)
+    monkeypatch.setattr("src.setup.app_ui.ui_has_rich", lambda: True)
     calls = []
 
     def rprint_stub(val):
@@ -282,8 +294,10 @@ def test_view_program_descriptions_rich_rprint_fallback(monkeypatch, capsys):
         calls.append("ok")
         print(val)
 
-    monkeypatch.setattr(app, "rprint", rprint_stub)
-    app.view_program_descriptions()
+    monkeypatch.setattr("src.setup.app_ui.rprint", rprint_stub)
+    import src.setup.app_prompts as _app_prompts
+
+    _app_prompts.view_program_descriptions()
     out = capsys.readouterr().out
     assert "B" in out
     assert "raised" in calls and "ok" in calls
@@ -448,18 +462,18 @@ def test_entry_point_calls_set_language_when_not_skipped(monkeypatch):
     import importlib
 
     app_mod = importlib.import_module("src.setup.app")
-    # Stub parse_cli_args to provide minimal args
+    # Stub parse_cli_args to provide minimal args on the concrete parser
     monkeypatch.setattr(
-        app_mod,
-        "parse_cli_args",
+        "src.setup.app_runner.parse_cli_args",
         lambda: SimpleNamespace(lang=None, no_venv=True, ui="rich"),
     )
     called = {}
+    # Patch the concrete prompt and runner functions rather than the legacy shim
     monkeypatch.setattr(
-        app_mod, "set_language", lambda: called.setdefault("lang", True)
+        "src.setup.app_prompts.set_language", lambda: called.setdefault("lang", True)
     )
-    monkeypatch.setattr(app_mod, "ensure_azure_openai_env", lambda: None)
-    monkeypatch.setattr(app_mod, "main_menu", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
     # Ensure env var is not set
     monkeypatch.delenv("SETUP_SKIP_LANGUAGE_PROMPT", raising=False)
     app_mod.entry_point()
@@ -471,23 +485,22 @@ def test_entry_point_handles_venv_prompt_and_manage(monkeypatch):
     import importlib
 
     app_mod = importlib.import_module("src.setup.app")
+    # Patch the concrete runner parser so CLI parsing does not consume pytest args
     monkeypatch.setattr(
-        app_mod,
-        "parse_cli_args",
+        "src.setup.app_runner.parse_cli_args",
         lambda: SimpleNamespace(lang=None, no_venv=False, ui="rich"),
     )
-    monkeypatch.setattr(app_mod, "is_venv_active", lambda: False)
-    monkeypatch.setattr(app_mod, "prompt_virtual_environment_choice", lambda: True)
+    monkeypatch.setattr("src.setup.app_venv.is_venv_active", lambda: False)
+    monkeypatch.setattr("src.setup.app_prompts.prompt_virtual_environment_choice", lambda: True)
     called = {}
     monkeypatch.setattr(
-        app_mod,
-        "manage_virtual_environment",
+        "src.setup.app_venv.manage_virtual_environment",
         lambda: called.setdefault("managed", True),
     )
     # Avoid interactive language prompt during entry_point
-    monkeypatch.setattr(app_mod, "set_language", lambda: None)
-    monkeypatch.setattr(app_mod, "ensure_azure_openai_env", lambda: None)
-    monkeypatch.setattr(app_mod, "main_menu", lambda: None)
+    monkeypatch.setattr("src.setup.app_prompts.set_language", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
     app_mod.entry_point()
     assert called.get("managed") is True
 
@@ -498,27 +511,36 @@ def test_entry_point_respects_skip_language_env(monkeypatch):
     app_mod = importlib.import_module("src.setup.app")
     monkeypatch.setenv("SETUP_SKIP_LANGUAGE_PROMPT", "1")
     monkeypatch.setattr(
-        app_mod,
-        "parse_cli_args",
+        "src.setup.app_runner.parse_cli_args",
         lambda: SimpleNamespace(lang=None, no_venv=True, ui="rich"),
     )
     called = {}
     monkeypatch.setattr(
-        app_mod, "set_language", lambda: called.setdefault("lang", True)
+        "src.setup.app_prompts.set_language", lambda: called.setdefault("lang", True)
     )
-    monkeypatch.setattr(app_mod, "ensure_azure_openai_env", lambda: None)
-    monkeypatch.setattr(app_mod, "main_menu", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
     app_mod.entry_point()
     # set_language should NOT have been called because env var is set
     assert called == {}
 
 
 def test_build_dashboard_layout_delegates(monkeypatch):
-    import importlib
+    """Delegate building dashboard layout to the UI implementation.
 
-    app_mod = importlib.import_module("src.setup.app")
-    # Provide a fake implementation in src.setup.ui
-    ui_mod = importlib.import_module("src.setup.ui")
-    monkeypatch.setattr(ui_mod, "_build_dashboard_layout", lambda *a, **k: {"ok": True})
-    res = app_mod._build_dashboard_layout("x")
+    This test ensures that :func:`src.setup.app_ui._build_dashboard_layout`
+    delegates to :func:`src.setup.ui._build_dashboard_layout` and returns
+    the underlying result. The test no longer relies on the legacy
+    ``src.setup.app`` shim and patches the concrete UI function directly.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch the UI function.
+    """
+    # Patch the concrete UI implementation rather than the legacy shim.
+    monkeypatch.setattr("src.setup.ui._build_dashboard_layout", lambda *a, **k: {"ok": True})
+    import src.setup.app_ui as app_ui
+
+    res = app_ui._build_dashboard_layout("x")
     assert res == {"ok": True}

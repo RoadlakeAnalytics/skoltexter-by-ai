@@ -25,7 +25,54 @@ def manage_virtual_environment(
     requirements_lock_file: Path,
     ui: Any,
 ) -> None:
-    """Create or update a virtual environment and install requirements."""
+    """Create or update a virtual environment and install requirements.
+
+    This function orchestrates the creation or updating of a project's
+    virtual environment. It uses the provided ``ui`` adapter for prompts,
+    logging and subprocess execution. The flow covers these high-level
+    responsibilities:
+
+    - Detect whether the current interpreter is an active venv and act
+      accordingly.
+    - When a VENV directory already exists, prompt the user to confirm
+      a recreate and call the safe removal helper.
+    - If no venv exists, attempt to create one (prefer platform-specific
+      helpers) and then install dependencies from either the lockfile or
+      fallback requirements file.
+
+    Parameters
+    ----------
+    project_root : Path
+        The repository or project root; used for relative operations and
+        any UI messages that include project context.
+    venv_dir : Path
+        Filesystem path where the virtual environment should live.
+    requirements_file : Path
+        Path to the fallback ``requirements.txt`` file used when a lock
+        file is not present.
+    requirements_lock_file : Path
+        Path to the ``requirements.lock`` file which, when present, will
+        be installed with hash enforcement.
+    ui : Any
+        UI adapter providing the minimal contract used by this manager,
+        notably attributes such as ``ask_text``, ``rprint``, ``logger``,
+        and ``subprocess``. Tests may pass a lightweight adapter to
+        intercept interactions.
+
+    Returns
+    -------
+    None
+        This function performs filesystem and subprocess side effects and
+        does not return a value.
+
+    Raises
+    ------
+    FileNotFoundError
+        If required executables or files (e.g., pip) are missing when the
+        operation attempts to install dependencies.
+    subprocess.CalledProcessError
+        If an invoked pip install command fails.
+    """
     pip_executable: Path | None = None
     python_executable: Path | None = None
 

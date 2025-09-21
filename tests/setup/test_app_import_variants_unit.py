@@ -8,13 +8,15 @@ optional-import logic.
 import importlib
 import sys
 import types
+from pathlib import Path
 
-import importlib
-
-# Import the actual module object so import-time tests can access its
-# `__file__` attribute deterministically and so reloads behave as
-# expected when manipulating ``sys.modules``.
-app = importlib.import_module("src.setup.app")
+# Compute the path to the legacy compatibility adapter source file
+# directly from the repository layout. Some test environments inject a
+# temporary shim object into ``sys.modules['src.setup.app']`` which may
+# not have a ``__file__`` attribute; resolving the path from the
+# filesystem avoids relying on that runtime state when reloading the
+# source as a fresh module for import-time tests.
+APP_SOURCE_PATH = Path(__file__).resolve().parents[2] / "src" / "setup" / "app.py"
 
 
 def test_app_import_with_rich_panel_stub(monkeypatch):
@@ -39,7 +41,7 @@ def test_app_import_with_rich_panel_stub(monkeypatch):
     # against the manipulated sys.modules entries.
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location("tmp_app_mod", app.__file__)
+    spec = importlib.util.spec_from_file_location("tmp_app_mod", str(APP_SOURCE_PATH))
     tmp_mod = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, "tmp_app_mod", tmp_mod)
     spec.loader.exec_module(tmp_mod)
@@ -58,7 +60,7 @@ def test_app_import_with_rich_stub_but_no_panel(monkeypatch):
 
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location("tmp_app_mod2", app.__file__)
+    spec = importlib.util.spec_from_file_location("tmp_app_mod2", str(APP_SOURCE_PATH))
     tmp2 = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, "tmp_app_mod2", tmp2)
     spec.loader.exec_module(tmp2)

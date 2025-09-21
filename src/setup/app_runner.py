@@ -183,20 +183,40 @@ def find_missing_env_keys(existing: dict[str, str], required: list[str]) -> list
 
 
 def ensure_azure_openai_env(ui: Any = None) -> None:
-    env_path = getattr(sys.modules.get("src.setup.app"), "ENV_PATH", PROJECT_ROOT / ".env")
-    app_mod = sys.modules.get("src.setup.app")
-    # Use the local module helpers by default (tests patch these), and do
-    # not silently prefer attributes on the shim module which may point
-    # back to other code paths. This keeps test monkeypatching reliable.
-    _parse = parse_env_file
-    _find = find_missing_env_keys
-    _prompt = prompt_and_update_env
+    """Ensure required Azure/OpenAI environment variables exist.
 
-    existing = _parse(env_path)
-    required = getattr(app_mod, "REQUIRED_AZURE_KEYS", [])
-    missing = _find(existing, required)
+    This helper reads the configured `.env` file (via the canonical
+    ``ENV_PATH`` defined in :mod:`src.setup.azure_env`), determines which
+    keys are missing and, if any are absent, prompts the user (using
+    :func:`prompt_and_update_env`) to collect them and write an updated
+    `.env` file.
+
+    Parameters
+    ----------
+    ui : optional
+        Optional UI object providing ``rprint``, ``_`` and ``ask_text``.
+        If not provided the implementation will allow the underlying
+        helpers to decide the appropriate UI fallback.
+
+    Returns
+    -------
+    None
+    """
+    # Prefer an explicit import of the concrete azure helpers so this
+    # module no longer depends on an external shim object in
+    # ``sys.modules``. Tests should patch the concrete functions on this
+    # module (for example ``src.setup.app_runner.parse_env_file``) when
+    # necessary.
+    from src.setup import azure_env as _azure_env
+
+    env_path = getattr(_azure_env, "ENV_PATH", PROJECT_ROOT / ".env")
+
+    existing = parse_env_file(env_path)
+    required = getattr(_azure_env, "REQUIRED_AZURE_KEYS", [])
+    missing = find_missing_env_keys(existing, required)
     if missing:
-        _prompt(missing, env_path, existing)
+        # Forward the optional UI through to the prompt helper.
+        prompt_and_update_env(missing, env_path, existing, ui=ui)
 
 
 def run_ai_connectivity_check_silent() -> tuple[bool, str]:

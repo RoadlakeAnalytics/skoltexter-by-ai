@@ -15,21 +15,43 @@ from typing import Any
 def _sync_console_helpers() -> None:
     """Propagate module-level UI toggles into the console helpers.
 
-    The real toggle state is stored on the main ``src.setup.app`` module
-    so tests can monkeypatch there. This helper looks up the values at
-    runtime and copies them into ``src.setup.console_helpers``.
+    This helper imports the concrete ``src.setup.console_helpers`` module
+    and attempts to read toggle values from the legacy ``src.setup.app``
+    module if it is importable. The function uses an explicit, lazy
+    import of the legacy module instead of reading ``sys.modules`` to
+    make the dependency explicit and easier to reason about during the
+    shim removal migration.
+
+    Returns
+    -------
+    None
+        No value is returned. The function modifies the state of the
+        imported ``src.setup.console_helpers`` module in-place when
+        toggle values are available.
     """
     try:
         import src.setup.console_helpers as ch
+    except ImportError:
+        # Console helpers are optional; nothing to propagate.
+        return
 
-        app_mod = sys.modules.get("src.setup.app")
-        ch._RICH_CONSOLE = getattr(app_mod, "_RICH_CONSOLE", None)
-        ch._HAS_Q = getattr(app_mod, "_HAS_Q", False)
-        ch.questionary = getattr(app_mod, "questionary", None)
+    # Prefer an explicit, lazy import of the legacy app module so that
+    # import-ordering is deterministic and easier to test. If the legacy
+    # module is not present or cannot be imported, fall back to defaults.
+    app_mod = None
+    try:
+        import importlib
+
+        try:
+            app_mod = importlib.import_module("src.setup.app")
+        except Exception:
+            app_mod = None
     except Exception:
-        # Intentionally swallow errors: UI helpers should remain best-effort
-        # and not break tests when optional deps are absent.
-        pass
+        app_mod = None
+
+    ch._RICH_CONSOLE = getattr(app_mod, "_RICH_CONSOLE", None) if app_mod is not None else None
+    ch._HAS_Q = getattr(app_mod, "_HAS_Q", False) if app_mod is not None else False
+    ch.questionary = getattr(app_mod, "questionary", None) if app_mod is not None else None
 
 
 def rprint(*objects: Any, **kwargs: Any) -> None:
@@ -150,4 +172,3 @@ __all__ = [
     "_build_dashboard_layout",
     "ui_has_rich",
 ]
-

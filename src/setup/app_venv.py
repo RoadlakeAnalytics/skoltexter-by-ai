@@ -28,26 +28,49 @@ def get_venv_bin_dir(venv_path: Path) -> Path:
     Path
         Path to the bin/Scripts directory inside the venv.
     """
-    app_mod = sys.modules.get("src.setup.app")
-    platform = getattr(getattr(app_mod, "sys", sys), "platform", "")
+    # Use the real `sys.platform` rather than reading it from a shim
+    # module. Tests should patch the concrete helpers in `src.setup.venv`.
+    platform = sys.platform
     if platform == "win32":
         return venv_path / "Scripts"
     return venv_path / "bin"
 
 
 def get_venv_python_executable(venv_path: Path) -> Path:
-    """Return the path to the Python executable inside a virtualenv."""
+    """Return the path to the Python executable inside a virtualenv.
+
+    Parameters
+    ----------
+    venv_path : Path
+        Path to the virtual environment root directory.
+
+    Returns
+    -------
+    Path
+        Path to the Python interpreter inside the virtual environment.
+    """
     bin_dir = get_venv_bin_dir(venv_path)
-    platform = getattr(getattr(sys.modules.get("src.setup.app"), "sys", sys), "platform", "")
+    platform = sys.platform
     if platform == "win32":
         return bin_dir / "python.exe"
     return bin_dir / "python"
 
 
 def get_venv_pip_executable(venv_path: Path) -> Path:
-    """Return the path to the pip executable inside a virtualenv."""
+    """Return the path to the pip executable inside a virtualenv.
+
+    Parameters
+    ----------
+    venv_path : Path
+        Path to the virtual environment root directory.
+
+    Returns
+    -------
+    Path
+        Path to the pip executable inside the virtual environment.
+    """
     bin_dir = get_venv_bin_dir(venv_path)
-    platform = getattr(getattr(sys.modules.get("src.setup.app"), "sys", sys), "platform", "")
+    platform = sys.platform
     if platform == "win32":
         return bin_dir / "pip.exe"
     return bin_dir / "pip"
@@ -82,13 +105,25 @@ def run_program(program_name: str, program_file: Path, stream_output: bool = Fal
     This wrapper consults the app module for patched ``subprocess``/``sys``
     attributes so tests can inject fake behaviours.
     """
-    app_mod = sys.modules.get("src.setup.app")
-    python = getattr(app_mod, "get_python_executable", get_python_executable)()
+    # Use explicit, concrete imports instead of reading a shim module.
+    try:
+        from src.setup.venv import get_python_executable as _get_python_executable
+
+        python = _get_python_executable()
+    except Exception:
+        python = get_python_executable()
+
     env = os.environ.copy()
-    # Respect the configured UI language when running subprocesses
-    env["LANG_UI"] = getattr(sys.modules.get("src.setup.app"), "LANG", "en")
-    subprocess_mod = getattr(app_mod, "subprocess", subprocess)
-    proj_root = getattr(sys.modules.get("src.setup.app"), "PROJECT_ROOT", Path.cwd())
+    # Respect the configured UI language when running subprocesses.
+    try:
+        from src.setup import i18n as _i18n
+
+        env["LANG_UI"] = getattr(_i18n, "LANG", "en")
+    except Exception:
+        env["LANG_UI"] = "en"
+
+    subprocess_mod = subprocess
+    proj_root = PROJECT_ROOT or Path.cwd()
     if stream_output:
         proc = subprocess_mod.Popen([python, "-m", program_file.with_suffix("").name], cwd=proj_root, env=env)
         return proc.wait() == 0

@@ -10,6 +10,7 @@ from __future__ import annotations
 import sys
 from typing import Any
 from src.config import LANGUAGE_PROMPT_MAX_INVALID, INTERACTIVE_MAX_INVALID_ATTEMPTS
+from src.exceptions import UserInputError
 
 
 def ask_text(prompt: str, default: str | None = None) -> str:
@@ -36,11 +37,19 @@ def ask_text(prompt: str, default: str | None = None) -> str:
     if _TUI_MODE and _TUI_UPDATER is not None:
         if _TUI_PROMPT_UPDATER is not None:
             try:
-                panel_cls = getattr(sys.modules.get("rich.panel"), "Panel", None)
+                # Prefer an explicit import of the concrete dependency
+                # so that tests which inject a stub into ``sys.modules``
+                # are honoured by normal import semantics and so we do
+                # not rely on ad-hoc module lookup logic.
                 try:
-                    _TUI_PROMPT_UPDATER(panel_cls(f"{prompt}\n\n> ", title="Input"))
+                    from rich.panel import Panel as panel_cls
+
+                    try:
+                        _TUI_PROMPT_UPDATER(panel_cls(f"{prompt}\n\n> ", title="Input"))
+                    except Exception:
+                        pass
                 except Exception:
-                    pass
+                    panel_cls = None
             except Exception:
                 pass
         try:
@@ -207,19 +216,39 @@ def get_program_descriptions() -> dict[str, tuple[str, str]]:
 
 
 def view_program_descriptions() -> None:
-    """Interactive view showing program descriptions using module-level prompts."""
-    # Re-implement minimal forwarding behaviour to the UI/programs helpers
-    import sys as _sys
-    _app_mod = _sys.modules.get("src.setup.app")
+    """Interactive view showing program descriptions using module-level prompts.
+
+    This function displays a navigable list of available programs and
+    shows a description for the selected program. The prompt loop is
+    explicitly bounded by the configuration constant
+    ``INTERACTIVE_MAX_INVALID_ATTEMPTS`` to avoid unbounded interactive
+    loops during automated test runs or non-interactive sessions.
+
+    The implementation intentionally uses explicit imports of the concrete
+    UI and prompt helpers instead of reading a legacy shim from
+    ``sys.modules``. Tests should patch the concrete modules (for example
+    ``src.setup.app_prompts.ask_text`` or ``src.setup.app_ui.ui_menu``) so
+    behavior remains deterministic and local to each test.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    UserInputError
+        If the maximum number of invalid selection attempts is exceeded.
+    """
+    # Use the concrete UI adapter rather than a legacy shim module.
     from src.setup import app_ui as _app_ui
 
-    ui_rule = getattr(_app_mod, "ui_rule", _app_ui.ui_rule)
-    ui_menu = getattr(_app_mod, "ui_menu", _app_ui.ui_menu)
-    ui_has_rich = getattr(_app_mod, "ui_has_rich", _app_ui.ui_has_rich)
-    _rprint = getattr(_app_mod, "rprint", getattr(_app_ui, "rprint", print))
+    ui_rule = _app_ui.ui_rule
+    ui_menu = _app_ui.ui_menu
+    ui_has_rich = _app_ui.ui_has_rich
+    _rprint = getattr(_app_ui, "rprint", print)
 
     ui_rule("Programs")
-    # Determine maximum invalid attempts (allow central app shim override)
+    # Determine maximum invalid attempts from configuration only.
     try:
         import importlib
 
@@ -227,20 +256,16 @@ def view_program_descriptions() -> None:
         max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
 
     attempts = 0
     while True:
-        _getprog = getattr(_app_mod, "get_program_descriptions", get_program_descriptions)
-        descriptions = _getprog()
+        descriptions = get_program_descriptions()
         items = [(k, v[0]) for k, v in descriptions.items()]
         items.append(("0", "Return"))
         ui_menu(items)
-        # Prefer the central shim's patched ask_text when available so
-        # tests that monkeypatch ``src.setup.app.ask_text`` affect this
-        # behaviour.
-        _ask = getattr(_app_mod, "ask_text", ask_text)
+        # Use the local, concrete prompt implementation. Tests should
+        # patch ``src.setup.app_prompts.ask_text`` instead of the shim.
+        _ask = ask_text
         choice = _ask("Select program")
         if choice == "0":
             break
@@ -259,14 +284,21 @@ def view_program_descriptions() -> None:
             _rprint("Invalid choice. Please try again.")
             if attempts >= max_attempts:
                 try:
-                    ui_error = getattr(_app_mod, "ui_error", None)
+                    ui_error = getattr(_app_ui, "ui_error", None)
                     if ui_error is not None:
-                        ui_error("Too many invalid selections. Exiting.")
+                        ui_error("Too many invalid selections. Aborting.")
                     else:
-                        _rprint("Too many invalid selections. Exiting.")
+                        _rprint("Too many invalid selections. Aborting.")
                 except Exception:
                     pass
-                raise SystemExit("Exceeded maximum invalid selections in program descriptions view")
+                # Raise a domain-specific error rather than exiting the
+                # process. Tests and callers can catch this and respond
+                # appropriately; this also aligns with our centralized
+                # error taxonomy.
+                raise UserInputError(
+                    "Exceeded maximum invalid selections in program descriptions view",
+                    context={"attempts": attempts, "max_attempts": max_attempts},
+                )
 
 
 def set_language() -> None:
@@ -293,7 +325,11 @@ def set_language() -> None:
     prompt = i18n.TEXTS["en"]["language_prompt"]
     import sys as _sys
     _app_mod = _sys.modules.get("src.setup.app")
-    _ask = getattr(_app_mod, "ask_text", ask_text)
+    # Use the concrete, local `ask_text` implementation rather than
+    # attempting to read an override from a legacy shim in
+    # ``sys.modules``. Tests should patch the real dependency
+    # (`src.setup.app_prompts.ask_text`) instead of the shim.
+    _ask = ask_text
 
     try:
         import importlib
@@ -353,7 +389,11 @@ def prompt_virtual_environment_choice() -> bool:
     import sys as _sys
     import src.setup.i18n as i18n
     _app_mod = _sys.modules.get("src.setup.app")
-    _ask = getattr(_app_mod, "ask_text", ask_text)
+    # Use the concrete, local `ask_text` implementation rather than
+    # attempting to read an override from a legacy shim in
+    # ``sys.modules``. Tests should patch the real dependency
+    # (`src.setup.app_prompts.ask_text`) instead of the shim.
+    _ask = ask_text
 
     ui_rule(i18n.translate("venv_menu_title"))
     ui_menu([

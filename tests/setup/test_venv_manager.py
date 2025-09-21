@@ -324,31 +324,66 @@ def test_manage_virtual_environment_no_py313_non_test_fallback(
 
 
 def test_manage_virtual_environment_recreate_existing(monkeypatch, tmp_path: Path):
-    """Recreate existing venv when user confirms."""
-    # Ensure the project root used by the filesystem helpers points to tmp_path
+    r"""Recreate existing venv when user confirms.
+
+    Simulate a project with an existing virtual environment directory and
+    assert that when the user confirms the recreate prompt the manager
+    calls the safe removal helper. This test avoids relying on the legacy
+    ``src.setup.app`` shim by invoking the concrete manager directly and
+    patching concrete modules.
+
+    Parameters
+    ----------
+    monkeypatch : _pytest.monkeypatch.MonkeyPatch
+        Fixture to patch attributes and modules during the test.
+    tmp_path : pathlib.Path
+        Temporary path used as the fake project root and venv directory.
+
+    Returns
+    -------
+    None
+        The test asserts side effects and returns nothing.
+    """
+    # Configure project-level constants used by the manager.
     monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
     monkeypatch.setattr(cfg, "LOG_DIR", tmp_path / "logs", raising=True)
 
+    # Set VENV_DIR on the concrete config and ensure it exists on disk.
     monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
-    monkeypatch.setattr(sp, "VENV_DIR", tmp_path / "venv")
-    sp.VENV_DIR.mkdir()
+    cfg.VENV_DIR.mkdir()
+
+    # Prepare a UI adapter that will answer prompts: first proceed, then
+    # confirm recreate.
     seq = iter(["y", "y"])  # yes then confirm recreate
-    monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": next(seq))
-    monkeypatch.setattr(sp, "is_venv_active", lambda: False)
+    ui = _UI
+    ui.ask_text = staticmethod(lambda prompt, default="y": next(seq))
+
+    # Ensure the manager believes the environment is not active so it will
+    # take the branch that attempts to remove the existing VENV_DIR.
+    monkeypatch.setattr(venvmod, "is_venv_active", lambda: False)
+
     removed = {"ok": False}
 
-    # The top-level setup code delegates removal to src.setup.fs_utils. Patch
-    # both the validator and the destructive helper so the test can observe
-    # the removal attempt without touching the real filesystem.
-    import src.setup.fs_utils as fs_utils
+    # Patch filesystem helpers so the test can observe removal without
+    # mutating the real filesystem. The manager imports these helpers
+    # into its module namespace, so patch the local symbols on `vm`.
+    monkeypatch.setattr(vm, "create_safe_path", lambda p: p)
+    monkeypatch.setattr(vm, "safe_rmtree", lambda validated: removed.__setitem__("ok", True))
 
-    monkeypatch.setattr(fs_utils, "create_safe_path", lambda p: p)
-    monkeypatch.setattr(
-        fs_utils, "safe_rmtree", lambda validated: removed.__setitem__("ok", True)
+    # Prevent actual pip/subprocess calls during the test run by patching
+    # the subprocess used via the UI adapter.
+    monkeypatch.setattr(ui.subprocess, "check_call", lambda *a, **k: None)
+
+    # Call the concrete manager directly with explicit arguments rather than
+    # relying on a legacy ``src.setup.app`` wrapper.
+    vm.manage_virtual_environment(
+        cfg.PROJECT_ROOT,
+        cfg.VENV_DIR,
+        cfg.REQUIREMENTS_FILE,
+        cfg.REQUIREMENTS_LOCK_FILE,
+        ui,
     )
-    # Prevent actual pip/subprocess calls during the test run.
-    monkeypatch.setattr(sp.subprocess, "check_call", lambda *a, **k: None)
-    sp.manage_virtual_environment()
+
     assert removed["ok"] is True
 
 
@@ -402,31 +437,42 @@ def test_manage_virtual_environment_install_fallback_when_no_lock(
 def test_manage_virtual_environment_no_venvdir_pip_python_fallback(
     monkeypatch, tmp_path: Path
 ):
-    """Cover branch where pip path is missing and VENV_DIR does not exist (688->692).
+    """Simulate active venv with missing pip and non-existent VENV_DIR.
 
-    We simulate an active venv with missing pip executable path and a non-existent
-    project VENV_DIR, ensuring the code takes the false branch and continues.
+    Parameters
+    ----------
+    monkeypatch : _pytest.monkeypatch.MonkeyPatch
+        Fixture used to temporarily set attributes on modules and objects.
+    tmp_path : pathlib.Path
+        Temporary filesystem path provided by pytest.
+
+    Notes
+    -----
+    This test avoids depending on the legacy shim (`src.setup.app`) and
+    instead patches the concrete `src.setup.venv` helpers and calls the
+    refactored `venv_manager.manage_virtual_environment` directly.
     """
-    import importlib
-    sp_local = importlib.import_module("src.setup.app")
+    # Patch concrete venv helpers directly (avoid src.setup.app shim).
+    monkeypatch.setattr(venvmod, "is_venv_active", lambda: True)
+    monkeypatch.setattr(
+        venvmod, "get_venv_pip_executable", lambda p: tmp_path / "missing" / "pip"
+    )
+    monkeypatch.setattr(
+        venvmod, "get_venv_python_executable", lambda p: tmp_path / "missing" / "python"
+    )
 
-    monkeypatch.setattr(sp_local, "is_venv_active", lambda: True)
-    # Return a non-existent pip path for the active environment
-    monkeypatch.setattr(
-        sp_local,
-        "get_venv_pip_executable",
-        lambda p: tmp_path / "missing" / "pip",
+    ui = _UI
+    ui.ask_text = staticmethod(lambda prompt, default="y": "y")
+    monkeypatch.setattr(ui.subprocess, "check_call", lambda *a, **k: None)
+
+    # Call the refactored manager directly with an explicit venv path.
+    vm.manage_virtual_environment(
+        cfg.PROJECT_ROOT,
+        tmp_path / "no_venv_here",
+        cfg.REQUIREMENTS_FILE,
+        cfg.REQUIREMENTS_LOCK_FILE,
+        ui,
     )
-    # Return a non-existent python path to force fallback resolution later
-    monkeypatch.setattr(
-        sp_local,
-        "get_venv_python_executable",
-        lambda p: tmp_path / "missing" / "python",
-    )
-    monkeypatch.setattr(sp_local, "VENV_DIR", tmp_path / "no_venv_here")
-    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
-    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
-    sp_local.manage_virtual_environment()
 
 
 def test_manage_virtual_environment_venv_exists_no_python_fallback(
