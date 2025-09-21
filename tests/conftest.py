@@ -37,6 +37,23 @@ try:
 except Exception:
     pass
 
+# Provide a safe default for `getpass.getpass` in the test environment.
+# Many tests exercise prompt code paths and rely on `input()` being
+# monkeypatched; calling `getpass.getpass` in non-tty test environments
+# can emit `GetPassWarning`. Replace `getpass.getpass` with
+# `builtins.input` as a safe default so tests do not trigger the warning
+# while still allowing individual tests to override `getpass.getpass` via
+# `monkeypatch.setattr` when they need specific behaviour.
+try:
+    import builtins as _builtins
+    import getpass as _getpass
+
+    _getpass.getpass = _builtins.input  # type: ignore[attr-defined]
+except Exception:
+    # If anything fails here we intentionally do not raise; tests may
+    # still attempt to monkeypatch getpass themselves.
+    pass
+
 _TEST_TIMEOUT = int(os.environ.get("PYTEST_TEST_TIMEOUT", "10"))
 
 

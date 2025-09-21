@@ -87,92 +87,8 @@ def test_run_sets_lang_and_calls_menu(monkeypatch):
     assert importlib.import_module("src.setup.i18n").LANG == "sv"
     assert called.get("main") is True
 
-
-def test_get_python_executable_prefers_venv_impl(monkeypatch):
-    """get_python_executable delegates to src.setup.venv when available."""
-    venv_mod = importlib.import_module("src.setup.venv")
-    monkeypatch.setattr(venv_mod, "get_python_executable", lambda: "/fake/venv/python")
-    # Accept either the delegated venv implementation or a system
-    # executable depending on import ordering in the test environment.
-    val = app.get_python_executable()
-    assert isinstance(val, str) and len(val) > 0
-
-    # If the delegated impl raises we fall back to sys.executable
-    def _bad():
-        raise RuntimeError("bad")
-
-    monkeypatch.setattr(venv_mod, "get_python_executable", _bad)
-    # Accept a non-empty string as a valid fallback in CI/varied envs.
-    res2 = app.get_python_executable()
-    assert isinstance(res2, str) and len(res2) > 0
-
-
-def test_is_venv_active_delegates(monkeypatch):
-    venv_mod = importlib.import_module("src.setup.venv")
-    monkeypatch.setattr(venv_mod, "is_venv_active", lambda: True)
-    # The venv helper has been patched; ensure it returns the expected
-    # boolean value. Tests that depend on the app module's delegation may
-    # re-import or reload the module; here we assert the helper itself
-    # reflects the patched behaviour and that the app wrapper returns a
-    # boolean (the exact value can vary across environments).
-    assert venv_mod.is_venv_active() is True
-    res = app.is_venv_active()
-    assert isinstance(res, bool)
-    monkeypatch.setattr(venv_mod, "is_venv_active", lambda: False)
-    assert venv_mod.is_venv_active() is False
-
-
-def test_manage_virtual_environment_calls_manager(monkeypatch, tmp_path: Path):
-    """Delegate to the venv manager when the wrapper is invoked.
-
-    This test installs a fake ``src.setup.venv_manager`` implementation to
-    capture the arguments the wrapper forwards. It also patches the
-    canonical configuration value ``src.config.VENV_DIR`` to ensure the
-    operation targets a temporary location during the test.
-
-    Parameters
-    ----------
-    monkeypatch : _pytest.monkeypatch.MonkeyPatch
-        Fixture used to install fakes and patch module attributes.
-    tmp_path : pathlib.Path
-        Temporary path used as a fake project root and venv directory.
-
-    Returns
-    -------
-    None
-        The test asserts the wrapper invoked the underlying manager and
-        returns nothing.
-    """
-    called = {}
-
-    # Patch the existing venv_manager implementation's entrypoint so we
-    # reliably intercept calls regardless of import caching in the test
-    # environment.
-    # Install a fake venv_manager module into sys.modules so the wrapper
-    # imports and calls our fake implementation deterministically.
-    # Patch the real module's entrypoint to intercept calls regardless
-    # of import ordering. This is more robust than inserting a synthetic
-    # ModuleType into ``sys.modules`` since the package module object
-    # may already be imported.
-    import src.setup.venv_manager as vm_mod
-
-    def fake_manage(project_root, venv_dir, req_file, req_lock, UI):
-        called["args"] = (project_root, venv_dir, req_file, req_lock)
-
-    # Patch the concrete venv manager implementation directly.
-    monkeypatch.setattr(vm_mod, "manage_virtual_environment", fake_manage, raising=False)
-
-    # Ensure configuration targets the temporary paths for the test.
-    monkeypatch.setattr(cfg, "PROJECT_ROOT", tmp_path, raising=True)
-    monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
-    # Prevent actual subprocess/pip calls in case the wrapper delegates to
-    # a real manager implementation during execution.
-    monkeypatch.setattr(subprocess, "check_call", lambda *a, **k: None)
-
-    # Call the concrete wrapper rather than the legacy shim to avoid
-    # relying on the shim module object being a real importlib module.
-    app_venv.manage_virtual_environment()
-    assert "args" in called
+# Venv-related tests were migrated to ``tests/setup/test_app_venv.py`` to
+# avoid reliance on the legacy shim module object (`src.setup.app`).
 
 
 # The test for parse_env_file/prompt_and_update_env was migrated to the
@@ -354,8 +270,10 @@ def test_ask_wrappers_restore_orchestrator_flags(monkeypatch):
     monkeypatch.setattr(app_mod, "_TUI_UPDATER", lambda v: None, raising=False)
     monkeypatch.setattr(app_mod, "_TUI_PROMPT_UPDATER", None, raising=False)
 
-    # Stub prompt implementations to avoid interactive input
-    monkeypatch.setattr(app_mod, "_sync_console_helpers", lambda: None)
+    # Stub prompt implementations to avoid interactive input. Patch the
+    # concrete implementation in `src.setup.app_ui` rather than the legacy
+    # shim module so tests do not rely on the global shim object.
+    monkeypatch.setattr("src.setup.app_ui._sync_console_helpers", lambda: None, raising=False)
     monkeypatch.setattr(
         "src.setup.ui.prompts.ask_text", lambda p, default=None: "x", raising=False
     )
@@ -435,35 +353,10 @@ def test_ask_text_when_orch_import_fails(monkeypatch):
     assert isinstance(res, str)
 
 
-def test_manage_virtual_environment_propagates_and_restores(monkeypatch):
-    """Attributes injected into src.setup.venv are restored after calling the manager."""
-    import importlib
-
-    app_mod = importlib.import_module("src.setup.app")
-    venv_mod = importlib.import_module("src.setup.venv")
-    vm_mod = importlib.import_module("src.setup.venv_manager")
-
-    # Save original
-    orig = getattr(venv_mod, "get_python_executable", None)
-
-    def fake_get_python_executable():
-        return "/tmp/fake"
-
-    # Install a fake manager that simply records it was called
-    monkeypatch.setattr(
-        vm_mod, "manage_virtual_environment", lambda *a, **k: None, raising=False
-    )
-
-    # Inject our test function on the app module so it should be propagated
-    monkeypatch.setattr(
-        app_mod, "get_python_executable", fake_get_python_executable, raising=False
-    )
-
-    # Call the wrapper which should propagate and then restore the attribute
-    app_mod.manage_virtual_environment()
-
-    # The venv module should have its original attribute restored
-    assert getattr(venv_mod, "get_python_executable", None) is orig
+# The venv propagation/restoration test was migrated to
+# ``tests/setup/test_app_venv.py`` where it now patches the concrete
+# ``src.setup.app_venv``/``src.setup.venv`` modules directly to avoid
+# brittle dependence on the legacy shim module object.
 
 
 def test_entry_point_calls_set_language_when_not_skipped(monkeypatch):
