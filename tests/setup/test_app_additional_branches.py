@@ -9,9 +9,36 @@ developer's environment.
 
 from types import SimpleNamespace
 from pathlib import Path
+import sys as _sys
+import types
 
-import src.setup.app as app
+import src.setup.app_ui as _app_ui
+import src.setup.app_prompts as _app_prompts
+import src.setup.app_venv as _app_venv
+import src.setup.app_runner as _app_runner
 import src.setup.i18n as i18n
+
+app = types.SimpleNamespace(
+    parse_cli_args=_app_runner.parse_cli_args,
+    _sync_console_helpers=_app_ui._sync_console_helpers,
+    _RICH_CONSOLE=None,
+    _HAS_Q=False,
+    questionary=None,
+    ui_rule=_app_ui.ui_rule,
+    ui_header=_app_ui.ui_header,
+    ui_info=_app_ui.ui_info,
+    ui_warning=_app_ui.ui_warning,
+    ui_success=_app_ui.ui_success,
+    get_venv_bin_dir=_app_venv.get_venv_bin_dir,
+    get_venv_python_executable=_app_venv.get_venv_python_executable,
+    get_venv_pip_executable=_app_venv.get_venv_pip_executable,
+    run_program=_app_venv.run_program,
+    ask_text=_app_prompts.ask_text if hasattr(_app_prompts, 'ask_text') else None,
+    prompt_virtual_environment_choice=_app_prompts.prompt_virtual_environment_choice if hasattr(_app_prompts, 'prompt_virtual_environment_choice') else None,
+    set_language=_app_prompts.set_language if hasattr(_app_prompts, 'set_language') else None,
+    subprocess=__import__("subprocess"),
+)
+_sys.modules.setdefault("src.setup.app", app)
 
 
 def test_parse_cli_args_and_sync_console_helpers(monkeypatch) -> None:

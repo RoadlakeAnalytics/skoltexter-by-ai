@@ -16,9 +16,54 @@ import builtins
 import getpass
 import importlib
 
-import src.setup.app as app
-import src.setup.venv as venvmod
+import types
+
+# Use a compact `app` namespace mapping to the refactored modules so
+# these tests can be migrated away from the legacy monolithic module.
+import src.setup.app_ui as _app_ui
+import src.setup.app_prompts as _app_prompts
+import src.setup.app_venv as _app_venv
+import src.setup.app_runner as _app_runner
 import src.setup.i18n as i18n
+import src.setup.venv as venvmod
+import sys as _sys
+
+app = types.SimpleNamespace(
+    ui_rule=_app_ui.ui_rule,
+    ui_header=_app_ui.ui_header,
+    ui_status=_app_ui.ui_status,
+    ui_info=_app_ui.ui_info,
+    ui_success=_app_ui.ui_success,
+    ui_warning=_app_ui.ui_warning,
+    ui_error=_app_ui.ui_error,
+    ui_menu=_app_ui.ui_menu,
+    rprint=_app_ui.rprint,
+    ui_has_rich=_app_ui.ui_has_rich,
+    ask_text=_app_prompts.ask_text,
+    ask_confirm=_app_prompts.ask_confirm,
+    ask_select=_app_prompts.ask_select,
+    get_program_descriptions=_app_prompts.get_program_descriptions,
+    view_program_descriptions=_app_prompts.view_program_descriptions,
+    set_language=_app_prompts.set_language,
+    prompt_virtual_environment_choice=_app_prompts.prompt_virtual_environment_choice,
+    get_venv_bin_dir=_app_venv.get_venv_bin_dir,
+    get_venv_python_executable=_app_venv.get_venv_python_executable,
+    get_venv_pip_executable=_app_venv.get_venv_pip_executable,
+    get_python_executable=_app_venv.get_python_executable,
+    run_program=_app_venv.run_program,
+    parse_cli_args=_app_runner.parse_cli_args,
+    entry_point=_app_runner.entry_point,
+    main_menu=_app_runner.main_menu,
+    LANG=i18n.LANG,
+    translate=i18n.translate,
+    sys=_sys,
+)
+
+# Ensure other modules that expect to find the legacy module in
+# ``sys.modules['src.setup.app']`` see our test mapping. This mirrors
+# the historical behaviour and keeps tests deterministic while we
+# migrate them to import refactored modules directly.
+_sys.modules.setdefault("src.setup.app", app)
 
 
 def test_get_venv_helpers_windows_and_unix(monkeypatch, tmp_path: Path) -> None:
@@ -104,6 +149,13 @@ def test_ask_text_tui_branch(monkeypatch) -> None:
             self.renderable = renderable
             self.title = title
 
+    # Ensure a `rich.panel` stub is present so the prompt-updater branch
+    # that constructs a Panel instance is exercised deterministically.
+    import types, sys as _sys
+
+    panel_mod = types.ModuleType("rich.panel")
+    panel_mod.Panel = _Panel
+    monkeypatch.setitem(_sys.modules, "rich.panel", panel_mod)
     monkeypatch.setattr(app, "Panel", _Panel, raising=False)
 
     # Force getpass to raise so the code falls back to input; then stub input

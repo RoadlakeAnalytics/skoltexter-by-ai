@@ -2,7 +2,7 @@
 
 import subprocess
 
-import src.setup.app as sp
+import src.setup.app_runner as sp
 
 
 def test_run_full_quality_suite_success(monkeypatch):

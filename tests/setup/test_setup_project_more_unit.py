@@ -1,7 +1,27 @@
 """Additional unit tests for functions in setup_project.py."""
 
-import src.setup.app as sp
+import types
+import sys as _sys
+
+import src.setup.app_ui as _app_ui
+import src.setup.app_pipeline as _app_pipeline
+import src.setup.app_prompts as _app_prompts
 import src.setup.pipeline.orchestrator as orchestrator
+
+# Expose a compact `sp` namespace mapping the small set of helpers used
+# by this test file. Register it in sys.modules so any code that looks up
+# ``sys.modules['src.setup.app']`` receives the same object.
+sp = types.SimpleNamespace(
+    _build_dashboard_layout=_app_ui._build_dashboard_layout,
+    view_program_descriptions=_app_prompts.view_program_descriptions,
+    ask_text=_app_prompts.ask_text,
+    _run_processing_pipeline_rich=_app_pipeline._run_processing_pipeline_rich,
+    _run_processing_pipeline_plain=_app_pipeline._run_processing_pipeline_plain,
+    ui_menu=_app_ui.ui_menu,
+    ui_rule=_app_ui.ui_rule,
+    ui_has_rich=_app_ui.ui_has_rich,
+)
+_sys.modules.setdefault("src.setup.app", sp)
 
 
 def test_build_dashboard_layout_smoke():

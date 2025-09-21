@@ -23,7 +23,8 @@ from src.setup.ui.basic import ui_info, ui_rule, ui_success, ui_warning
 from src.setup.ui.prompts import ask_confirm, ask_text
 
 from ..azure_env import run_ai_connectivity_check_silent
-from .run import run_program
+# Avoid importing run_program at module import time to prevent circular
+# imports with the run module. Import locally where needed.
 from .status import _render_pipeline_table as _render_table_impl
 from .status import _status_label as _status_label_impl
 
@@ -32,6 +33,11 @@ _TUI_UPDATER: Callable[[Any], None] | None = None
 _TUI_PROMPT_UPDATER: Callable[[Any], None] | None = None
 _STATUS_RENDERABLE: object | None = None
 _PROGRESS_RENDERABLE: object | None = None
+
+# Expose a modifiable symbol so tests can monkeypatch `orchestrator.run_program`
+# without triggering circular imports. The real implementation is imported
+# lazily inside functions that need it.
+run_program = None
 
 
 def _compose_and_update() -> None:
@@ -225,7 +231,14 @@ def _run_pipeline_step(
         # the setup/launcher can install an adapter that routes known
         # program names to in-process runners. Keeping this call here
         # preserves testability and separation of concerns.
-        ok = run_program(program_name, program_path, stream_output=stream_output)
+        # Prefer a run_program patched on this module (tests set orch.run_program)
+        rp = globals().get("run_program")
+        if rp is None:
+            from .run import run_program as _rp
+
+            rp = _rp
+
+        ok = rp(program_name, program_path, stream_output=stream_output)
         if not ok:
             ui_warning(_(fail_key) + " Aborting pipeline.")
             return False
@@ -258,7 +271,13 @@ def run_pipeline_by_name(program_name: str, stream_output: bool = False) -> bool
         if program_name == "program_3":
             return run_website()
         # Unknown: fall back to subprocess runner (keeps backwards compatibility)
-        return run_program(
+        rp = globals().get("run_program")
+        if rp is None:
+            from .run import run_program as _rp
+
+            rp = _rp
+
+        return rp(
             program_name,
             Path(PROJECT_ROOT / "src" / f"{program_name}.py"),
             stream_output=stream_output,

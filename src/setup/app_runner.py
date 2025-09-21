@@ -103,16 +103,33 @@ def entry_point() -> None:
             except Exception:
                 pass
     if not getattr(args, "no_venv", False):
-        from src.setup.app_venv import is_venv_active
+        # Prefer a possibly patched implementation on the central app shim
+        # so tests that monkeypatch ``app.is_venv_active`` are honoured.
+        app_mod = sys.modules.get("src.setup.app")
+        is_venv_active = getattr(app_mod, "is_venv_active", None)
+        if is_venv_active is None:
+            from src.setup.app_venv import is_venv_active as _is_venv_active
+
+            is_venv_active = _is_venv_active
 
         if not is_venv_active():
             try:
-                from src.setup.app_prompts import prompt_virtual_environment_choice
+                # Prefer patched implementations on the central app shim so
+                # tests can monkeypatch behaviour by setting attributes on
+                # ``src.setup.app``.
+                app_mod = sys.modules.get("src.setup.app")
+                prompt_choice = getattr(app_mod, "prompt_virtual_environment_choice", None)
+                if prompt_choice is None:
+                    from src.setup.app_prompts import prompt_virtual_environment_choice as _prompt_choice
 
-                if prompt_virtual_environment_choice():
-                    from src.setup.app_venv import manage_virtual_environment
+                    prompt_choice = _prompt_choice
+                if prompt_choice():
+                    manage_func = getattr(app_mod, "manage_virtual_environment", None)
+                    if manage_func is None:
+                        from src.setup.app_venv import manage_virtual_environment as _manage
 
-                    manage_virtual_environment()
+                        manage_func = _manage
+                    manage_func()
             except Exception:
                 pass
 
@@ -138,9 +155,14 @@ def main_menu() -> None:
     Exposed so tests can monkeypatch the entry point behaviour.
     """
     try:
-        import src.setup.ui.menu as menu
-
-        menu.main_menu()
+        app_mod = sys.modules.get("src.setup.app")
+        menu = getattr(app_mod, "menu", None)
+        if menu is None:
+            import src.setup.ui.menu as menu
+        try:
+            menu.main_menu()
+        except Exception:
+            return
     except Exception:
         return
 
@@ -181,7 +203,7 @@ def prompt_and_update_env(missing_keys: list[str], env_path: Path, existing: dic
     from src.setup.azure_env import prompt_and_update_env as _p
 
     if ui is None:
-        ui = sys.modules.get(__name__)
+        ui = sys.modules.get("src.setup.app")
     return _p(missing_keys, env_path, existing, ui=ui)
 
 
@@ -193,10 +215,17 @@ def find_missing_env_keys(existing: dict[str, str], required: list[str]) -> list
 
 def ensure_azure_openai_env(ui: Any = None) -> None:
     env_path = getattr(sys.modules.get("src.setup.app"), "ENV_PATH", PROJECT_ROOT / ".env")
-    existing = parse_env_file(env_path)
-    missing = find_missing_env_keys(existing, [])
+    app_mod = sys.modules.get("src.setup.app")
+    # Prefer any patched helpers on the central shim so tests that
+    # monkeypatch functions on ``src.setup.app`` are honoured.
+    _parse = getattr(app_mod, "parse_env_file", parse_env_file)
+    existing = _parse(env_path)
+    _find = getattr(app_mod, "find_missing_env_keys", find_missing_env_keys)
+    required = getattr(app_mod, "REQUIRED_AZURE_KEYS", [])
+    missing = _find(existing, required)
     if missing:
-        prompt_and_update_env(missing, env_path, existing)
+        _prompt = getattr(app_mod, "prompt_and_update_env", prompt_and_update_env)
+        _prompt(missing, env_path, existing)
 
 
 def run_ai_connectivity_check_silent() -> tuple[bool, str]:
@@ -206,11 +235,14 @@ def run_ai_connectivity_check_silent() -> tuple[bool, str]:
 
 
 def run_ai_connectivity_check_interactive() -> bool:
-    ok, detail = run_ai_connectivity_check_silent()
+    # Prefer a possibly patched implementation on the central shim module
+    app_mod = sys.modules.get("src.setup.app")
+    _r = getattr(app_mod, "run_ai_connectivity_check_silent", run_ai_connectivity_check_silent)
+    ok, detail = _r()
+    # Call the UI helpers via the central app module so tests can override
+    # them by monkeypatching attributes on ``src.setup.app``.
+    app_mod = sys.modules.get("src.setup.app")
     if ok:
-        # Call the UI helpers via the central app module so tests can override
-        # them by monkeypatching attributes on ``src.setup.app``.
-        app_mod = sys.modules.get("src.setup.app")
         ui_success = getattr(app_mod, "ui_success", None)
         if ui_success is not None:
             try:

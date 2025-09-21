@@ -37,7 +37,11 @@ def test_import_app_without_rich(monkeypatch):
     fake_menu.main_menu = lambda: None
     # Provide a dummy 'rich' package module so import of rich.panel fails
     fake_rich = types.ModuleType("rich")
-    mod = _reload_with_stubs({"src.setup.ui.menu": fake_menu, "rich": fake_rich})
+    # Also ensure any existing 'rich.panel' entry is stubbed so the
+    # top-level import logic in the module under test uses the stubbed
+    # value rather than any previously-imported real package.
+    fake_panel = types.ModuleType("rich.panel")
+    mod = _reload_with_stubs({"src.setup.ui.menu": fake_menu, "rich": fake_rich, "rich.panel": fake_panel})
     assert getattr(mod, "Panel", None) is None
 
 

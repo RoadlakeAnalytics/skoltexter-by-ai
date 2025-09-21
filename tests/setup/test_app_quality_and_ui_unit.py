@@ -2,7 +2,18 @@
 
 import subprocess
 
-import src.setup.app as app
+import types
+import sys as _sys
+
+import src.setup.app_ui as _app_ui
+import src.setup.app_runner as _app_runner
+
+app = types.SimpleNamespace(
+    rprint=_app_ui.rprint,
+    run_extreme_quality_suite=_app_runner.run_extreme_quality_suite,
+    run_full_quality_suite=_app_runner.run_full_quality_suite,
+)
+_sys.modules.setdefault("src.setup.app", app)
 from src import config as cfg
 
 

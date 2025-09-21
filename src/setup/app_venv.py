@@ -12,6 +12,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Any
+from src.config import PROJECT_ROOT, VENV_DIR, REQUIREMENTS_FILE, REQUIREMENTS_LOCK_FILE
 
 
 def get_venv_bin_dir(venv_path: Path) -> Path:
@@ -111,15 +112,56 @@ def manage_virtual_environment() -> None:
         vm.create_safe_path = fs_utils.create_safe_path
         vm.safe_rmtree = fs_utils.safe_rmtree
     except Exception:
-        vm = None
+        # If direct import failed, attempt to pick up a test-installed
+        # module from sys.modules (tests may insert a fake manager there).
+        vm = sys.modules.get("src.setup.venv_manager")
+        try:
+            import src.setup.fs_utils as fs_utils
+            if vm is not None:
+                try:
+                    vm.create_safe_path = fs_utils.create_safe_path
+                    vm.safe_rmtree = fs_utils.safe_rmtree
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     class _UI:
         import logging
 
         logger = logging.getLogger("src.setup.app")
-        rprint = staticmethod(lambda *a, **k: None)
-        ui_has_rich = staticmethod(lambda: True)
-        ask_text = staticmethod(lambda *a, **k: "")
+        # Delegate to possibly monkeypatched functions on the central app shim
+        def _ask_text(*a, **k):
+            app_mod = sys.modules.get("src.setup.app")
+            f = getattr(app_mod, "ask_text", None)
+            if f is None:
+                return ""
+            return f(*a, **k)
+
+        def _ui_has_rich() -> bool:
+            app_mod = sys.modules.get("src.setup.app")
+            f = getattr(app_mod, "ui_has_rich", None)
+            if f is None:
+                return True
+            try:
+                return bool(f())
+            except Exception:
+                return True
+
+        def _rprint(*a, **k):
+            app_mod = sys.modules.get("src.setup.app")
+            f = getattr(app_mod, "rprint", None)
+            if f is None:
+                print(*a, **k)
+            else:
+                try:
+                    return f(*a, **k)
+                except Exception:
+                    print(*a, **k)
+
+        rprint = staticmethod(_rprint)
+        ui_has_rich = staticmethod(_ui_has_rich)
+        ask_text = staticmethod(_ask_text)
         subprocess = subprocess
         shutil = __import__("shutil")
         sys = sys
@@ -139,26 +181,45 @@ def manage_virtual_environment() -> None:
         _venv_orig: dict[str, tuple[bool, object | None]] = {}
         try:
             import src.setup.venv as _venvmod
-
             for _name in (
                 "is_venv_active",
                 "get_venv_python_executable",
                 "get_venv_pip_executable",
                 "get_python_executable",
             ):
-                if _name in globals():
-                    _val = globals()[_name]
-                    if getattr(_val, "__module__", None) != __name__:
-                        had = hasattr(_venvmod, _name)
-                        orig = getattr(_venvmod, _name) if had else None
-                        _venv_orig[_name] = (had, orig)
-                        setattr(_venvmod, _name, _val)
+                # Prefer implementations patched on the central app shim
+                # (``src.setup.app``) so tests that monkeypatch there are
+                # respected. Fall back to the local globals if not present.
+                app_mod = sys.modules.get("src.setup.app")
+                candidate = None
+                if app_mod is not None:
+                    candidate = getattr(app_mod, _name, None)
+                if candidate is None and _name in globals():
+                    candidate = globals()[_name]
+                if candidate is not None and getattr(candidate, "__module__", None) != __name__:
+                    had = hasattr(_venvmod, _name)
+                    orig = getattr(_venvmod, _name) if had else None
+                    _venv_orig[_name] = (had, orig)
+                    try:
+                        setattr(_venvmod, _name, candidate)
+                    except Exception:
+                        # Be defensive: if setting fails continue without
+                        # overriding the venv module.
+                        pass
         except Exception:
             _venvmod = None
             _venv_orig = {}
 
         try:
-            vm.manage_virtual_environment()
+            # Prefer values patched on the central app shim when present so
+            # tests that reload and then set attributes on ``src.setup.app``
+            # are respected.
+            _app = sys.modules.get("src.setup.app")
+            proj = getattr(_app, "PROJECT_ROOT", PROJECT_ROOT)
+            vdir = getattr(_app, "VENV_DIR", VENV_DIR)
+            req = getattr(_app, "REQUIREMENTS_FILE", REQUIREMENTS_FILE)
+            req_lock = getattr(_app, "REQUIREMENTS_LOCK_FILE", REQUIREMENTS_LOCK_FILE)
+            vm.manage_virtual_environment(proj, vdir, req, req_lock, _UI)
         finally:
             if _venvmod is not None:
                 for _name, (had, orig) in _venv_orig.items():
@@ -181,4 +242,3 @@ __all__ = [
     "run_program",
     "manage_virtual_environment",
 ]
-

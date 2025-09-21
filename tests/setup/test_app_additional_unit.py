@@ -11,7 +11,31 @@ import os
 import subprocess
 from pathlib import Path
 
-import src.setup.app as app
+import types
+
+# Use a compact `app` namespace that exposes the small set of helpers
+# this test file relies on from the refactored modules. This keeps the
+# tests explicit about their dependencies while avoiding the legacy
+# monolithic module.
+import src.setup.app_venv as _app_venv
+import src.setup.app_runner as _app_runner
+
+app = types.SimpleNamespace(
+    parse_cli_args=_app_runner.parse_cli_args,
+    get_venv_bin_dir=_app_venv.get_venv_bin_dir,
+    get_venv_python_executable=_app_venv.get_venv_python_executable,
+    get_venv_pip_executable=_app_venv.get_venv_pip_executable,
+    get_python_executable=_app_venv.get_python_executable,
+    run_program=_app_venv.run_program,
+    # Expose a sys proxy for platform tests
+    sys=__import__("sys"),
+)
+# Make the fake `app` available under the legacy module name so helper
+# code that looks up ``sys.modules['src.setup.app']`` sees our test
+# namespace (this mirrors the original test behaviour when importing
+# the real module).
+import sys as _sys
+_sys.modules.setdefault("src.setup.app", app)
 
 
 def test_parse_cli_args_defaults() -> None:

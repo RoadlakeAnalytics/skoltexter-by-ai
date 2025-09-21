@@ -3,8 +3,31 @@
 from types import SimpleNamespace
 import subprocess
 import importlib
+import sys as _sys
+import types
 
-import src.setup.app as app
+import src.setup.app_ui as _app_ui
+import src.setup.app_runner as _app_runner
+import src.setup.app_venv as _app_venv
+import src.setup.app_prompts as _app_prompts
+
+app = types.SimpleNamespace(
+    parse_cli_args=_app_runner.parse_cli_args,
+    run=_app_runner.run,
+    _sync_console_helpers=_app_ui._sync_console_helpers,
+    run_ai_connectivity_check_interactive=_app_runner.run_ai_connectivity_check_interactive,
+    run_extreme_quality_suite=_app_runner.run_extreme_quality_suite,
+    run_full_quality_suite=_app_runner.run_full_quality_suite,
+    entry_point=_app_runner.entry_point,
+    main_menu=_app_runner.main_menu,
+    set_language=_app_prompts.set_language,
+    ensure_azure_openai_env=_app_runner.ensure_azure_openai_env,
+    run_ai_connectivity_check_silent=_app_runner.run_ai_connectivity_check_silent,
+    ui_success=_app_ui.ui_success,
+    ui_error=_app_ui.ui_error,
+    get_python_executable=_app_venv.get_python_executable,
+)
+_sys.modules.setdefault("src.setup.app", app)
 
 
 def test_parse_cli_args_and_run(monkeypatch):

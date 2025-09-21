@@ -6,7 +6,7 @@ available and is inert when the manager module is absent.
 
 import sys
 
-import src.setup.app as app
+import src.setup.app_venv as app
 
 
 def test_manage_virtual_environment_delegates(monkeypatch) -> None:

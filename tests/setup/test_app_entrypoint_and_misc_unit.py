@@ -10,7 +10,28 @@ from types import SimpleNamespace
 from pathlib import Path
 import importlib
 
-import src.setup.app as app
+import types
+import sys as _sys
+
+import src.setup.app_prompts as _app_prompts
+import src.setup.app_runner as _app_runner
+import src.setup.app_ui as _app_ui
+import src.setup.app_venv as _app_venv
+
+app = types.SimpleNamespace(
+    parse_cli_args=_app_runner.parse_cli_args,
+    set_language=_app_prompts.set_language,
+    entry_point=_app_runner.entry_point,
+    main_menu=_app_runner.main_menu,
+    prompt_virtual_environment_choice=_app_prompts.prompt_virtual_environment_choice,
+    LANG=_app_prompts.__dict__.get('LANG', None),
+    ask_text=_app_prompts.ask_text,
+    ui_info=_app_ui.ui_info,
+    is_venv_active=_app_venv.is_venv_active,
+    manage_virtual_environment=_app_venv.manage_virtual_environment,
+    ensure_azure_openai_env=_app_runner.ensure_azure_openai_env,
+)
+_sys.modules.setdefault("src.setup.app", app)
 
 
 def test_set_language_sets_module_lang(monkeypatch):
@@ -122,4 +143,3 @@ def test_main_menu_swallows_exceptions(monkeypatch):
     monkeypatch.setattr(app, "menu", fake_menu, raising=False)
     # Should not raise
     app.main_menu()
-

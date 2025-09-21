@@ -2,8 +2,27 @@
 
 import importlib
 import types
+import sys as _sys
 
-import src.setup.app as app
+import src.setup.app_pipeline as _app_pipeline
+import src.setup.app_venv as _app_venv
+import src.setup.app_runner as _app_runner
+import src.setup.app_prompts as _app_prompts
+
+# Build a compact `app` namespace exposing the small set of helpers
+# used by these tests and register it under the legacy module name so
+# code that inspects ``sys.modules['src.setup.app']`` sees the mapping.
+app = types.SimpleNamespace(
+    _run_pipeline_step=_app_pipeline._run_pipeline_step,
+    _render_pipeline_table=_app_pipeline._render_pipeline_table,
+    _status_label=_app_pipeline._status_label,
+    manage_virtual_environment=_app_venv.manage_virtual_environment,
+    parse_env_file=_app_runner.parse_env_file,
+    prompt_and_update_env=_app_runner.prompt_and_update_env,
+    ask_text=_app_prompts.ask_text,
+    set_language=_app_prompts.set_language,
+)
+_sys.modules.setdefault("src.setup.app", app)
 
 
 def test_manage_virtual_environment_wrapper_propagates(monkeypatch, tmp_path):

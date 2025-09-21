@@ -5,8 +5,28 @@ so the functions execute their control flow without side effects.
 """
 
 from types import SimpleNamespace
-import src.setup.app as app
+import types
+import sys as _sys
+
+import src.setup.app_runner as _app_runner
+import src.setup.app_prompts as _app_prompts
+import src.setup.app_venv as _app_venv
 import src.setup.i18n as i18n
+
+app = types.SimpleNamespace(
+    parse_cli_args=_app_runner.parse_cli_args,
+    set_language=_app_prompts.set_language,
+    ensure_azure_openai_env=_app_runner.ensure_azure_openai_env,
+    entry_point=_app_runner.entry_point,
+    main_menu=_app_runner.main_menu,
+    is_venv_active=_app_venv.is_venv_active,
+    prompt_virtual_environment_choice=_app_prompts.prompt_virtual_environment_choice,
+    manage_virtual_environment=_app_venv.manage_virtual_environment,
+    ask_text=_app_prompts.ask_text,
+    prompt_and_update_env=_app_runner.prompt_and_update_env,
+    run_ai_connectivity_check_silent=_app_runner.run_ai_connectivity_check_silent,
+)
+_sys.modules.setdefault("src.setup.app", app)
 
 
 def test_entry_point_minimal(monkeypatch):

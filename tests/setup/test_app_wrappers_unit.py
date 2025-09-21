@@ -7,8 +7,30 @@ are stubbed using ``monkeypatch`` so tests remain deterministic.
 
 from pathlib import Path
 import sys
+import types
+import importlib
 
-import src.setup.app as app
+# Import the refactored modules and expose a lightweight `app` namespace
+# so existing tests can continue to call `app.<helper>` without depending
+# on the legacy monolithic module.
+import src.setup.app_ui as app_ui
+import src.setup.app_prompts as app_prompts
+import src.setup.app_venv as app_venv
+
+app = types.SimpleNamespace(
+    ui_rule=app_ui.ui_rule,
+    ui_header=app_ui.ui_header,
+    ui_info=app_ui.ui_info,
+    ui_menu=app_ui.ui_menu,
+    ask_text=app_prompts.ask_text,
+    ask_confirm=app_prompts.ask_confirm,
+    ask_select=app_prompts.ask_select,
+    get_venv_bin_dir=app_venv.get_venv_bin_dir,
+    get_python_executable=app_venv.get_python_executable,
+    run_program=app_venv.run_program,
+    # Expose the real sys module so tests can monkeypatch attributes on it.
+    sys=sys,
+)
 
 
 def test_ui_wrappers_delegate(monkeypatch):

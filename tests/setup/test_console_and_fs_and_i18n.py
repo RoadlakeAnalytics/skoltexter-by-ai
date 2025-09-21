@@ -96,4 +96,3 @@ def test_set_language_keyboard_interrupt(monkeypatch) -> None:
     finally:
         # restore i18n to default
         i18n.LANG = "en"
-

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 """Tests for `src/setup/app.py` runner."""
 
 
-import src.setup.app as app
+import src.setup.app_runner as app
 import src.setup.i18n as i18n
 import src.setup.ui.menu as menu
 

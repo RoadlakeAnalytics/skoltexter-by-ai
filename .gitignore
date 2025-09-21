@@ -150,3 +150,5 @@ sbom-*.json
 .sbomenv/
 .sbomvenv/
 cyclonedx*.json
+tools/smarter_diagnose_results.json
+tmp_patch.txt
