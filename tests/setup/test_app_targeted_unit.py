@@ -28,7 +28,7 @@ import src.setup.i18n as i18n
 import src.setup.venv as venvmod
 import sys as _sys
 
-app = types.SimpleNamespace(
+_app_ns = types.SimpleNamespace(
     ui_rule=_app_ui.ui_rule,
     ui_header=_app_ui.ui_header,
     ui_status=_app_ui.ui_status,
@@ -59,11 +59,13 @@ app = types.SimpleNamespace(
     sys=_sys,
 )
 
-# Ensure other modules that expect to find the legacy module in
-# ``sys.modules['src.setup.app']`` see our test mapping. This mirrors
-# the historical behaviour and keeps tests deterministic while we
-# migrate them to import refactored modules directly.
-_sys.modules.setdefault("src.setup.app", app)
+from types import ModuleType
+import sys as _sys
+_mod = ModuleType("src.setup.app")
+for _k, _v in vars(_app_ns).items():
+    setattr(_mod, _k, _v)
+_sys.modules["src.setup.app"] = _mod
+app = _mod
 
 
 def test_get_venv_helpers_windows_and_unix(monkeypatch, tmp_path: Path) -> None:

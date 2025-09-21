@@ -12,15 +12,17 @@ import subprocess
 from pathlib import Path
 
 import types
+from types import ModuleType
 
 # Use a compact `app` namespace that exposes the small set of helpers
-# this test file relies on from the refactored modules. This keeps the
-# tests explicit about their dependencies while avoiding the legacy
-# monolithic module.
+# this test file relies on from the refactored modules. We register a
+# real module object in ``sys.modules['src.setup.app']`` so tests that
+# rely on module semantics (reloads, monkeypatching) behave
+# deterministically.
 import src.setup.app_venv as _app_venv
 import src.setup.app_runner as _app_runner
 
-app = types.SimpleNamespace(
+_app_ns = types.SimpleNamespace(
     parse_cli_args=_app_runner.parse_cli_args,
     get_venv_bin_dir=_app_venv.get_venv_bin_dir,
     get_venv_python_executable=_app_venv.get_venv_python_executable,
@@ -30,12 +32,16 @@ app = types.SimpleNamespace(
     # Expose a sys proxy for platform tests
     sys=__import__("sys"),
 )
-# Make the fake `app` available under the legacy module name so helper
-# code that looks up ``sys.modules['src.setup.app']`` sees our test
-# namespace (this mirrors the original test behaviour when importing
-# the real module).
+
+from types import ModuleType
 import sys as _sys
-_sys.modules.setdefault("src.setup.app", app)
+
+_mod = ModuleType("src.setup.app")
+for _k, _v in vars(_app_ns).items():
+    setattr(_mod, _k, _v)
+_sys.modules["src.setup.app"] = _mod
+# Expose the module object to the rest of the test as `app`.
+app = _mod
 
 
 def test_parse_cli_args_defaults() -> None:

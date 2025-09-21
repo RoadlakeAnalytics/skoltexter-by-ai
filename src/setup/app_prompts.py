@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 from typing import Any
+from src.config import LANGUAGE_PROMPT_MAX_INVALID, INTERACTIVE_MAX_INVALID_ATTEMPTS
 
 
 def ask_text(prompt: str, default: str | None = None) -> str:
@@ -218,6 +219,18 @@ def view_program_descriptions() -> None:
     _rprint = getattr(_app_mod, "rprint", getattr(_app_ui, "rprint", print))
 
     ui_rule("Programs")
+    # Determine maximum invalid attempts (allow central app shim override)
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+    except Exception:
+        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+
+    attempts = 0
     while True:
         _getprog = getattr(_app_mod, "get_program_descriptions", get_program_descriptions)
         descriptions = _getprog()
@@ -232,6 +245,7 @@ def view_program_descriptions() -> None:
         if choice == "0":
             break
         if choice in descriptions:
+            attempts = 0
             _title, body = descriptions[choice]
             if ui_has_rich():
                 try:
@@ -240,15 +254,39 @@ def view_program_descriptions() -> None:
                 except Exception:
                     pass
             _rprint(body)
+        else:
+            attempts += 1
+            _rprint("Invalid choice. Please try again.")
+            if attempts >= max_attempts:
+                try:
+                    ui_error = getattr(_app_mod, "ui_error", None)
+                    if ui_error is not None:
+                        ui_error("Too many invalid selections. Exiting.")
+                    else:
+                        _rprint("Too many invalid selections. Exiting.")
+                except Exception:
+                    pass
+                raise SystemExit("Exceeded maximum invalid selections in program descriptions view")
 
 
 def set_language() -> None:
     """Prompt the user to select an interface language and set module state.
 
-    This updates the global i18n module and is exercised by the CLI
-    entrypoint. The implementation is intentionally small and delegates
-    to ``ask_text`` so tests may monkeypatch the prompt helper on the
-    central app module.
+    The prompt accepts '1' for English and '2' for Swedish. If the user
+    provides an invalid choice the prompt is repeated. After a limited
+    number of invalid attempts the function exits the program by
+    raising SystemExit. This prevents accidental infinite interactive
+    loops during tests or non-interactive runs.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    SystemExit
+        When the user sends a keyboard interrupt or when the maximum
+        number of invalid attempts is exceeded.
     """
     import src.setup.i18n as i18n
 
@@ -256,6 +294,18 @@ def set_language() -> None:
     import sys as _sys
     _app_mod = _sys.modules.get("src.setup.app")
     _ask = getattr(_app_mod, "ask_text", ask_text)
+
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID)
+    except Exception:
+        max_attempts = LANGUAGE_PROMPT_MAX_INVALID
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "LANGUAGE_PROMPT_MAX_INVALID", max_attempts)
+
+    attempts = 0
     while True:
         try:
             choice = _ask(prompt)
@@ -267,7 +317,19 @@ def set_language() -> None:
         if choice == "2":
             i18n.LANG = "sv"
             break
+        attempts += 1
         print(i18n.TEXTS["en"]["invalid_choice"])  # pragma: no cover - trivial loop
+        if attempts >= max_attempts:
+            try:
+                app_mod = sys.modules.get("src.setup.app")
+                ui_error = getattr(app_mod, "ui_error", None)
+                if ui_error is not None:
+                    ui_error("Too many invalid language selections. Exiting.")
+                else:
+                    print("Too many invalid language selections. Exiting.")
+            except Exception:
+                pass
+            raise SystemExit("Exceeded maximum invalid language selections")
 
     # Synchronize the module-level LANG on the central app shim so callers
     # that read ``src.setup.app.LANG`` observe the change.
@@ -298,6 +360,19 @@ def prompt_virtual_environment_choice() -> bool:
         ("1", i18n.translate("venv_menu_option_1")[3:]),
         ("2", i18n.translate("venv_menu_option_2")[3:]),
     ])
+
+    # Enforce attempts limit for venv menu
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+    except Exception:
+        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+
+    attempts = 0
     while True:
         choice = _ask(i18n.translate("venv_menu_prompt"))
         if choice == "1":
@@ -311,7 +386,18 @@ def prompt_virtual_environment_choice() -> bool:
                 _ui = _ui_info
             _ui(i18n.translate("venv_skipped"))
             return False
+        attempts += 1
         print(i18n.translate("invalid_choice"))
+        if attempts >= max_attempts:
+            try:
+                _ui = getattr(_app_mod, "ui_error", None)
+                if _ui is not None:
+                    _ui("Too many invalid selections. Exiting.")
+                else:
+                    print("Too many invalid selections. Exiting.")
+            except Exception:
+                pass
+            raise SystemExit("Exceeded maximum invalid selections in venv menu")
 
 
 __all__ = [

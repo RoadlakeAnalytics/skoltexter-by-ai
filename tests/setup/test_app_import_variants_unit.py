@@ -9,7 +9,12 @@ import importlib
 import sys
 import types
 
-import src.setup.app as app
+import importlib
+
+# Import the actual module object so import-time tests can access its
+# `__file__` attribute deterministically and so reloads behave as
+# expected when manipulating ``sys.modules``.
+app = importlib.import_module("src.setup.app")
 
 
 def test_app_import_with_rich_panel_stub(monkeypatch):

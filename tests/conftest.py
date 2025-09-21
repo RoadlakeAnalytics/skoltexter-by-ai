@@ -18,6 +18,21 @@ root_str = str(ROOT)
 if root_str not in sys.path:
     sys.path.insert(0, root_str)
 
+# If any test inserts a synthetic module object at the legacy import path
+# `src.setup.app` without a `__file__` attribute, provide a sensible
+# `__file__` value so import-time tests that rely on `app.__file__` (e.g.
+# `importlib.util.spec_from_file_location`) behave deterministically.
+try:
+    _app_mod = sys.modules.get("src.setup.app")
+    if _app_mod is not None and getattr(_app_mod, "__file__", None) is None:
+        candidate = ROOT / "src" / "setup" / "app.py"
+        try:
+            _app_mod.__file__ = str(candidate.resolve())
+        except Exception:
+            _app_mod.__file__ = str(candidate)
+except Exception:
+    pass
+
 _TEST_TIMEOUT = int(os.environ.get("PYTEST_TEST_TIMEOUT", "10"))
 
 
@@ -51,6 +66,20 @@ try:
 
     builtins.sys = sys
 except Exception:
+    pass
+
+# Temporarily raise the default interactive attempts limit for tests by
+# adjusting the config constant. We avoid importing `src.setup.app` here
+# because many tests insert their own `src.setup.app` module into
+# ``sys.modules`` during migration; importing the shim early would
+# prevent those tests from doing so.
+try:
+    import src.config as _cfg
+
+    _cfg.INTERACTIVE_MAX_INVALID_ATTEMPTS = 999
+except Exception:
+    # If config cannot be imported for any reason we do nothing; tests
+    # will set their own values as needed.
     pass
 
 # Provide a simple FakeLimiter in the builtin namespace so tests that

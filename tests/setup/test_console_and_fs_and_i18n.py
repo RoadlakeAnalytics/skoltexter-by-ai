@@ -84,10 +84,13 @@ def test_set_language_keyboard_interrupt(monkeypatch) -> None:
     def _raise(_=None):
         raise KeyboardInterrupt()
 
-    monkeypatch.setattr("src.setup.app.ask_text", _raise, raising=False)
-    try:
-        import src.setup.app as app
+    import importlib
 
+    # Import the app module object and patch the attribute directly so the
+    # test remains explicit about the patched behaviour.
+    app = importlib.import_module("src.setup.app")
+    monkeypatch.setattr(app, "ask_text", _raise, raising=False)
+    try:
         try:
             app.set_language()
             raise AssertionError("Expected SystemExit")

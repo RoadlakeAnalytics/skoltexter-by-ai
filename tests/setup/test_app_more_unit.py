@@ -13,7 +13,42 @@ from pathlib import Path
 
 import pytest
 
-import src.setup.app as app
+import importlib
+
+# Import the actual module object for ``src.setup.app`` so tests that call
+# ``importlib.reload(app)`` continue to work. We then patch selected
+# attributes on that module to delegate to the refactored implementations
+# in the new, smaller modules.
+app = importlib.import_module("src.setup.app")
+import src.setup.app_ui as app_ui
+import src.setup.app_prompts as app_prompts
+import src.setup.app_venv as app_venv
+import src.setup.app_runner as app_runner
+import src.setup.app_pipeline as app_pipeline
+
+# Map commonly used attributes from the refactored modules onto the
+# central module object so older tests remain valid during migration.
+setattr(app, "_sync_console_helpers", app_ui._sync_console_helpers)
+setattr(app, "rprint", app_ui.rprint)
+setattr(app, "run", app_runner.run)
+setattr(app, "get_python_executable", app_venv.get_python_executable)
+setattr(app, "is_venv_active", app_venv.is_venv_active)
+setattr(app, "manage_virtual_environment", app_venv.manage_virtual_environment)
+setattr(app, "parse_env_file", app_runner.parse_env_file)
+setattr(app, "prompt_and_update_env", app_runner.prompt_and_update_env)
+setattr(app, "ensure_azure_openai_env", app_runner.ensure_azure_openai_env)
+setattr(app, "run_ai_connectivity_check_interactive", app_runner.run_ai_connectivity_check_interactive)
+setattr(app, "run_full_quality_suite", app_runner.run_full_quality_suite)
+setattr(app, "run_extreme_quality_suite", app_runner.run_extreme_quality_suite)
+setattr(app, "_run_processing_pipeline_plain", app_pipeline._run_processing_pipeline_plain)
+setattr(app, "_run_processing_pipeline_rich", app_pipeline._run_processing_pipeline_rich)
+setattr(app, "ui_has_rich", app_ui.ui_has_rich)
+setattr(app, "ui_menu", app_ui.ui_menu)
+setattr(app, "get_program_descriptions", app_prompts.get_program_descriptions)
+setattr(app, "view_program_descriptions", app_prompts.view_program_descriptions)
+setattr(app, "ask_text", app_prompts.ask_text)
+setattr(app, "ask_confirm", app_prompts.ask_confirm)
+setattr(app, "ask_select", app_prompts.ask_select)
 
 
 def test_sync_console_helpers_propagates(monkeypatch):

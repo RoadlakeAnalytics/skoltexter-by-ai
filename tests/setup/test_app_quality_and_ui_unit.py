@@ -8,12 +8,12 @@ import sys as _sys
 import src.setup.app_ui as _app_ui
 import src.setup.app_runner as _app_runner
 
-app = types.SimpleNamespace(
-    rprint=_app_ui.rprint,
-    run_extreme_quality_suite=_app_runner.run_extreme_quality_suite,
-    run_full_quality_suite=_app_runner.run_full_quality_suite,
-)
-_sys.modules.setdefault("src.setup.app", app)
+_mod = types.ModuleType("src.setup.app")
+setattr(_mod, "rprint", _app_ui.rprint)
+setattr(_mod, "run_extreme_quality_suite", _app_runner.run_extreme_quality_suite)
+setattr(_mod, "run_full_quality_suite", _app_runner.run_full_quality_suite)
+_sys.modules["src.setup.app"] = _mod
+app = _mod
 from src import config as cfg
 
 

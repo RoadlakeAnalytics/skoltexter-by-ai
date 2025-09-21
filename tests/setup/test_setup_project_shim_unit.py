@@ -21,7 +21,10 @@ def test_run_program_uses_propagated_python(monkeypatch) -> None:
         stderr = ""
 
     # Prevent spawning real subprocesses in the delegated implementation
-    monkeypatch.setattr("src.setup.app.subprocess.run", lambda *a, **k: R())
+    import importlib
+
+    app = importlib.import_module("src.setup.app")
+    monkeypatch.setattr(app.subprocess, "run", lambda *a, **k: R(), raising=False)
 
     ok = sp.run_program("prog", Path("src/some_module.py"), stream_output=False)
     assert ok is True

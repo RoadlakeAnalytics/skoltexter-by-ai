@@ -13,7 +13,7 @@ import src.setup.app_prompts as _app_prompts
 import src.setup.app_venv as _app_venv
 import src.setup.i18n as i18n
 
-app = types.SimpleNamespace(
+_app_ns = types.SimpleNamespace(
     parse_cli_args=_app_runner.parse_cli_args,
     set_language=_app_prompts.set_language,
     ensure_azure_openai_env=_app_runner.ensure_azure_openai_env,
@@ -26,7 +26,14 @@ app = types.SimpleNamespace(
     prompt_and_update_env=_app_runner.prompt_and_update_env,
     run_ai_connectivity_check_silent=_app_runner.run_ai_connectivity_check_silent,
 )
-_sys.modules.setdefault("src.setup.app", app)
+
+from types import ModuleType
+import sys as _sys
+_mod = ModuleType("src.setup.app")
+for _k, _v in vars(_app_ns).items():
+    setattr(_mod, _k, _v)
+_sys.modules["src.setup.app"] = _mod
+app = _mod
 
 
 def test_entry_point_minimal(monkeypatch):

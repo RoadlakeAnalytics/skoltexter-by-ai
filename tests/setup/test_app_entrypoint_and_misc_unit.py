@@ -18,20 +18,20 @@ import src.setup.app_runner as _app_runner
 import src.setup.app_ui as _app_ui
 import src.setup.app_venv as _app_venv
 
-app = types.SimpleNamespace(
-    parse_cli_args=_app_runner.parse_cli_args,
-    set_language=_app_prompts.set_language,
-    entry_point=_app_runner.entry_point,
-    main_menu=_app_runner.main_menu,
-    prompt_virtual_environment_choice=_app_prompts.prompt_virtual_environment_choice,
-    LANG=_app_prompts.__dict__.get('LANG', None),
-    ask_text=_app_prompts.ask_text,
-    ui_info=_app_ui.ui_info,
-    is_venv_active=_app_venv.is_venv_active,
-    manage_virtual_environment=_app_venv.manage_virtual_environment,
-    ensure_azure_openai_env=_app_runner.ensure_azure_openai_env,
-)
-_sys.modules.setdefault("src.setup.app", app)
+_mod = types.ModuleType("src.setup.app")
+setattr(_mod, "parse_cli_args", _app_runner.parse_cli_args)
+setattr(_mod, "set_language", _app_prompts.set_language)
+setattr(_mod, "entry_point", _app_runner.entry_point)
+setattr(_mod, "main_menu", _app_runner.main_menu)
+setattr(_mod, "prompt_virtual_environment_choice", _app_prompts.prompt_virtual_environment_choice)
+setattr(_mod, "LANG", _app_prompts.__dict__.get("LANG", None))
+setattr(_mod, "ask_text", _app_prompts.ask_text)
+setattr(_mod, "ui_info", _app_ui.ui_info)
+setattr(_mod, "is_venv_active", _app_venv.is_venv_active)
+setattr(_mod, "manage_virtual_environment", _app_venv.manage_virtual_environment)
+setattr(_mod, "ensure_azure_openai_env", _app_runner.ensure_azure_openai_env)
+_sys.modules["src.setup.app"] = _mod
+app = _mod
 
 
 def test_set_language_sets_module_lang(monkeypatch):

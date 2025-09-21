@@ -11,7 +11,47 @@ destructive operations by stubbing subprocess and filesystem calls.
 """
 
 
-import src.setup.app as sp
+import importlib
+
+# Import the module object for the legacy top-level name so reloads and
+# other import-time tests behave deterministically. Map commonly used
+# attributes from the refactored modules onto the module to reduce
+# dependency on the old monolith while keeping tests stable during
+# migration.
+sp = importlib.import_module("src.setup.app")
+import src.setup.app_ui as app_ui
+import src.setup.app_prompts as app_prompts
+import src.setup.app_venv as app_venv
+import src.setup.app_runner as app_runner
+import src.setup.app_pipeline as app_pipeline
+
+setattr(sp, "ui_rule", app_ui.ui_rule)
+setattr(sp, "ui_header", app_ui.ui_header)
+setattr(sp, "ui_status", app_ui.ui_status)
+setattr(sp, "ui_info", app_ui.ui_info)
+setattr(sp, "ui_success", app_ui.ui_success)
+setattr(sp, "ui_warning", app_ui.ui_warning)
+setattr(sp, "ui_error", app_ui.ui_error)
+setattr(sp, "ui_menu", app_ui.ui_menu)
+
+setattr(sp, "ask_text", app_prompts.ask_text)
+setattr(sp, "ask_confirm", app_prompts.ask_confirm)
+setattr(sp, "ask_select", app_prompts.ask_select)
+setattr(sp, "prompt_virtual_environment_choice", app_prompts.prompt_virtual_environment_choice)
+
+setattr(sp, "get_venv_bin_dir", app_venv.get_venv_bin_dir)
+setattr(sp, "get_python_executable", app_venv.get_python_executable)
+
+setattr(sp, "parse_cli_args", app_runner.parse_cli_args)
+setattr(sp, "parse_env_file", app_runner.parse_env_file)
+setattr(sp, "prompt_and_update_env", app_runner.prompt_and_update_env)
+setattr(sp, "ensure_azure_openai_env", app_runner.ensure_azure_openai_env)
+setattr(sp, "run_ai_connectivity_check_silent", app_runner.run_ai_connectivity_check_silent)
+setattr(sp, "entry_point", app_runner.entry_point)
+setattr(sp, "main_menu", app_runner.main_menu)
+
+setattr(sp, "_run_processing_pipeline_plain", app_pipeline._run_processing_pipeline_plain)
+setattr(sp, "_run_processing_pipeline_rich", app_pipeline._run_processing_pipeline_rich)
 
 
 def test_ui_helpers_fallback(capsys, monkeypatch):

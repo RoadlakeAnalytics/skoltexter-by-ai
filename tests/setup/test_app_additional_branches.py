@@ -18,7 +18,7 @@ import src.setup.app_venv as _app_venv
 import src.setup.app_runner as _app_runner
 import src.setup.i18n as i18n
 
-app = types.SimpleNamespace(
+_app_ns = types.SimpleNamespace(
     parse_cli_args=_app_runner.parse_cli_args,
     _sync_console_helpers=_app_ui._sync_console_helpers,
     _RICH_CONSOLE=None,
@@ -38,7 +38,14 @@ app = types.SimpleNamespace(
     set_language=_app_prompts.set_language if hasattr(_app_prompts, 'set_language') else None,
     subprocess=__import__("subprocess"),
 )
-_sys.modules.setdefault("src.setup.app", app)
+
+from types import ModuleType
+import sys as _sys
+_mod = ModuleType("src.setup.app")
+for _k, _v in vars(_app_ns).items():
+    setattr(_mod, _k, _v)
+_sys.modules["src.setup.app"] = _mod
+app = _mod
 
 
 def test_parse_cli_args_and_sync_console_helpers(monkeypatch) -> None:

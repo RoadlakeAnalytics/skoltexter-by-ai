@@ -3,7 +3,7 @@
 Centralizes user-facing texts and language selection. Maintains ``LANG``.
 """
 
-from src.config import LOG_DIR, VENV_DIR
+from src.config import LOG_DIR, VENV_DIR, LANGUAGE_PROMPT_MAX_INVALID
 
 LANG: str = "en"
 
@@ -235,6 +235,25 @@ def set_language() -> None:
         print(msg)
 
     new_lang = "en"
+    # Allow per-module override via the central shim
+    try:
+        import sys as _sys
+
+        _app_mod = _sys.modules.get("src.setup.app")
+    except Exception:
+        _app_mod = None
+
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID)
+    except Exception:
+        max_attempts = LANGUAGE_PROMPT_MAX_INVALID
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "LANGUAGE_PROMPT_MAX_INVALID", max_attempts)
+
+    attempts = 0
     while True:
         try:
             choice = _ask_text(TEXTS["en"]["language_prompt"])
@@ -245,6 +264,10 @@ def set_language() -> None:
                 new_lang = "sv"
                 break
             _print(TEXTS["en"]["invalid_choice"])
+            attempts += 1
+            if attempts >= max_attempts:
+                _print(TEXTS["en"].get("exiting", "Exiting."))
+                raise SystemExit("Exceeded maximum invalid language selections")
         except KeyboardInterrupt:
             _print(TEXTS["en"]["exiting"])
             raise SystemExit from None

@@ -24,6 +24,8 @@ from src.setup.ui.layout import build_dashboard_layout
 from src.setup.ui.programs import view_logs, view_program_descriptions
 from src.setup.ui.prompts import ask_text
 from src.setup.venv_manager import manage_virtual_environment
+import sys as _sys
+from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS
 
 
 def _ui_items() -> list[tuple[str, str]]:
@@ -143,25 +145,46 @@ def _manage_env() -> None:
 
 def _main_menu_plain() -> None:
     """Plain (non-rich) main menu loop displayed in the terminal."""
+    _app_mod = _sys.modules.get("src.setup.app")
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+    except Exception:
+        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+
+    attempts = 0
     while True:
         ui_rule(translate("main_menu_title"))
         ui_menu(_ui_items())
         choice = ask_text(translate("enter_choice"))
         if choice == "1":
+            attempts = 0
             _manage_env()
         elif choice == "2":
+            attempts = 0
             view_program_descriptions()
         elif choice == "3":
+            attempts = 0
             run_processing_pipeline()
         elif choice == "4":
+            attempts = 0
             view_logs()
         elif choice == "5":
+            attempts = 0
             reset_project()
         elif choice == "6":
             rprint(translate("exiting"))
             break
         else:
+            attempts += 1
             rprint(translate("invalid_choice"))
+            if attempts >= max_attempts:
+                rprint(translate("exiting"))
+                raise SystemExit("Exceeded maximum invalid selections in main menu")
 
 
 def _main_menu_rich_dashboard() -> None:
@@ -187,26 +210,43 @@ def _main_menu_rich_dashboard() -> None:
         else:
             rprint(renderable)
 
-    # Simple prompt loop
+    # Simple prompt loop with attempts limiting
+    _app_mod = _sys.modules.get("src.setup.app")
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+    except Exception:
+        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+
+    attempts = 0
     while True:
         choice = ask_text(translate("enter_choice"))
         if choice == "1":
+            attempts = 0
             _manage_env()
             update_right(
                 Panel("Environment managed.", title="Status", border_style="green")
             )
         elif choice == "2":
+            attempts = 0
             view_program_descriptions()
             update_right(Panel("Descriptions viewed.", title="Programs"))
         elif choice == "3":
+            attempts = 0
             run_processing_pipeline(content_updater=update_right)
             update_right(
                 Panel(_("pipeline_complete"), title="Pipeline", border_style="green")
             )
         elif choice == "4":
+            attempts = 0
             view_logs()
             update_right(Panel("Logs viewed.", title="Logs"))
         elif choice == "5":
+            attempts = 0
             reset_project()
             update_right(
                 Panel(_("reset_complete"), title="Reset", border_style="green")
@@ -215,9 +255,13 @@ def _main_menu_rich_dashboard() -> None:
             rprint(translate("exiting"))
             break
         else:
+            attempts += 1
             update_right(
                 Panel(translate("invalid_choice"), title="Info", border_style="yellow")
             )
+            if attempts >= max_attempts:
+                update_right(Panel(translate("exiting"), title="Info", border_style="red"))
+                raise SystemExit("Exceeded maximum invalid selections in main dashboard menu")
 
 
 def main_menu() -> None:

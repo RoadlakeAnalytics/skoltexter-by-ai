@@ -216,15 +216,17 @@ def find_missing_env_keys(existing: dict[str, str], required: list[str]) -> list
 def ensure_azure_openai_env(ui: Any = None) -> None:
     env_path = getattr(sys.modules.get("src.setup.app"), "ENV_PATH", PROJECT_ROOT / ".env")
     app_mod = sys.modules.get("src.setup.app")
-    # Prefer any patched helpers on the central shim so tests that
-    # monkeypatch functions on ``src.setup.app`` are honoured.
-    _parse = getattr(app_mod, "parse_env_file", parse_env_file)
+    # Use the local module helpers by default (tests patch these), and do
+    # not silently prefer attributes on the shim module which may point
+    # back to other code paths. This keeps test monkeypatching reliable.
+    _parse = parse_env_file
+    _find = find_missing_env_keys
+    _prompt = prompt_and_update_env
+
     existing = _parse(env_path)
-    _find = getattr(app_mod, "find_missing_env_keys", find_missing_env_keys)
     required = getattr(app_mod, "REQUIRED_AZURE_KEYS", [])
     missing = _find(existing, required)
     if missing:
-        _prompt = getattr(app_mod, "prompt_and_update_env", prompt_and_update_env)
         _prompt(missing, env_path, existing)
 
 

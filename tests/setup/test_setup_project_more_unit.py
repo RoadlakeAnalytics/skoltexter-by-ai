@@ -8,20 +8,21 @@ import src.setup.app_pipeline as _app_pipeline
 import src.setup.app_prompts as _app_prompts
 import src.setup.pipeline.orchestrator as orchestrator
 
-# Expose a compact `sp` namespace mapping the small set of helpers used
-# by this test file. Register it in sys.modules so any code that looks up
-# ``sys.modules['src.setup.app']`` receives the same object.
-sp = types.SimpleNamespace(
-    _build_dashboard_layout=_app_ui._build_dashboard_layout,
-    view_program_descriptions=_app_prompts.view_program_descriptions,
-    ask_text=_app_prompts.ask_text,
-    _run_processing_pipeline_rich=_app_pipeline._run_processing_pipeline_rich,
-    _run_processing_pipeline_plain=_app_pipeline._run_processing_pipeline_plain,
-    ui_menu=_app_ui.ui_menu,
-    ui_rule=_app_ui.ui_rule,
-    ui_has_rich=_app_ui.ui_has_rich,
-)
-_sys.modules.setdefault("src.setup.app", sp)
+# Expose a compact `sp` module mapping the small set of helpers used
+# by this test file. We register a real module object in
+# ``sys.modules['src.setup.app']`` so code that expects a module (and
+# uses importlib.reload) behaves deterministically.
+_mod = types.ModuleType("src.setup.app")
+setattr(_mod, "_build_dashboard_layout", _app_ui._build_dashboard_layout)
+setattr(_mod, "view_program_descriptions", _app_prompts.view_program_descriptions)
+setattr(_mod, "ask_text", _app_prompts.ask_text)
+setattr(_mod, "_run_processing_pipeline_rich", _app_pipeline._run_processing_pipeline_rich)
+setattr(_mod, "_run_processing_pipeline_plain", _app_pipeline._run_processing_pipeline_plain)
+setattr(_mod, "ui_menu", _app_ui.ui_menu)
+setattr(_mod, "ui_rule", _app_ui.ui_rule)
+setattr(_mod, "ui_has_rich", _app_ui.ui_has_rich)
+_sys.modules["src.setup.app"] = _mod
+sp = _mod
 
 
 def test_build_dashboard_layout_smoke():

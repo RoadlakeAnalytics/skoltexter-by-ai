@@ -66,3 +66,13 @@ WEBSITE_TEMPLATE_PATH: Path = PROJECT_ROOT / "templates" / "website_template.htm
 
 # UI defaults
 LANG: str = "en"
+# How many invalid attempts are allowed for interactive language prompts
+# before the program aborts. Tests and the runtime may override this by
+# setting the attribute on the central `src.setup.app` module when needed.
+LANGUAGE_PROMPT_MAX_INVALID: int = 3
+
+# General interactive prompt limit used across the UI to prevent
+# accidental or malicious infinite re-prompting loops. Tests and the
+# runtime may override this by setting the attribute on
+# `src.setup.app` if required.
+INTERACTIVE_MAX_INVALID_ATTEMPTS: int = 3

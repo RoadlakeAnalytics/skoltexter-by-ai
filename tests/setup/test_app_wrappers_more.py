@@ -12,7 +12,7 @@ import src.setup.app_prompts as _app_prompts
 # Build a compact `app` namespace exposing the small set of helpers
 # used by these tests and register it under the legacy module name so
 # code that inspects ``sys.modules['src.setup.app']`` sees the mapping.
-app = types.SimpleNamespace(
+_app_ns = types.SimpleNamespace(
     _run_pipeline_step=_app_pipeline._run_pipeline_step,
     _render_pipeline_table=_app_pipeline._render_pipeline_table,
     _status_label=_app_pipeline._status_label,
@@ -22,7 +22,14 @@ app = types.SimpleNamespace(
     ask_text=_app_prompts.ask_text,
     set_language=_app_prompts.set_language,
 )
-_sys.modules.setdefault("src.setup.app", app)
+
+from types import ModuleType
+import sys as _sys
+_mod = ModuleType("src.setup.app")
+for _k, _v in vars(_app_ns).items():
+    setattr(_mod, _k, _v)
+_sys.modules["src.setup.app"] = _mod
+app = _mod
 
 
 def test_manage_virtual_environment_wrapper_propagates(monkeypatch, tmp_path):

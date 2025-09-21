@@ -19,6 +19,7 @@ from src.setup.console_helpers import (
 from src.setup.i18n import translate
 from src.setup.ui.basic import ui_menu, ui_rule
 from src.setup.ui.prompts import ask_text
+from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS
 
 
 def get_program_descriptions() -> dict[str, tuple[str, str]]:
@@ -33,6 +34,44 @@ def get_program_descriptions() -> dict[str, tuple[str, str]]:
 def view_program_descriptions() -> None:
     """Interactive view showing program descriptions in the console UI."""
     ui_rule(translate("program_descriptions_title"))
+    # Enforce a maximum number of invalid attempts to avoid infinite loops
+    try:
+        import sys as _sys
+
+        _app_mod = _sys.modules.get("src.setup.app")
+    except Exception:
+        _app_mod = None
+
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+    except Exception:
+        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+
+    attempts = 0
+    try:
+        import sys as _sys
+
+        _app_mod = _sys.modules.get("src.setup.app")
+    except Exception:
+        _app_mod = None
+
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+    except Exception:
+        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+
+    attempts = 0
+
     while True:
         descriptions = get_program_descriptions()
         items = [(k, v[0]) for k, v in descriptions.items()]
@@ -42,13 +81,19 @@ def view_program_descriptions() -> None:
         if choice == "0":
             break
         if choice in descriptions:
+            # Reset attempts counter on valid selection
+            attempts = 0
             _title, body = descriptions[choice]
             if ui_has_rich():
                 rprint(Markdown(body))
             else:
                 rprint(body)
         else:
+            attempts += 1
             rprint(translate("invalid_choice"))
+            if attempts >= max_attempts:
+                rprint(translate("exiting"))
+                raise SystemExit("Exceeded maximum invalid selections in program menu")
 
 
 def _view_program_descriptions_tui(
@@ -89,6 +134,26 @@ def _view_logs_tui(
     if not log_files:
         update_right(Panel(translate("no_logs"), title="Logs"))
         return
+    # Enforce a per-view attempts limit to avoid infinite loops in TUI
+    try:
+        import sys as _sys
+
+        _app_mod = _sys.modules.get("src.setup.app")
+    except Exception:
+        _app_mod = None
+
+    try:
+        import importlib
+
+        _cfg = importlib.import_module("src.config")
+        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+    except Exception:
+        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+
+    attempts = 0
+
     while True:
         tbl = Table(show_header=True, header_style="bold blue")
         tbl.add_column("#")
@@ -116,9 +181,13 @@ def _view_logs_tui(
                 Panel(Syntax(txt, "text", theme="monokai"), title=selected.name)
             )
         else:
+            attempts += 1
             update_right(
                 Panel(translate("invalid_choice"), title="Info", border_style="yellow")
             )
+            if attempts >= max_attempts:
+                update_right(Panel(translate("exiting"), title="Info", border_style="red"))
+                raise SystemExit("Exceeded maximum invalid selections in logs view")
 
 
 def view_logs() -> None:
@@ -133,6 +202,19 @@ def view_logs() -> None:
     if not log_files:
         rprint(translate("no_logs"))
         return
+    # Limit invalid attempts to avoid infinite reprompts
+    try:
+        import sys as _sys
+
+        _app_mod = _sys.modules.get("src.setup.app")
+    except Exception:
+        _app_mod = None
+
+    max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    if _app_mod is not None:
+        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+
+    attempts = 0
     while True:
         ui_rule(translate("logs_title"))
         ui_menu(
@@ -158,6 +240,7 @@ def view_logs() -> None:
                     None,
                 )
             if selected_log:
+                attempts = 0
                 rprint(f"\n--- {translate('viewing_log')}{selected_log.name} ---")
                 content = selected_log.read_text(encoding="utf-8")
                 if ui_has_rich():
@@ -166,7 +249,11 @@ def view_logs() -> None:
                     rprint(content)
                 rprint(f"--- End of {selected_log.name} ---\n")
             else:
+                attempts += 1
                 rprint(translate("invalid_choice"))
+                if attempts >= max_attempts:
+                    rprint(translate("exiting"))
+                    raise SystemExit("Exceeded maximum invalid selections in logs view")
         except Exception as error:
             # Log errors quietly during tests
             rprint(f"Error reading log file: {error}")
