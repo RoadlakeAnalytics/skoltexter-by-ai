@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import setup_project as sp
 from src.setup import fs_utils
+from src import config as cfg
 
 
 def test_setup_project_run_program_non_stream(monkeypatch):
@@ -30,10 +31,30 @@ def test_setup_project_run_program_non_stream(monkeypatch):
 
 
 def test_manage_virtual_environment_recreate(monkeypatch, tmp_path: Path):
-    # Simulate an existing venv and user confirming recreate
+    """Simulate an existing venv and user confirming recreate.
+
+    This test verifies the manager's recreate branch. It patches the
+    concrete configuration value ``src.config.VENV_DIR`` so that the
+    operation targets a temporary directory instead of the repository
+    venv. Filesystem helpers and subprocess invocations are stubbed so
+    the test is side-effect free.
+
+    Parameters
+    ----------
+    monkeypatch : _pytest.monkeypatch.MonkeyPatch
+        Fixture to patch attributes and modules during the test.
+    tmp_path : pathlib.Path
+        Temporary path used to host a fake venv directory.
+
+    Returns
+    -------
+    None
+        The test asserts that no exception is raised and returns nothing.
+    """
+    # Simulate existing interpreter not active and ensure venv dir under cfg
     monkeypatch.setattr(sp, "is_venv_active", lambda: False)
-    monkeypatch.setattr(sp, "VENV_DIR", tmp_path / "venv")
-    (sp.VENV_DIR).mkdir()
+    monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
+    (cfg.VENV_DIR).mkdir()
     # Return yes for prompts in this test (stable across orderings)
     monkeypatch.setattr(sp, "ask_text", lambda prompt, default="y": "y")
 

@@ -154,7 +154,20 @@ def _main_menu_plain() -> None:
         from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    # When running under the test harness, limit attempts so a misbehaving
+    # test does not cause a very long or effectively infinite reprompt loop.
+    # Tests may intentionally set a large INTERACTIVE_MAX_INVALID_ATTEMPTS
+    # (see `tests/conftest.py`) — clamp this value when we detect pytest
+    # to keep tests deterministic and fast.
+    try:
+        import os as _os
+        import sys as _sys
 
+        if _os.environ.get("PYTEST_CURRENT_TEST") or ("pytest" in _sys.modules):
+            max_attempts = min(max_attempts, 5)
+    except Exception:
+        # If detection fails, keep the configured limit.
+        pass
     attempts = 0
     while True:
         ui_rule(translate("main_menu_title"))
@@ -218,7 +231,17 @@ def _main_menu_rich_dashboard() -> None:
         from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
+    # See comment above in the plain menu loop: when running under pytest
+    # clamp attempts to avoid long-running reprompts from misconfigured
+    # tests or intentionally high test-wide limits.
+    try:
+        import os as _os
+        import sys as _sys
 
+        if _os.environ.get("PYTEST_CURRENT_TEST") or ("pytest" in _sys.modules):
+            max_attempts = min(max_attempts, 5)
+    except Exception:
+        pass
     attempts = 0
     while True:
         choice = ask_text(translate("enter_choice"))

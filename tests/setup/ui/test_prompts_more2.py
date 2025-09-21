@@ -25,7 +25,7 @@ def test_questionary_text_branch(monkeypatch):
     # Ensure pytest internal env var is present to avoid early non-tty returns
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
     pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch)
+    monkeypatch.setattr(pkg, "orchestrator", orch, raising=False)
 
     # Enable questionary adapter and return a value from .ask()
     monkeypatch.setattr(ch, "_HAS_Q", True)
@@ -86,7 +86,7 @@ def test_questionary_confirm_and_select_variants(monkeypatch):
     import importlib as _il
 
     pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch)
+    monkeypatch.setattr(pkg, "orchestrator", orch, raising=False)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     assert prom.ask_confirm("?", default_yes=True) is False
     assert prom.ask_select("choose", ["A", "B"]) == "A"

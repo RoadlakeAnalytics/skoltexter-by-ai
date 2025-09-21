@@ -106,6 +106,39 @@ def manage_virtual_environment(
             ui._("confirm_recreate_venv"), default="n"
         ).lower()
         if recreate_choice in ["y", "j"]:
+            # TODO(migration): Temporary safety guard to avoid accidental
+            # removal of the repository's canonical VENV_DIR during pytest
+            # runs. This guard exists only as a short-term protection while
+            # tests and callsites are migrated away from the legacy shim
+            # (`src.setup.app`). When the migration is complete this guard
+            # should be removed and the code simplified to its original
+            # behaviour (explicit validation via create_safe_path followed
+            # by safe_rmtree). See the development journal entries for
+            # background and migration guidance.
+            pytest_running = bool(os.environ.get("PYTEST_CURRENT_TEST"))
+            try:
+                import src.config as cfg  # local import to avoid cycles
+
+                cfg_vdir = cfg.VENV_DIR
+            except Exception:
+                cfg = None
+                cfg_vdir = None
+
+            if pytest_running:
+                try:
+                    if cfg_vdir is not None and venv_dir.resolve() == cfg_vdir.resolve():
+                        ui.logger.warning(
+                            "Skipping removal of project VENV_DIR while running under pytest"
+                        )
+                        return
+                except Exception:
+                    # Be conservative: if we cannot determine equivalence,
+                    # skip the destructive operation while under pytest.
+                    ui.logger.warning(
+                        "Skipping venv removal under pytest (path resolution failed)"
+                    )
+                    return
+
             try:
                 # Ensure the requested venv path is validated before removal.
                 validated = create_safe_path(venv_dir)
@@ -115,8 +148,6 @@ def manage_virtual_environment(
                 return
             except Exception as error:
                 ui.logger.error(f"Error removing venv: {error}")
-                return
-            if os.environ.get("PYTEST_CURRENT_TEST"):
                 return
         else:
             ui.ui_info(ui._("venv_skipped"))

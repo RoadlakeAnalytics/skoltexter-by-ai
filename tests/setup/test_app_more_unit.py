@@ -12,8 +12,10 @@ from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
+import subprocess
 
 import importlib
+from src import config as cfg
 
 # Import the actual module object for ``src.setup.app`` so tests that call
 # ``importlib.reload(app)`` continue to work. We then patch selected
@@ -104,6 +106,10 @@ def test_run_sets_lang_and_calls_menu(monkeypatch):
     import sys as _sys
 
     monkeypatch.setitem(_sys.modules, "src.setup.ui.menu", fake_menu)
+    # Also ensure the package attribute points to our fake so `from src.setup.ui import menu`
+    # resolves to the fake module even if the package was previously imported.
+    pkg = importlib.import_module("src.setup.ui")
+    monkeypatch.setattr(pkg, "menu", fake_menu, raising=False)
     args = SimpleNamespace(lang="sv", no_venv=True)
     app.run(args)
     # i18n.LANG should be updated to the requested language
@@ -146,7 +152,26 @@ def test_is_venv_active_delegates(monkeypatch):
 
 
 def test_manage_virtual_environment_calls_manager(monkeypatch, tmp_path: Path):
-    """manage_virtual_environment should delegate to src.setup.venv_manager.manage_virtual_environment."""
+    """Delegate to the venv manager when the wrapper is invoked.
+
+    This test installs a fake ``src.setup.venv_manager`` implementation to
+    capture the arguments the wrapper forwards. It also patches the
+    canonical configuration value ``src.config.VENV_DIR`` to ensure the
+    operation targets a temporary location during the test.
+
+    Parameters
+    ----------
+    monkeypatch : _pytest.monkeypatch.MonkeyPatch
+        Fixture used to install fakes and patch module attributes.
+    tmp_path : pathlib.Path
+        Temporary path used as a fake project root and venv directory.
+
+    Returns
+    -------
+    None
+        The test asserts the wrapper invoked the underlying manager and
+        returns nothing.
+    """
     called = {}
 
     # Patch the existing venv_manager implementation's entrypoint so we
@@ -154,13 +179,16 @@ def test_manage_virtual_environment_calls_manager(monkeypatch, tmp_path: Path):
     # environment.
     # Install a fake venv_manager module into sys.modules so the wrapper
     # imports and calls our fake implementation deterministically.
-    fake_vm = types.ModuleType("src.setup.venv_manager")
+    # Patch the real module's entrypoint to intercept calls regardless
+    # of import ordering. This is more robust than inserting a synthetic
+    # ModuleType into ``sys.modules`` since the package module object
+    # may already be imported.
+    import src.setup.venv_manager as vm_mod
 
     def fake_manage(project_root, venv_dir, req_file, req_lock, UI):
         called["args"] = (project_root, venv_dir, req_file, req_lock)
 
-    fake_vm.manage_virtual_environment = fake_manage
-    monkeypatch.setitem(sys.modules, "src.setup.venv_manager", fake_vm)
+    monkeypatch.setattr(vm_mod, "manage_virtual_environment", fake_manage, raising=False)
 
     # Reload the app module so it imports our fake venv_manager from
     # sys.modules (ensures deterministic behaviour regardless of prior
@@ -168,7 +196,10 @@ def test_manage_virtual_environment_calls_manager(monkeypatch, tmp_path: Path):
     # so they survive the re-import.
     importlib.reload(app)
     monkeypatch.setattr(app, "PROJECT_ROOT", tmp_path, raising=False)
-    monkeypatch.setattr(app, "VENV_DIR", tmp_path / "venv", raising=False)
+    monkeypatch.setattr(cfg, "VENV_DIR", tmp_path / "venv", raising=True)
+    # Prevent actual subprocess/pip calls in case the wrapper delegates to
+    # a real manager implementation during import ordering.
+    monkeypatch.setattr(subprocess, "check_call", lambda *a, **k: None)
 
     # Call the wrapper which should delegate to our fake manager.
     app.manage_virtual_environment()
@@ -206,7 +237,7 @@ def test_ensure_azure_openai_env_calls_prompt_when_missing(monkeypatch, tmp_path
     )
     called = {}
 
-    def fake_prompt(missing, path, existing):
+    def fake_prompt(missing, path, existing, ui=None):
         called["ok"] = True
 
     monkeypatch.setattr("src.setup.app_runner.prompt_and_update_env", fake_prompt)

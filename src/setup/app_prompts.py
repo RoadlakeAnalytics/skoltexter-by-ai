@@ -12,6 +12,30 @@ from typing import Any
 from src.config import LANGUAGE_PROMPT_MAX_INVALID, INTERACTIVE_MAX_INVALID_ATTEMPTS
 from src.exceptions import UserInputError
 
+def _get_tui_flags() -> tuple[bool, Any, Any]:
+    """Return runtime TUI flags from the orchestrator module.
+
+    The orchestrator is the canonical location for runtime toggles used
+    by the interactive prompt helpers. Tests should patch these flags on
+    the concrete module (``src.setup.pipeline.orchestrator``) rather than
+    relying on a legacy shim.
+
+    Returns
+    -------
+    tuple[bool, Any, Any]
+        ``(_TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER)``.
+    """
+    try:
+        import src.setup.pipeline.orchestrator as _orch_mod
+
+        return (
+            getattr(_orch_mod, "_TUI_MODE", False),
+            getattr(_orch_mod, "_TUI_UPDATER", None),
+            getattr(_orch_mod, "_TUI_PROMPT_UPDATER", None),
+        )
+    except Exception:
+        return False, None, None
+
 
 def ask_text(prompt: str, default: str | None = None) -> str:
     """Prompt user for text using the prompts adapter (TUI-aware).
@@ -28,10 +52,7 @@ def ask_text(prompt: str, default: str | None = None) -> str:
     str
         The entered or default text.
     """
-    app_mod = sys.modules.get("src.setup.app")
-    _TUI_MODE = getattr(app_mod, "_TUI_MODE", False)
-    _TUI_UPDATER = getattr(app_mod, "_TUI_UPDATER", None)
-    _TUI_PROMPT_UPDATER = getattr(app_mod, "_TUI_PROMPT_UPDATER", None)
+    _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER = _get_tui_flags()
 
     # TUI direct-mode behaviour (uses getpass/input)
     if _TUI_MODE and _TUI_UPDATER is not None:
@@ -119,10 +140,7 @@ def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
     bool
         True if the user confirmed, False otherwise.
     """
-    app_mod = sys.modules.get("src.setup.app")
-    _TUI_MODE = getattr(app_mod, "_TUI_MODE", False)
-    _TUI_UPDATER = getattr(app_mod, "_TUI_UPDATER", None)
-    _TUI_PROMPT_UPDATER = getattr(app_mod, "_TUI_PROMPT_UPDATER", None)
+    _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER = _get_tui_flags()
 
     _orch = None
     _orch_prev = None
@@ -171,10 +189,7 @@ def ask_select(prompt: str, choices: list[str]) -> str:
     str
         The selected option.
     """
-    app_mod = sys.modules.get("src.setup.app")
-    _TUI_MODE = getattr(app_mod, "_TUI_MODE", False)
-    _TUI_UPDATER = getattr(app_mod, "_TUI_UPDATER", None)
-    _TUI_PROMPT_UPDATER = getattr(app_mod, "_TUI_PROMPT_UPDATER", None)
+    _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER = _get_tui_flags()
 
     _orch = None
     _orch_prev = None
@@ -316,19 +331,18 @@ def set_language() -> None:
 
     Raises
     ------
-    SystemExit
+    UserInputError
         When the user sends a keyboard interrupt or when the maximum
-        number of invalid attempts is exceeded.
+        number of invalid attempts is exceeded. The function raises a
+        domain-specific ``UserInputError`` rather than terminating the
+        process so callers and tests can handle the condition programmatically.
     """
     import src.setup.i18n as i18n
 
     prompt = i18n.TEXTS["en"]["language_prompt"]
-    import sys as _sys
-    _app_mod = _sys.modules.get("src.setup.app")
-    # Use the concrete, local `ask_text` implementation rather than
-    # attempting to read an override from a legacy shim in
-    # ``sys.modules``. Tests should patch the real dependency
-    # (`src.setup.app_prompts.ask_text`) instead of the shim.
+    # Use the concrete, local `ask_text` implementation. Tests should
+    # patch the real dependency (`src.setup.app_prompts.ask_text`) rather
+    # than attempting to inject a legacy shim into ``sys.modules``.
     _ask = ask_text
 
     try:
@@ -338,15 +352,15 @@ def set_language() -> None:
         max_attempts = getattr(_cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID)
     except Exception:
         max_attempts = LANGUAGE_PROMPT_MAX_INVALID
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "LANGUAGE_PROMPT_MAX_INVALID", max_attempts)
 
     attempts = 0
     while True:
         try:
             choice = _ask(prompt)
         except KeyboardInterrupt:
-            raise SystemExit from None
+            # Translate a keyboard interrupt into a domain-specific
+            # application error so callers can decide how to handle it.
+            raise UserInputError("User aborted language selection")
         if choice == "1":
             i18n.LANG = "en"
             break
@@ -357,24 +371,23 @@ def set_language() -> None:
         print(i18n.TEXTS["en"]["invalid_choice"])  # pragma: no cover - trivial loop
         if attempts >= max_attempts:
             try:
-                app_mod = sys.modules.get("src.setup.app")
-                ui_error = getattr(app_mod, "ui_error", None)
+                from src.setup import app_ui as _app_ui
+
+                ui_error = getattr(_app_ui, "ui_error", None)
                 if ui_error is not None:
                     ui_error("Too many invalid language selections. Exiting.")
                 else:
                     print("Too many invalid language selections. Exiting.")
             except Exception:
-                pass
-            raise SystemExit("Exceeded maximum invalid language selections")
+                print("Too many invalid language selections. Exiting.")
+            # Raise a domain-specific error rather than exiting the process.
+            raise UserInputError(
+                "Exceeded maximum invalid language selections",
+                context={"attempts": attempts, "max_attempts": max_attempts},
+            )
 
-    # Synchronize the module-level LANG on the central app shim so callers
-    # that read ``src.setup.app.LANG`` observe the change.
-    try:
-        app_mod = sys.modules.get("src.setup.app")
-        if app_mod is not None:
-            setattr(app_mod, "LANG", i18n.LANG)
-    except Exception:
-        pass
+    # No shim synchronization: callers should read from the canonical
+    # i18n module (``src.setup.i18n``) rather than a legacy global module.
 
 
 def prompt_virtual_environment_choice() -> bool:
@@ -386,13 +399,10 @@ def prompt_virtual_environment_choice() -> bool:
         True if the user chose to create/manage a venv, False if skipped.
     """
     from src.setup.app_ui import ui_rule, ui_menu
-    import sys as _sys
     import src.setup.i18n as i18n
-    _app_mod = _sys.modules.get("src.setup.app")
     # Use the concrete, local `ask_text` implementation rather than
-    # attempting to read an override from a legacy shim in
-    # ``sys.modules``. Tests should patch the real dependency
-    # (`src.setup.app_prompts.ask_text`) instead of the shim.
+    # reading runtime overrides from a legacy shim. Tests should patch
+    # the real dependency (`src.setup.app_prompts.ask_text`).
     _ask = ask_text
 
     ui_rule(i18n.translate("venv_menu_title"))
@@ -409,8 +419,6 @@ def prompt_virtual_environment_choice() -> bool:
         max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
 
     attempts = 0
     while True:
@@ -441,7 +449,12 @@ def prompt_virtual_environment_choice() -> bool:
                     print("Too many invalid selections. Exiting.")
             except Exception:
                 print("Too many invalid selections. Exiting.")
-            raise SystemExit("Exceeded maximum invalid selections in venv menu")
+            # Translate process-exit behaviour into an application error
+            # that callers (and tests) can catch and handle.
+            raise UserInputError(
+                "Exceeded maximum invalid selections in venv menu",
+                context={"attempts": attempts, "max_attempts": max_attempts},
+            )
 
 
 __all__ = [

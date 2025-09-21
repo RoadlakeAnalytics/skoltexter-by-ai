@@ -73,15 +73,19 @@ def test_get_venv_helpers_windows_and_unix(monkeypatch, tmp_path: Path) -> None:
     """
     venv_path = tmp_path / "venv"
 
-    monkeypatch.setattr(app, "sys", SimpleNamespace(platform="win32"), raising=False)
-    assert app.get_venv_bin_dir(venv_path).name == "Scripts"
-    assert app.get_venv_python_executable(venv_path).name == "python.exe"
-    assert app.get_venv_pip_executable(venv_path).name == "pip.exe"
+    # Patch the concrete module's platform detection so we do not rely on
+    # attributes on the legacy test shim.
+    monkeypatch.setattr("src.setup.app_venv.sys.platform", "win32", raising=False)
+    import src.setup.app_venv as app_venv
 
-    monkeypatch.setattr(app, "sys", SimpleNamespace(platform="linux"), raising=False)
-    assert app.get_venv_bin_dir(venv_path).name == "bin"
-    assert app.get_venv_python_executable(venv_path).name == "python"
-    assert app.get_venv_pip_executable(venv_path).name == "pip"
+    assert app_venv.get_venv_bin_dir(venv_path).name == "Scripts"
+    assert app_venv.get_venv_python_executable(venv_path).name == "python.exe"
+    assert app_venv.get_venv_pip_executable(venv_path).name == "pip.exe"
+
+    monkeypatch.setattr("src.setup.app_venv.sys.platform", "linux", raising=False)
+    assert app_venv.get_venv_bin_dir(venv_path).name == "bin"
+    assert app_venv.get_venv_python_executable(venv_path).name == "python"
+    assert app_venv.get_venv_pip_executable(venv_path).name == "pip"
 
 
 def test_get_python_executable_delegates(monkeypatch) -> None:
@@ -117,11 +121,15 @@ def test_run_program_variants(monkeypatch, tmp_path: Path) -> None:
         def Popen(self, *a, **k):
             return SimpleNamespace(wait=lambda: 0)
 
-    monkeypatch.setattr(app, "get_python_executable", lambda: "/usr/bin/python", raising=False)
-    monkeypatch.setattr(app, "subprocess", _FakeSub(), raising=False)
+    # Patch the concrete module used by the implementation so the test
+    # does not rely on the legacy test shim.
+    monkeypatch.setattr("src.setup.app_venv.get_python_executable", lambda: "/usr/bin/python", raising=False)
+    monkeypatch.setattr("src.setup.app_venv.subprocess", _FakeSub(), raising=False)
 
-    assert app.run_program("mod", program_file, stream_output=False) is True
-    assert app.run_program("mod", program_file, stream_output=True) is True
+    import src.setup.app_venv as app_venv
+
+    assert app_venv.run_program("mod", program_file, stream_output=False) is True
+    assert app_venv.run_program("mod", program_file, stream_output=True) is True
 
 
 def test_ask_text_tui_branch(monkeypatch) -> None:
@@ -184,50 +192,59 @@ def test_ask_text_delegates_to_prompts(monkeypatch) -> None:
 
 def test_prompt_virtual_environment_choice_and_view_programs(monkeypatch) -> None:
     """Test the venv prompt helper and program description viewer."""
+    # Use the concrete modules and patch their real attributes rather than
+    # modifying a shared test shim. This ensures tests are local and do not
+    # depend on the legacy `src.setup.app` module object.
+    import src.setup.app_prompts as app_prompts
+    import src.setup.app_ui as app_ui
 
     # prompt_virtual_environment_choice: '1' -> True, '2' -> False
-    monkeypatch.setattr(app, "ui_menu", lambda items: None, raising=False)
-    monkeypatch.setattr(app, "ask_text", lambda prompt="": "1", raising=False)
-    assert app.prompt_virtual_environment_choice() is True
+    monkeypatch.setattr("src.setup.app_ui.ui_menu", lambda items: None, raising=False)
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt="": "1", raising=False)
+    assert app_prompts.prompt_virtual_environment_choice() is True
 
-    monkeypatch.setattr(app, "ask_text", lambda prompt="": "2", raising=False)
-    assert app.prompt_virtual_environment_choice() is False
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt="": "2", raising=False)
+    assert app_prompts.prompt_virtual_environment_choice() is False
 
     # view_program_descriptions: exercise printing of a program body
-    monkeypatch.setattr(app, "get_program_descriptions", lambda: {"1": ("T", "BODY")}, raising=False)
-    monkeypatch.setattr(app, "ui_has_rich", lambda: False, raising=False)
+    monkeypatch.setattr("src.setup.app_prompts.get_program_descriptions", lambda: {"1": ("T", "BODY")}, raising=False)
+    monkeypatch.setattr("src.setup.app_ui.ui_has_rich", lambda: False, raising=False)
     printed = []
-    monkeypatch.setattr(app, "rprint", lambda *a, **k: printed.append(" ".join(map(str, a))), raising=False)
+    monkeypatch.setattr("src.setup.app_ui.rprint", lambda *a, **k: printed.append(" ".join(map(str, a))), raising=False)
 
     seq = ["1", "0"]
 
     def _ask(prompt=""):
         return seq.pop(0)
 
-    monkeypatch.setattr(app, "ask_text", _ask, raising=False)
-    app.view_program_descriptions()
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", _ask, raising=False)
+    app_prompts.view_program_descriptions()
     assert any("BODY" in p for p in printed)
 
 
 def test_set_language_and_entry_point_minimal(monkeypatch) -> None:
     """Test setting language and a minimal entry point run that exits cleanly."""
 
-    # Test set_language path
-    monkeypatch.setattr(app, "ask_text", lambda prompt="": "2", raising=False)
+    # Test set_language path - patch the concrete prompt implementation
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt="": "2", raising=False)
+    import src.setup.app_prompts as app_prompts
+
     i18n.LANG = "en"
-    app.set_language()
+    app_prompts.set_language()
     assert i18n.LANG == "sv"
-    assert app.LANG == "sv"
 
     # entry_point should be safe to call when parse_cli_args and main_menu
     # are stubbed; it should not raise even if main_menu raises internally.
     monkeypatch.setenv("SETUP_SKIP_LANGUAGE_PROMPT", "1")
-    monkeypatch.setattr(app, "parse_cli_args", lambda: SimpleNamespace(lang=None, no_venv=True), raising=False)
-    monkeypatch.setattr(app, "ensure_azure_openai_env", lambda ui=None: None, raising=False)
+    # Patch concrete functions used by the entry point so the test does
+    # not rely on the legacy shim object.
+    monkeypatch.setattr("src.setup.app_runner.parse_cli_args", lambda: SimpleNamespace(lang=None, no_venv=True), raising=False)
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda ui=None: None, raising=False)
 
     def _boom():
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(app, "main_menu", _boom, raising=False)
-    # Should not raise
-    app.entry_point()
+    monkeypatch.setattr("src.setup.app_runner.main_menu", _boom, raising=False)
+    # Should not raise even if the patched main_menu raises internally.
+    import src.setup.app_runner as app_runner
+    app_runner.entry_point()

@@ -85,17 +85,17 @@ def test_set_language_keyboard_interrupt(monkeypatch) -> None:
         raise KeyboardInterrupt()
 
     import importlib
+    import pytest
+    from src.exceptions import UserInputError
 
-    # Import the app module object and patch the attribute directly so the
-    # test remains explicit about the patched behaviour.
-    app = importlib.import_module("src.setup.app")
-    monkeypatch.setattr(app, "ask_text", _raise, raising=False)
+    # Patch the concrete prompt implementation rather than the legacy shim
+    # so the test is explicit about which dependency it fakes.
+    monkeypatch.setattr("src.setup.app_prompts.ask_text", _raise, raising=False)
     try:
-        try:
-            app.set_language()
-            raise AssertionError("Expected SystemExit")
-        except SystemExit:
-            pass
+        with pytest.raises(UserInputError):
+            import src.setup.app_prompts as app_prompts
+
+            app_prompts.set_language()
     finally:
         # restore i18n to default
         i18n.LANG = "en"

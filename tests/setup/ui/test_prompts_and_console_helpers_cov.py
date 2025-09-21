@@ -25,7 +25,7 @@ def test_ask_text_tui_updater(monkeypatch):
     orch._TUI_PROMPT_UPDATER = prompt_updater
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
     pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch)
+    monkeypatch.setattr(pkg, "orchestrator", orch, raising=False)
 
     # Ensure pytest internal env var is not present so getpass branch is used
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)

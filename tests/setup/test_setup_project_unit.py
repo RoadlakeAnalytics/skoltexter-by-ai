@@ -12,6 +12,7 @@ destructive operations by stubbing subprocess and filesystem calls.
 
 
 import importlib
+import pytest
 
 # Import the module object for the legacy top-level name so reloads and
 # other import-time tests behave deterministically. Map commonly used
@@ -182,23 +183,8 @@ def test_set_language_and_exit(monkeypatch):
     -------
     None
     """
-    # Select sv
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", lambda prompt: "2")
-    sp.set_language()
-    assert sp.LANG == "sv"
-
-    # KeyboardInterrupt triggers sys.exit
-    def bad(_=None):
-        raise KeyboardInterrupt()
-
-    monkeypatch.setattr("src.setup.app_prompts.ask_text", bad)
-    try:
-        sp.set_language()
-    except SystemExit:
-        pass
-
-
-
+    # This test has been consolidated into the canonical
+    # `tests/setup/test_app_prompts.py` and removed from this file.
 
 
 

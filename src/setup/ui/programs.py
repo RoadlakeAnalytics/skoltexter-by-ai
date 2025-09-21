@@ -20,6 +20,7 @@ from src.setup.i18n import translate
 from src.setup.ui.basic import ui_menu, ui_rule
 from src.setup.ui.prompts import ask_text
 from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS
+from src.exceptions import UserInputError
 
 
 def get_program_descriptions() -> dict[str, tuple[str, str]]:
@@ -36,39 +37,9 @@ def view_program_descriptions() -> None:
     ui_rule(translate("program_descriptions_title"))
     # Enforce a maximum number of invalid attempts to avoid infinite loops
     try:
-        import sys as _sys
-
-        _app_mod = _sys.modules.get("src.setup.app")
-    except Exception:
-        _app_mod = None
-
-    try:
-        import importlib
-
-        _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+        from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
-
-    attempts = 0
-    try:
-        import sys as _sys
-
-        _app_mod = _sys.modules.get("src.setup.app")
-    except Exception:
-        _app_mod = None
-
-    try:
-        import importlib
-
-        _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
-    except Exception:
-        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
 
     attempts = 0
 
@@ -93,7 +64,10 @@ def view_program_descriptions() -> None:
             rprint(translate("invalid_choice"))
             if attempts >= max_attempts:
                 rprint(translate("exiting"))
-                raise SystemExit("Exceeded maximum invalid selections in program menu")
+                raise UserInputError(
+                    "Exceeded maximum invalid selections in program descriptions view",
+                    context={"attempts": attempts, "max_attempts": max_attempts},
+                )
 
 
 def _view_program_descriptions_tui(
@@ -143,14 +117,9 @@ def _view_logs_tui(
         _app_mod = None
 
     try:
-        import importlib
-
-        _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(_cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS)
+        from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
     except Exception:
         max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
 
     attempts = 0
 
@@ -187,7 +156,10 @@ def _view_logs_tui(
             )
             if attempts >= max_attempts:
                 update_right(Panel(translate("exiting"), title="Info", border_style="red"))
-                raise SystemExit("Exceeded maximum invalid selections in logs view")
+                raise UserInputError(
+                    "Exceeded maximum invalid selections in logs view",
+                    context={"attempts": attempts, "max_attempts": max_attempts},
+                )
 
 
 def view_logs() -> None:
@@ -210,9 +182,10 @@ def view_logs() -> None:
     except Exception:
         _app_mod = None
 
-    max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-    if _app_mod is not None:
-        max_attempts = getattr(_app_mod, "INTERACTIVE_MAX_INVALID_ATTEMPTS", max_attempts)
+    try:
+        from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS as max_attempts
+    except Exception:
+        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
 
     attempts = 0
     while True:
@@ -253,7 +226,10 @@ def view_logs() -> None:
                 rprint(translate("invalid_choice"))
                 if attempts >= max_attempts:
                     rprint(translate("exiting"))
-                    raise SystemExit("Exceeded maximum invalid selections in logs view")
+                    raise UserInputError(
+                        "Exceeded maximum invalid selections in logs view",
+                        context={"attempts": attempts, "max_attempts": max_attempts},
+                    )
         except Exception as error:
             # Log errors quietly during tests
             rprint(f"Error reading log file: {error}")

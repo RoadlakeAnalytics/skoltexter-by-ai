@@ -165,34 +165,76 @@ def manage_virtual_environment() -> None:
         import logging
 
         logger = logging.getLogger("src.setup.app")
-        # Delegate to possibly monkeypatched functions on the central app shim
+        # Delegate to the concrete helper implementations via lazy import.
         def _ask_text(*a, **k):
-            app_mod = sys.modules.get("src.setup.app")
-            f = getattr(app_mod, "ask_text", None)
-            if f is None:
+            """Ask the user for free-text input using the concrete prompt helper.
+
+            This performs a lazy import of ``src.setup.app_prompts.ask_text`` so
+            that there is no hard dependency on any legacy shim module. If the
+            concrete helper is not available the function returns an empty
+            string to preserve the previous non-fatal behaviour.
+
+            Parameters
+            ----------
+            *a
+                Positional arguments forwarded to the prompt helper.
+            **k
+                Keyword arguments forwarded to the prompt helper.
+
+            Returns
+            -------
+            str
+                Prompt result, or empty string when a helper is unavailable.
+            """
+            try:
+                from src.setup.app_prompts import ask_text as _ask
+
+                return _ask(*a, **k)
+            except (ImportError, AttributeError):
                 return ""
-            return f(*a, **k)
 
         def _ui_has_rich() -> bool:
-            app_mod = sys.modules.get("src.setup.app")
-            f = getattr(app_mod, "ui_has_rich", None)
-            if f is None:
-                return True
+            """Return whether a rich console is available via the concrete UI helper.
+
+            Returns
+            -------
+            bool
+                True when the UI helper reports rich console support; defaults
+                to True if the concrete helper cannot be imported.
+            """
             try:
-                return bool(f())
-            except Exception:
+                from src.setup.app_ui import ui_has_rich as _uh
+
+                return bool(_uh())
+            except (ImportError, AttributeError):
                 return True
 
         def _rprint(*a, **k):
-            app_mod = sys.modules.get("src.setup.app")
-            f = getattr(app_mod, "rprint", None)
-            if f is None:
+            """Print via the concrete UI print helper or fallback to builtin print.
+
+            This attempts a lazy import of ``src.setup.app_ui.rprint`` and calls
+            it. If unavailable the function falls back to the standard
+            ``print`` implementation.
+
+            Parameters
+            ----------
+            *a
+                Positional arguments forwarded to the printer.
+            **k
+                Keyword arguments forwarded to the printer.
+
+            Returns
+            -------
+            object or None
+                The return value of the concrete printer if present, otherwise
+                None from the builtin print.
+            """
+            try:
+                from src.setup.app_ui import rprint as _rp
+
+                return _rp(*a, **k)
+            except (ImportError, AttributeError):
                 print(*a, **k)
-            else:
-                try:
-                    return f(*a, **k)
-                except Exception:
-                    print(*a, **k)
 
         rprint = staticmethod(_rprint)
         ui_has_rich = staticmethod(_ui_has_rich)
@@ -222,15 +264,21 @@ def manage_virtual_environment() -> None:
                 "get_venv_pip_executable",
                 "get_python_executable",
             ):
-                # Prefer implementations patched on the central app shim
-                # (``src.setup.app``) so tests that monkeypatch there are
-                # respected. Fall back to the local globals if not present.
-                app_mod = sys.modules.get("src.setup.app")
-                candidate = None
-                if app_mod is not None:
-                    candidate = getattr(app_mod, _name, None)
-                if candidate is None and _name in globals():
-                    candidate = globals()[_name]
+                # Prefer explicit, local implementations and concrete
+                # helpers rather than reading a legacy shim from
+                # ``sys.modules``. This removes implicit global state and
+                # makes the behaviour easier to reason about for tests and
+                # for future refactors.
+                candidate = globals().get(_name)
+                if candidate is None:
+                    try:
+                        # Attempt to pick up the concrete helper from the
+                        # refactored venv module if available.
+                        import src.setup.app_venv as concrete_venv
+
+                        candidate = getattr(concrete_venv, _name, None)
+                    except Exception:
+                        candidate = None
                 if candidate is not None and getattr(candidate, "__module__", None) != __name__:
                     had = hasattr(_venvmod, _name)
                     orig = getattr(_venvmod, _name) if had else None

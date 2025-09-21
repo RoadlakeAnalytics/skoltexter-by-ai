@@ -75,15 +75,16 @@ def test_delegation_wrappers_to_orchestrator(monkeypatch):
 
 
 def test_set_language_keyboardinterrupt(monkeypatch):
-    # Force ask_text to raise KeyboardInterrupt and verify SystemExit
+    # Force ask_text to raise KeyboardInterrupt and verify UserInputError
+    # (domain-specific error used instead of SystemExit).
+    import pytest
+    from src.exceptions import UserInputError
+
     monkeypatch.setattr(
         app, "ask_text", lambda prompt: (_ for _ in ()).throw(KeyboardInterrupt())
     )
-    try:
+    with pytest.raises(UserInputError):
         app.set_language()
-    except SystemExit:
-        # Expected path
-        pass
 
 
 def test_parse_and_prompt_delegations(monkeypatch):

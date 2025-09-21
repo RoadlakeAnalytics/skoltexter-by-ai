@@ -40,7 +40,7 @@ def test_ask_text_questionary(monkeypatch):
     orch_stub._TUI_PROMPT_UPDATER = None
     monkeypatch.setitem(_sys.modules, "src.setup.pipeline.orchestrator", orch_stub)
     pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch_stub)
+    monkeypatch.setattr(pkg, "orchestrator", orch_stub, raising=False)
     _il.reload(prom)
     monkeypatch.setattr(ch, "_HAS_Q", True)
     monkeypatch.setattr(ch, "questionary", FakeQuestionary)
@@ -70,7 +70,7 @@ def test_ask_text_tui_uses_input(monkeypatch):
     orch_stub._TUI_PROMPT_UPDATER = prompt_updater
     monkeypatch.setitem(_sys.modules, "src.setup.pipeline.orchestrator", orch_stub)
     pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch_stub)
+    monkeypatch.setattr(pkg, "orchestrator", orch_stub, raising=False)
     _il.reload(prom)
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
     monkeypatch.setattr(builtins, "input", lambda prompt="": "tty-answer")

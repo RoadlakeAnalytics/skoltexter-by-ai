@@ -152,37 +152,5 @@ def test_ask_text_tui_getpass(monkeypatch):
     setattr(app_mod, "_TUI_UPDATER", None)
 
 
-def test_venv_path_helpers_and_run_program(monkeypatch, tmp_path: Path):
-    """Test venv helpers and run_program (stream and non-stream paths).
-
-    We stub subprocess calls so no real processes are spawned.
-    """
-    v = tmp_path / "venv"
-    # Ensure the lightweight shim is visible to the venv helpers so they use
-    # the test-controlled ``sys`` attribute. Install the local ``app``
-    # namespace into ``sys.modules`` for the duration of the test.
-    import sys as _sys
-    monkeypatch.setitem(_sys.modules, "src.setup.app", app)
-    monkeypatch.setattr(app, "sys", type("S", (), {"platform": "linux"})())
-    assert app.get_venv_bin_dir(v).name in ("bin", "Scripts")
-
-    # Test run_program non-stream
-    monkeypatch.setattr(app, "get_python_executable", lambda: "/usr/bin/python")
-
-    class R:
-        returncode = 0
-        stdout = ""
-        stderr = ""
-
-    monkeypatch.setattr("subprocess.run", lambda *a, **k: R())
-    ok = app.run_program("p", Path("src/mod.py"), stream_output=False)
-    assert ok is True
-
-    # Test run_program streaming path with Popen stub
-    class P:
-        def wait(self):
-            return 0
-
-    monkeypatch.setattr("subprocess.Popen", lambda *a, **k: P())
-    ok = app.run_program("p", Path("src/mod.py"), stream_output=True)
-    assert ok is True
+# Venv-related tests migrated to `tests/setup/test_app_venv.py`.
+# The concrete helpers are exercised there and removed from this file.

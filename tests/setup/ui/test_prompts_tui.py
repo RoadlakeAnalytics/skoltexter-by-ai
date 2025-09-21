@@ -27,7 +27,7 @@ def test_ask_text_tui_uses_input(monkeypatch):
     orch_fake._TUI_PROMPT_UPDATER = lambda v: called.setdefault("pupd", v)
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch_fake)
     pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch_fake)
+    monkeypatch.setattr(pkg, "orchestrator", orch_fake, raising=False)
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "1")
     monkeypatch.setattr(builtins, "input", lambda prompt="": "typed")
 
@@ -62,7 +62,7 @@ def test_ask_text_tui_getpass_path(monkeypatch):
     orch_fake._TUI_PROMPT_UPDATER = lambda v: None
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch_fake)
     pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch_fake)
+    monkeypatch.setattr(pkg, "orchestrator", orch_fake, raising=False)
     # Make stdin appear to be a TTY
     monkeypatch.setattr(sys, "stdin", sys.__stdin__)
     monkeypatch.setattr(sys.__stdin__, "isatty", lambda: True)
@@ -88,7 +88,7 @@ def test_ask_confirm_tui_variants(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "src.setup.pipeline.orchestrator", orch)
     pkg = _il.import_module("src.setup.pipeline")
-    setattr(pkg, "orchestrator", orch)
+    monkeypatch.setattr(pkg, "orchestrator", orch, raising=False)
     monkeypatch.setattr(orch, "_TUI_MODE", True)
     monkeypatch.setattr(orch, "_TUI_UPDATER", lambda v: None)
     monkeypatch.setattr(orch, "_TUI_PROMPT_UPDATER", lambda v: None)

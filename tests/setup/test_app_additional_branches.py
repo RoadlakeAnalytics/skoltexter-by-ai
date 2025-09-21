@@ -95,30 +95,8 @@ def test_ui_wrappers_delegate(monkeypatch) -> None:
     assert called["succ"] == "S"
 
 
-def test_venv_bin_and_executables(monkeypatch, tmp_path: Path) -> None:
-    """get_venv_bin_dir, get_venv_python_executable and get_venv_pip_executable.
-
-    The tests patch the module-level ``sys`` on the app module so the
-    functions behave as though running on Windows or POSIX.
-    """
-    v = tmp_path / "venv"
-    # Simulate posix and windows by temporarily assigning the module-level
-    # `sys` object on the app module and restoring the original afterwards.
-    orig_sys = getattr(app, "sys", None)
-    try:
-        monkeypatch.setitem(_sys.modules, "src.setup.app", SimpleNamespace(sys=SimpleNamespace(platform="linux")))
-        assert app.get_venv_bin_dir(v).name == "bin"
-        assert app.get_venv_python_executable(v).name == "python"
-        assert app.get_venv_pip_executable(v).name == "pip"
-
-        monkeypatch.setitem(_sys.modules, "src.setup.app", SimpleNamespace(sys=SimpleNamespace(platform="win32")))
-        assert app.get_venv_bin_dir(v).name == "Scripts"
-        assert app.get_venv_python_executable(v).name == "python.exe"
-        assert app.get_venv_pip_executable(v).name == "pip.exe"
-    finally:
-        if orig_sys is not None:
-            app.sys = orig_sys
-
+# The venv-related tests were migrated to
+# ``tests/setup/test_app_venv.py`` and removed from this file.
 
 def test_run_program_subprocess_and_stream(monkeypatch, tmp_path: Path) -> None:
     """run_program uses subprocess.run and Popen depending on stream_output.
