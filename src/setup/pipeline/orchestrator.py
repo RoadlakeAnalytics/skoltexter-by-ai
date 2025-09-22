@@ -1,9 +1,38 @@
-"""Pipeline orchestrator: sequencing and TUI state.
+"""Orchestration and interactive state management for the school data pipeline.
 
-This module contains high-level orchestration of the three pipeline steps
-and centralizes a small set of TUI runtime variables so both the plain and
-Rich dashboard flows can update UI consistently. It is intentionally
-decoupled from any legacy shim modules.
+This module enforces the Single Responsibility Principle by exclusively managing
+high-level orchestration and state/control boundary logic for the three-process
+school data pipeline. It provides canonical entrypoints for both plain and Rich/Textual
+TUI flows, robustly mapping interactive user choices to underlying pipeline commands.
+Decoupling is strict: no business logic or direct data processing occurs here—only
+sequencing and UI update bridging. The orchestrator links all TUI flows and programmatic
+execution to CI-ready, testable pipeline runners (see AGENTS.md §3, §4).
+
+API and boundary notes:
+- Calls are made to in-process runners or to subprocess wrappers, always respecting
+  mutation testing, test injection, and CI patching protocols.
+- All configuration values (paths, program names, i18n keys) are defined in `src/config.py`.
+- All exceptions follow AGENTS.md taxonomy and should be mapped accordingly—no third-party
+  errors are allowed to escape these entrypoints.
+- Robustness: User interaction, streaming, and retries are bounded by constants; all flows
+  support direct monkeypatching for mutation and CI edge-case simulation.
+
+Canonical usage topology:
+- The launcher (`setup_project.py`) only invokes this orchestrator—never the pipeline directly.
+- The orchestrator mediates UI state, TUI content updating, prompt handling, and status/progress
+  rendering for testability and auditability.
+
+Testing and audit:
+- All flows are covered by tests in `tests/setup/pipeline/test_orchestrator_*` and checked for
+  CI, error, and mutation robustness per AGENTS.md Power-of-10.
+- Coverage includes edge cases (prompt skips, connectivity failures, test doubles for UI,
+  monkeypatching runners, legacy compatibility fallback).
+- All error branches are explicitly injectable/testable via dependency patching.
+
+Rationale:
+This placement partitions orchestration code at a clear architecture boundary, supporting strict
+decoupling, audit-compliant control, rule-based configuration, and test-first documentation.
+
 """
 
 from __future__ import annotations
@@ -73,19 +102,45 @@ def _compose_and_update() -> None:
         except Exception:
 
             class Group:
-                """Lightweight fallback container used when Rich's Group is absent.
-
-                The class simply stores provided items for later inspection or
-                rendering by test doubles.
+                r"""Lightweight container for Richless TUI testing and CI patching.
+   
+                Stores two renderable items and exposes them for inspection—used
+                exclusively in unit tests and legacy fallback flows for auditability
+                and mutation coverage. No rendering logic is present.
+   
+                Parameters
+                ----------
+                a : Any
+                    First item, typically pipeline status renderable.
+                b : Any
+                    Second item, typically progress/status renderable.
+   
+                Notes
+                -----
+                Used only if Rich's Group class is unavailable or direct patching
+                for CI mutation/fallback branch. All audit/test cases injectable.
+   
+                Examples
+                --------
+                >>> grp = Group("foo", "bar")
+                >>> assert grp.items == ("foo", "bar")
+                >>> # Used in TUI CI fallback or mutation flows—never in production logic.
                 """
-
+    
                 def __init__(self, a: Any, b: Any) -> None:
-                    """Construct the simple Group container with two items.
-
+                    r"""Initialize with two items; audit/test-only container.
+   
                     Parameters
                     ----------
-                    a, b : Any
-                        Items to store in the container.
+                    a : Any
+                        First renderable/status item.
+                    b : Any
+                        Second renderable/progress item.
+   
+                    Examples
+                    --------
+                    >>> Group("A", "B").items
+                    ('A', 'B')
                     """
                     self.items = (a, b)
 

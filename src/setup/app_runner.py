@@ -1,9 +1,24 @@
-"""Entrypoint and orchestration helpers extracted from src.setup.app.
+"""Entrypoint and orchestration helpers for setup application.
 
-This module contains the high-level run/entrypoint logic that composes the
-smaller helpers (UI, prompts, venv and pipeline) to implement the CLI and
-interactive flows. It reads and writes module-level config/state on the
-``src.setup.app`` module so tests can patch expected global state.
+This module provides top-level orchestration functions for running the interactive
+setup, entrypoints, CLI parsing, environment management, Azure/OpenAI configuration
+prompting, and invoking UI flows for the application. It composes and delegates to
+helpers from the UI, venv, prompt, and Azure environment modules, but contains only
+file-local logic and boundaries. It exposes all interactive run methods as patchable
+test points for robust CI and user automation.
+
+References
+----------
+The exported helpers enable patchable orchestration for interactive and CLI-driven
+setup within the boundaries of src.setup.app and supporting UI/pipeline modules.
+
+Examples
+--------
+>>> import src.setup.app_runner as runner
+>>> args = runner.parse_cli_args(['--lang', 'en'])
+>>> runner.run(args)
+>>> runner.entry_point()  # runs entire interactive CLI
+
 """
 
 from __future__ import annotations
@@ -12,7 +27,8 @@ import argparse
 import sys
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+from typing import Callable
 
 import importlib
 
@@ -28,12 +44,32 @@ from src.config import (
 
 
 def run(args: argparse.Namespace) -> None:
-    """Run the setup application using parsed CLI args.
+    r"""Run the interactive setup application using parsed CLI arguments.
+
+    Composes UI headers and invokes the main menu entrypoint. Accepts CLI args
+    controlling application language and venv activation.
 
     Parameters
     ----------
     args : argparse.Namespace
-        Parsed arguments (``lang``, ``no_venv``).
+        Parsed arguments for the application (e.g., ``lang``, ``no_venv``).
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Runs with English fallback if `lang` is invalid. This function delegates UI and
+    menu orchestration to `src.setup.app_ui` and `src.setup.ui.menu`.
+
+    Examples
+    --------
+    >>> import argparse
+    >>> from src.setup import app_runner
+    >>> ns = argparse.Namespace(lang="en", no_venv=False)
+    >>> app_runner.run(ns)  # doctest: +SKIP
+
     """
     i18n.LANG = args.lang
     try:
@@ -42,9 +78,6 @@ def run(args: argparse.Namespace) -> None:
         ui_header(i18n.translate("welcome"))
     except Exception:
         pass
-    # Delegate to the UI menu implementation. Tests should patch the
-    # concrete UI module (``src.setup.ui.menu``) when needed rather than
-    # injecting a module into ``sys.modules``.
     try:
         from src.setup.ui import menu
 
@@ -53,12 +86,35 @@ def run(args: argparse.Namespace) -> None:
         except Exception:
             pass
     except Exception:
-        # No UI available in this environment; continue silently.
         pass
 
 
 def parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command-line arguments for the setup application."""
+    r"""Parse command-line arguments for the setup application.
+
+    Creates an argument parser with options for language, venv skipping, and UI type.
+
+    Parameters
+    ----------
+    argv : list of str or None, optional
+        List of argument strings to parse (as from ``sys.argv[1:]``).
+        If None, defaults to ``sys.argv``.
+
+    Returns
+    -------
+    argparse.Namespace
+        Namespace containing parsed arguments.
+
+    Examples
+    --------
+    >>> from src.setup import app_runner
+    >>> ns = app_runner.parse_cli_args(['--lang', 'sv', '--no-venv'])
+    >>> ns.lang
+    'sv'
+    >>> ns.no_venv
+    True
+
+    """
     parser = argparse.ArgumentParser(description="Setup application")
     parser.add_argument("--lang", type=str, choices=["en", "sv"], default="en")
     parser.add_argument("--no-venv", action="store_true")
@@ -243,6 +299,8 @@ def run_ai_connectivity_check_interactive() -> bool:
 
     # Use the concrete UI helpers; tests should patch these where
     # necessary. This avoids consulting a legacy shim in ``sys.modules``.
+    _ui_success_fallback: Optional[Callable[[str], None]] = None
+    _ui_error_fallback: Optional[Callable[[str], None]] = None
     try:
         from src.setup.app_ui import (
             ui_success as _ui_success_fallback,

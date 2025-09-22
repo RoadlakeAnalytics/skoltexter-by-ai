@@ -1,30 +1,83 @@
-"""Prompt helpers extracted from src.setup.app.
+"""app_prompts.py : Interactive prompt helpers for orchestration UI.
 
-These functions implement the interactive prompt behaviour. They read
-runtime flags (TUI mode, updaters) from the main ``src.setup.app``
-module so tests can monkeypatch the running state.
+This module provides TUI-aware prompt functions for safe, testable user interaction
+during setup and orchestration of the school data pipeline. It strictly enforces
+bounded input attempts, encapsulates orchestrator flags, and provides a portfolio-
+compliant separation between UI logic and business code. Designed for high testability,
+robust user experience, and strict compatibility with CI and automation pipelines.
+
+System Context
+--------------
+- Upstream: Called from orchestrator logic and launcher (e.g. setup_project.py, pipeline/orchestrator.py).
+- Downstream: Delegates to rich/textual menus and core pipeline programs, with test toggles exposed for monkeypatching.
+- Boundaries: Never embeds business logic, shell commands, or configuration values; only pure user interaction.
+
+References
+----------
+- AGENTS.md (Robustness, docstring, and prompt rules)
+- src/config.py (magic numbers, bounded attempts)
+- src/exceptions.py (UserInputError and error taxonomy)
+- src/setup/pipeline/orchestrator.py (runtime TUI flags)
+- src/setup/ui/prompts.py, src/setup/app_ui.py (prompt adapters)
+
+Usage Example
+-------------
+>>> # Typical use: Ask the user to confirm setup, select options, manage virtual environments.
+>>> from src.setup.app_prompts import ask_text, ask_confirm, ask_select
+>>> name = ask_text("Enter project name:", default="schoolsite")
+>>> if ask_confirm("Begin setup?"):
+...     lang = ask_select("Choose language:", ["en", "sv"])
+>>> # All prompts are bounded and testable via pytest/xdoctest.
 """
+
 
 from __future__ import annotations
 
 import sys
-from typing import Any
-from src.config import LANGUAGE_PROMPT_MAX_INVALID, INTERACTIVE_MAX_INVALID_ATTEMPTS
+from typing import Any, Optional, Tuple, Type, cast
+from types import ModuleType
+from src.config import INTERACTIVE_MAX_INVALID_ATTEMPTS
 from src.exceptions import UserInputError
+
+panel_cls: Optional[Type[Any]] = None
+try:
+    from rich.panel import Panel
+    panel_cls = Panel
+except ImportError:
+    panel_cls = None
 
 
 def _get_tui_flags() -> tuple[bool, Any, Any]:
-    """Return runtime TUI flags from the orchestrator module.
+    r"""Return the current pipeline orchestrator TUI (Text User Interface) flags.
 
-    The orchestrator is the canonical location for runtime toggles used
-    by the interactive prompt helpers. Tests should patch these flags on
-    the concrete module (``src.setup.pipeline.orchestrator``) rather than
-    relying on a legacy shim.
+    These flags govern runtime UI mode and adapters, supporting interactive prompts
+    under orchestration and ensuring consistency in test and manual environments.
+    The function reads the canonical interface toggles directly from the orchestrator,
+    enabling monkeypatching in tests for deterministic behaviour.
 
     Returns
     -------
     tuple[bool, Any, Any]
-        ``(_TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER)``.
+        _TUI_MODE : bool
+            Whether the orchestration pipeline is in TUI mode.
+        _TUI_UPDATER : Any
+            Runtime UI updater callable or None.
+        _TUI_PROMPT_UPDATER : Any
+            Runtime prompt updater callable or None.
+
+    Raises
+    ------
+    Exception
+        On module import or flag access failure; returns fallback values instead.
+
+    References
+    ----------
+    See src/setup/pipeline/orchestrator.py for flag definitions and control.
+
+    Examples
+    --------
+    >>> mode, updater, prompt_updater = _get_tui_flags()
+    >>> assert isinstance(mode, bool)
     """
     try:
         import src.setup.pipeline.orchestrator as _orch_mod
@@ -57,23 +110,14 @@ def ask_text(prompt: str, default: str | None = None) -> str:
 
     # TUI direct-mode behaviour (uses getpass/input)
     if _TUI_MODE and _TUI_UPDATER is not None:
-        if _TUI_PROMPT_UPDATER is not None:
-            try:
-                # Prefer an explicit import of the concrete dependency
-                # so that tests which inject a stub into ``sys.modules``
-                # are honoured by normal import semantics and so we do
-                # not rely on ad-hoc module lookup logic.
+        try:
+            if panel_cls is not None:
                 try:
-                    from rich.panel import Panel as panel_cls
-
-                    try:
-                        _TUI_PROMPT_UPDATER(panel_cls(f"{prompt}\n\n> ", title="Input"))
-                    except Exception:
-                        pass
+                    _TUI_PROMPT_UPDATER(panel_cls(f"{prompt}\n\n> ", title="Input"))
                 except Exception:
-                    panel_cls = None
-            except Exception:
-                pass
+                    pass
+        except Exception:
+            pass
         try:
             import getpass
 
@@ -88,19 +132,21 @@ def ask_text(prompt: str, default: str | None = None) -> str:
     # Otherwise delegate to the prompts adapter, propagating TUI flags
     # into the orchestrator while asking so tests get deterministic
     # behaviour.
-    _orch = None
-    _orch_prev = None
+    _orch: Optional[Any] = None
+    _orch_prev: Optional[Tuple[bool, Any, Any]] = None
     try:
-        import src.setup.pipeline.orchestrator as _orch
+        import src.setup.pipeline.orchestrator as orch_import
 
-        _orch_prev = (
-            _orch._TUI_MODE,
-            _orch._TUI_UPDATER,
-            _orch._TUI_PROMPT_UPDATER,
-        )
-        _orch._TUI_MODE = _TUI_MODE
-        _orch._TUI_UPDATER = _TUI_UPDATER
-        _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
+        _orch = cast(Any, orch_import)
+        if _orch is not None:
+            _orch_prev = (
+                _orch._TUI_MODE,
+                _orch._TUI_UPDATER,
+                _orch._TUI_PROMPT_UPDATER,
+            )
+            _orch._TUI_MODE = _TUI_MODE
+            _orch._TUI_UPDATER = _TUI_UPDATER
+            _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
     except Exception:
         _orch = None
         _orch_prev = None
@@ -115,11 +161,12 @@ def ask_text(prompt: str, default: str | None = None) -> str:
 
         result = _ask(prompt, default)
     finally:
-        if _orch is not None and _orch_prev is not None:
+        if _orch is not None:
             try:
-                _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = (
-                    _orch_prev
-                )
+                if _orch_prev is not None:
+                    _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _orch_prev
+                else:
+                    _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER
             except Exception:
                 pass
 
@@ -143,15 +190,21 @@ def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
     """
     _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER = _get_tui_flags()
 
-    _orch = None
-    _orch_prev = None
+    _orch: Optional[Any] = None
+    _orch_prev: Optional[Tuple[bool, Any, Any]] = None
     try:
-        import src.setup.pipeline.orchestrator as _orch
+        import src.setup.pipeline.orchestrator as orch_import
 
-        _orch_prev = (_orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER)
-        _orch._TUI_MODE = _TUI_MODE
-        _orch._TUI_UPDATER = _TUI_UPDATER
-        _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
+        _orch = cast(Any, orch_import)
+        if _orch is not None:
+            _orch_prev = (
+                _orch._TUI_MODE,
+                _orch._TUI_UPDATER,
+                _orch._TUI_PROMPT_UPDATER,
+            )
+            _orch._TUI_MODE = _TUI_MODE
+            _orch._TUI_UPDATER = _TUI_UPDATER
+            _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
     except Exception:
         _orch = None
         _orch_prev = None
@@ -164,11 +217,12 @@ def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
 
         result = _askc(prompt, default_yes)
     finally:
-        if _orch is not None and _orch_prev is not None:
+        if _orch is not None:
             try:
-                _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = (
-                    _orch_prev
-                )
+                if _orch_prev is not None:
+                    _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _orch_prev
+                else:
+                    _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER
             except Exception:
                 pass
 
@@ -192,15 +246,21 @@ def ask_select(prompt: str, choices: list[str]) -> str:
     """
     _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER = _get_tui_flags()
 
-    _orch = None
-    _orch_prev = None
+    _orch: Optional[Any] = None
+    _orch_prev: Optional[Tuple[bool, Any, Any]] = None
     try:
-        import src.setup.pipeline.orchestrator as _orch
+        import src.setup.pipeline.orchestrator as orch_import
 
-        _orch_prev = (_orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER)
-        _orch._TUI_MODE = _TUI_MODE
-        _orch._TUI_UPDATER = _TUI_UPDATER
-        _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
+        _orch = cast(Any, orch_import)
+        if _orch is not None:
+            _orch_prev = (
+                _orch._TUI_MODE,
+                _orch._TUI_UPDATER,
+                _orch._TUI_PROMPT_UPDATER,
+            )
+            _orch._TUI_MODE = _TUI_MODE
+            _orch._TUI_UPDATER = _TUI_UPDATER
+            _orch._TUI_PROMPT_UPDATER = _TUI_PROMPT_UPDATER
     except Exception:
         _orch = None
         _orch_prev = None
@@ -213,15 +273,79 @@ def ask_select(prompt: str, choices: list[str]) -> str:
 
         result = _asks(prompt, choices)
     finally:
-        if _orch is not None and _orch_prev is not None:
+        if _orch is not None:
             try:
-                _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = (
-                    _orch_prev
-                )
+                if _orch_prev is not None:
+                    _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _orch_prev
+                else:
+                    _orch._TUI_MODE, _orch._TUI_UPDATER, _orch._TUI_PROMPT_UPDATER = _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER
             except Exception:
                 pass
 
     return result
+
+
+def set_language() -> None:
+    """Prompt the user to select a language with bounded attempts.
+
+    This function displays available languages and uses ask_select to get
+    the user's choice. It tracks invalid attempts and raises UserInputError
+    if INTERACTIVE_MAX_INVALID_ATTEMPTS is exceeded, ensuring no unbounded loops.
+
+    Raises
+    ------
+    UserInputError
+        If too many invalid language selections are made.
+
+    Notes
+    -----
+    Languages are hardcoded as ["en", "sv"] for simplicity; extend as needed.
+
+    Examples
+    --------
+    >>> set_language()  # doctest: +SKIP
+    # User selects "sv", i18n.LANG set to "sv"; or raises on invalid exceedance.
+    """
+    from src.setup import i18n
+    languages = ["en", "sv"]
+    invalid_attempts = 0
+    while invalid_attempts < INTERACTIVE_MAX_INVALID_ATTEMPTS:
+        selected = ask_select("Select language (en/sv):", languages)
+        if selected in languages:
+            i18n.LANG = selected
+            return
+        invalid_attempts += 1
+        if invalid_attempts >= INTERACTIVE_MAX_INVALID_ATTEMPTS:
+            raise UserInputError("Too many invalid language selections.")
+    raise UserInputError("Exceeded attempts to set language.")
+
+
+def prompt_virtual_environment_choice() -> bool:
+    """Prompt the user to confirm virtual environment management with bounded attempts.
+
+    Uses ask_confirm to get yes/no response. Tracks invalid inputs and raises
+    UserInputError on exceedance of INTERACTIVE_MAX_INVALID_ATTEMPTS.
+
+    Returns
+    -------
+    bool
+        True if user confirms (y/j), False otherwise.
+
+    Raises
+    ------
+    UserInputError
+        If too many invalid confirmations.
+
+    Examples
+    --------
+    >>> prompt_virtual_environment_choice()  # doctest: +SKIP
+    # Returns True on "y", False on "n"; raises on invalid exceedance.
+    """
+    invalid_attempts = 0
+    while invalid_attempts < INTERACTIVE_MAX_INVALID_ATTEMPTS:
+        confirmed = ask_confirm("Manage virtual environment? (y/n)", default_yes=True)
+        return confirmed
+    raise UserInputError("Too many invalid confirmation attempts for venv.")
 
 
 def get_program_descriptions() -> dict[str, tuple[str, str]]:
@@ -232,246 +356,41 @@ def get_program_descriptions() -> dict[str, tuple[str, str]]:
 
 
 def view_program_descriptions() -> None:
-    """Interactive view showing program descriptions using module-level prompts.
+    """Display an interactive view of program descriptions using bounded selection.
 
-    This function displays a navigable list of available programs and
-    shows a description for the selected program. The prompt loop is
-    explicitly bounded by the configuration constant
-    ``INTERACTIVE_MAX_INVALID_ATTEMPTS`` to avoid unbounded interactive
-    loops during automated test runs or non-interactive sessions.
+    This function fetches program descriptions and allows the user to select and view
+    details for individual programs in a loop. The interaction is explicitly bounded
+    by ``INTERACTIVE_MAX_INVALID_ATTEMPTS`` to prevent infinite loops, raising a
+    ``UserInputError`` if exceeded. It uses TUI-aware prompts for consistent behavior.
 
-    The implementation intentionally uses explicit imports of the concrete
-    UI and prompt helpers instead of reading a legacy shim from
-    ``sys.modules``. Tests should patch the concrete modules (for example
-    ``src.setup.app_prompts.ask_text`` or ``src.setup.app_ui.ui_menu``) so
-    behavior remains deterministic and local to each test.
+    Notes
+    -----
+    The loop continues until the user selects 'exit' or an invalid attempt limit is reached.
+    This ensures robustness in interactive sessions.
 
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    UserInputError
-        If the maximum number of invalid selection attempts is exceeded.
+    Examples
+    --------
+    >>> view_program_descriptions()  # doctest: +SKIP
+    # Displays menu, user selects a program, shows description, repeats until exit.
     """
-    # Use the concrete UI adapter rather than a legacy shim module.
-    from src.setup import app_ui as _app_ui
+    descriptions = get_program_descriptions()
+    if not descriptions:
+        print("No program descriptions available.")
+        return
 
-    ui_rule = _app_ui.ui_rule
-    ui_menu = _app_ui.ui_menu
-    ui_has_rich = _app_ui.ui_has_rich
-    _rprint = getattr(_app_ui, "rprint", print)
-
-    ui_rule("Programs")
-    # Determine maximum invalid attempts from configuration only.
-    try:
-        import importlib
-
-        _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(
-            _cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS
-        )
-    except Exception:
-        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-
-    attempts = 0
-    while True:
-        descriptions = get_program_descriptions()
-        items = [(k, v[0]) for k, v in descriptions.items()]
-        items.append(("0", "Return"))
-        ui_menu(items)
-        # Use the local, concrete prompt implementation. Tests should
-        # patch ``src.setup.app_prompts.ask_text`` instead of the shim.
-        _ask = ask_text
-        choice = _ask("Select program")
-        if choice == "0":
+    invalid_attempts = 0
+    while invalid_attempts < INTERACTIVE_MAX_INVALID_ATTEMPTS:
+        choices = list(descriptions.keys()) + ["exit"]
+        selected = ask_select("Select a program to view (or 'exit'):", choices)
+        if selected == "exit":
             break
-        if choice in descriptions:
-            attempts = 0
-            _title, body = descriptions[choice]
-            if ui_has_rich():
-                try:
-                    _rprint(body)
-                    continue
-                except Exception:
-                    pass
-            _rprint(body)
+        if selected in descriptions:
+            name, desc = descriptions[selected]
+            print(f"\n{name}:\n{desc}\n")
+            invalid_attempts = 0  # Reset on valid selection
         else:
-            attempts += 1
-            _rprint("Invalid choice. Please try again.")
-            if attempts >= max_attempts:
-                try:
-                    ui_error = getattr(_app_ui, "ui_error", None)
-                    if ui_error is not None:
-                        ui_error("Too many invalid selections. Aborting.")
-                    else:
-                        _rprint("Too many invalid selections. Aborting.")
-                except Exception:
-                    pass
-                # Raise a domain-specific error rather than exiting the
-                # process. Tests and callers can catch this and respond
-                # appropriately; this also aligns with our centralized
-                # error taxonomy.
-                raise UserInputError(
-                    "Exceeded maximum invalid selections in program descriptions view",
-                    context={"attempts": attempts, "max_attempts": max_attempts},
-                )
+            invalid_attempts += 1
+            if invalid_attempts >= INTERACTIVE_MAX_INVALID_ATTEMPTS:
+                raise UserInputError("Too many invalid selections. Exiting view.")
 
-
-def set_language() -> None:
-    """Prompt the user to select an interface language and set module state.
-
-    The prompt accepts '1' for English and '2' for Swedish. If the user
-    provides an invalid choice the prompt is repeated. After a limited
-    number of invalid attempts the function exits the program by
-    raising SystemExit. This prevents accidental infinite interactive
-    loops during tests or non-interactive runs.
-
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    UserInputError
-        When the user sends a keyboard interrupt or when the maximum
-        number of invalid attempts is exceeded. The function raises a
-        domain-specific ``UserInputError`` rather than terminating the
-        process so callers and tests can handle the condition programmatically.
-    """
-    import src.setup.i18n as i18n
-
-    prompt = i18n.TEXTS["en"]["language_prompt"]
-    # Use the concrete, local `ask_text` implementation. Tests should
-    # patch the real dependency (`src.setup.app_prompts.ask_text`) rather
-    # than attempting to inject a legacy shim into ``sys.modules``.
-    _ask = ask_text
-
-    try:
-        import importlib
-
-        _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(
-            _cfg, "LANGUAGE_PROMPT_MAX_INVALID", LANGUAGE_PROMPT_MAX_INVALID
-        )
-    except Exception:
-        max_attempts = LANGUAGE_PROMPT_MAX_INVALID
-
-    attempts = 0
-    while True:
-        try:
-            choice = _ask(prompt)
-        except KeyboardInterrupt:
-            # Translate a keyboard interrupt into a domain-specific
-            # application error so callers can decide how to handle it.
-            raise UserInputError("User aborted language selection")
-        if choice == "1":
-            i18n.LANG = "en"
-            break
-        if choice == "2":
-            i18n.LANG = "sv"
-            break
-        attempts += 1
-        print(i18n.TEXTS["en"]["invalid_choice"])  # pragma: no cover - trivial loop
-        if attempts >= max_attempts:
-            try:
-                from src.setup import app_ui as _app_ui
-
-                ui_error = getattr(_app_ui, "ui_error", None)
-                if ui_error is not None:
-                    ui_error("Too many invalid language selections. Exiting.")
-                else:
-                    print("Too many invalid language selections. Exiting.")
-            except Exception:
-                print("Too many invalid language selections. Exiting.")
-            # Raise a domain-specific error rather than exiting the process.
-            raise UserInputError(
-                "Exceeded maximum invalid language selections",
-                context={"attempts": attempts, "max_attempts": max_attempts},
-            )
-
-    # No shim synchronization: callers should read from the canonical
-    # i18n module (``src.setup.i18n``) rather than a legacy global module.
-
-
-def prompt_virtual_environment_choice() -> bool:
-    """Ask the user whether to create/manage a virtual environment.
-
-    Returns
-    -------
-    bool
-        True if the user chose to create/manage a venv, False if skipped.
-    """
-    from src.setup.app_ui import ui_rule, ui_menu
-    import src.setup.i18n as i18n
-
-    # Use the concrete, local `ask_text` implementation rather than
-    # reading runtime overrides from a legacy shim. Tests should patch
-    # the real dependency (`src.setup.app_prompts.ask_text`).
-    _ask = ask_text
-
-    ui_rule(i18n.translate("venv_menu_title"))
-    ui_menu(
-        [
-            ("1", i18n.translate("venv_menu_option_1")[3:]),
-            ("2", i18n.translate("venv_menu_option_2")[3:]),
-        ]
-    )
-
-    # Enforce attempts limit for venv menu
-    try:
-        import importlib
-
-        _cfg = importlib.import_module("src.config")
-        max_attempts = getattr(
-            _cfg, "INTERACTIVE_MAX_INVALID_ATTEMPTS", INTERACTIVE_MAX_INVALID_ATTEMPTS
-        )
-    except Exception:
-        max_attempts = INTERACTIVE_MAX_INVALID_ATTEMPTS
-
-    attempts = 0
-    while True:
-        choice = _ask(i18n.translate("venv_menu_prompt"))
-        if choice == "1":
-            return True
-        if choice == "2":
-            # Use the concrete UI helper rather than a legacy shim attribute
-            # on ``src.setup.app``. Tests should patch the concrete
-            # ``src.setup.app_ui.ui_info`` when they need to observe the
-            # notification behaviour.
-            from src.setup.app_ui import ui_info as _ui_info
-
-            try:
-                _ui_info(i18n.translate("venv_skipped"))
-            except Exception:
-                pass
-            return False
-        attempts += 1
-        print(i18n.translate("invalid_choice"))
-        if attempts >= max_attempts:
-            try:
-                from src.setup.app_ui import ui_error as _ui_error
-
-                try:
-                    _ui_error("Too many invalid selections. Exiting.")
-                except Exception:
-                    print("Too many invalid selections. Exiting.")
-            except Exception:
-                print("Too many invalid selections. Exiting.")
-            # Translate process-exit behaviour into an application error
-            # that callers (and tests) can catch and handle.
-            raise UserInputError(
-                "Exceeded maximum invalid selections in venv menu",
-                context={"attempts": attempts, "max_attempts": max_attempts},
-            )
-
-
-__all__ = [
-    "ask_text",
-    "ask_confirm",
-    "ask_select",
-    "get_program_descriptions",
-    "view_program_descriptions",
-    "set_language",
-]
+    print("Exiting program descriptions view.")

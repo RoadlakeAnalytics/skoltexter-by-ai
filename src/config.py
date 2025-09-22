@@ -1,8 +1,37 @@
-"""Global configuration constants for the project.
+"""Configuration constants for the school data pipeline project.
 
-Defines paths and filenames used across the pipeline and setup utilities.
+Defines application-wide constants for configuration, file paths, filenames, API
+parameters, timeouts, and operational guardrails. Centralizes all "magic values"
+in one place, enforcing the "configuration as code" principle. This promotes
+maintainability, consistency, and testability throughout the school data pipeline.
+
+The module contains only UPPER_SNAKE_CASE constants, grouped thematically for
+clarity. All bounds for retries, concurrency, and interactive UI prompts are
+defined here to guarantee robust and predictable runtime behavior in accordance
+with NASA's Power of 10-inspired rules. There is no runtime logic, functions,
+or classes present.
+
+Notes
+-----
+All configuration for the Launcher, Orchestrator, Pipeline, and tests should be
+managed in this module. Constants may be overridden (e.g. via environment variables)
+at runtime. For rationale on architectural separation and robustness constraints,
+see `AGENTS.md` in the root of the repository.
+
+References
+----------
+AGENTS.md : Project rules and documentation standards.
+src/exceptions.py : Defines custom error types referenced in documentation.
+
+Examples
+--------
+These module-level constants can be imported directly. Example use:
+
+>>> from src import config
+>>> print(config.PROJECT_ROOT)
+PosixPath('/path/to/the/repo/root')
+
 """
-
 from __future__ import annotations
 
 from pathlib import Path

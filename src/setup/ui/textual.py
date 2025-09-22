@@ -1,37 +1,77 @@
-"""Textual UI integration exported from the ui package.
+"""Dependency-safe Textual dashboard integration for setup UI.
 
-This module exposes the Textual application classes moved into the
-package as `textual_app.py`. Import is performed lazily and falls back to
-clear placeholders when the optional `textual` dependency is missing so
-the rest of the package can be imported in minimal environments.
+Single Responsibility Principle:
+    Exposes the dashboard application classes as safe imports from the Textual UI layer,
+    ensuring all logic outside dashboard UI remains importable even if the optional
+    `textual` dependency is missing.
+
+Architectural Role:
+    - This file only supplies a wrapper/sentinel contract for Textual-optional imports.
+    - Fully decoupled from pipeline/frontend logic, allows safe runtime and type-checking of all `ui` modules.
+    - All business logic is absent; uses error signaling to guide developers/admins to install Textual as needed.
+
 """
-
 from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .textual_app import DashboardContext, SetupDashboardApp
-else:  # pragma: no cover - optional dependency at runtime
+else:  # pragma: no cover - runtime dependency guard
+    class _MissingTextualApp:
+        r"""Sentinel class for missing Textual dependency.
 
-    class _MissingTextualApp:  # sentinel placeholder
-        """Placeholder raised when Textual dependency is not available.
+        Short summary:
+            - Instantiation always raises RuntimeError describing how to install the missing optional dependency.
 
-        Instantiating this class will raise a RuntimeError explaining how to
-        install the optional dependency.
+        Parameters
+        ----------
+        *a : Any
+            All positional arguments (ignored).
+        **k : Any
+            All keyword arguments (ignored).
+
+        Raises
+        ------
+        RuntimeError
+            Always raised to indicate that Textual is required.
+
+        Notes
+        -----
+        AGENTS.md compliant: this module only signals dependency issues,
+        does not block import of any other package logic.
+
+        Examples
+        --------
+        >>> obj = SetupDashboardApp()
+        Traceback (most recent call last):
+            ...
+        RuntimeError: Textual is not installed; install it with ...
         """
+        def __init__(self, *a: Any, **k: Any) -> None:
+            r"""Always raises RuntimeError, never constructs.
 
-        def __init__(self, *a, **k):  # pragma: no cover - runtime guard
-            """Inform the caller that the Textual dependency is missing.
+            Parameters
+            ----------
+            *a : Any
+                Positional arguments (unused).
+            **k : Any
+                Keyword arguments (unused).
 
             Raises
             ------
             RuntimeError
-                Always raised to indicate the missing optional dependency.
+                Always thrown to trigger missing dependency message.
+
+            Examples
+            --------
+            >>> SetupDashboardApp()
+            Traceback (most recent call last):
+                ...
+            RuntimeError: Textual is not installed; install it ...
             """
             raise RuntimeError(
                 "Textual is not installed; install it with `pip install textual` "
-                "to use the Textual dashboard (SetupDashboardApp)."
+                "to use SetupDashboardApp (the dashboard UI)."
             )
 
     SetupDashboardApp = _MissingTextualApp

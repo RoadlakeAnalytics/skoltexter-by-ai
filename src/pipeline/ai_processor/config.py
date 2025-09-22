@@ -1,7 +1,23 @@
-"""OpenAI configuration loader.
+"""Configuration and environment loader for the AI processor client.
 
-Encapsulates environment loading and provides a small data holder used by
-the client implementation.
+This module provides OpenAIConfig, which loads, validates, and exposes
+all configuration required by the AI pipeline for access to Azure OpenAI
+and OpenAI Service endpoints.
+
+Role in Architecture
+--------------------
+- Forms the boundary between process runtime/CI/developer environments and
+  the pipeline's strongly-typed runtime config.
+- Provides a single source of truth for API endpoint URIs, concurrency,
+  retries/backoff, and rate limiting.
+- No business or client logic: only configuration loading, structuring, and validation.
+
+Examples
+--------
+>>> from src.pipeline.ai_processor.config import OpenAIConfig
+>>> cfg = OpenAIConfig()
+>>> assert isinstance(cfg.api_key, str)
+>>> assert cfg.max_concurrent_requests > 0
 """
 
 import os
@@ -14,18 +30,91 @@ from src.config import DEFAULT_API_VERSION, DEFAULT_DEPLOYMENT_NAME
 
 
 class OpenAIConfig:
-    """Configuration holder that loads Azure/OpenAI settings from environment.
+    r"""Configuration loader and validator for Azure/OpenAI service parameters.
 
-    The constructor reads a `.env` file if present and validates that required
-    keys are available. It exposes configuration values as attributes used by
-    the AI client and processor.
+    Loads and validates configuration from environment variables and an optional
+    `.env` file, enforcing all requirements for the AI processing pipeline and
+    client connection.
+
+    Attributes
+    ----------
+    api_key : str | None
+        The API key used to authenticate with OpenAI or Azure OpenAI service.
+    endpoint_base : str | None
+        The base endpoint URI for Azure OpenAI service (if applicable).
+    deployment_name : str
+        The configured deployment name for the large language model.
+    api_version : str
+        The API version used for Azure OpenAI endpoints.
+    max_concurrent_requests : int
+        Maximum parallel requests allowed by the client.
+    target_rpm : int
+        Target requests per minute limit for client rate control.
+    max_retries : int
+        Maximum allowed retries for transient request errors.
+    backoff_factor : float
+        Exponential backoff multiplier for retries.
+    retry_sleep_on_429 : int
+        Seconds to sleep on HTTP 429 (rate limit exceeded).
+    temperature : float
+        Sampling temperature for LLM queries.
+    request_timeout : int
+        Timeout (seconds) for individual requests.
+    gpt4o_endpoint : str
+        Complete endpoint URI to submit completion requests (may be empty).
+
+    Notes
+    -----
+    Instantiate once at process start for deterministic, pre-validated config.
+    No runtime mutation is intended.
+
+    Examples
+    --------
+    >>> import os
+    >>> os.environ["API_KEY"] = "unit-test"
+    >>> from src.pipeline.ai_processor.config import OpenAIConfig
+    >>> c = OpenAIConfig()
+    >>> assert c.api_key == "unit-test"
+    >>> assert isinstance(c.max_concurrent_requests, int)
     """
 
     def __init__(self) -> None:
-        """Load environment variables and validate Azure/OpenAI configuration.
+        r"""Initialize an OpenAIConfig with strict validation of all required environment variables.
 
-        The constructor reads an optional `.env` file and populates
-        attributes consumed by the client and processor.
+        Reads configuration from environment variables and a `.env` file at the
+        project root if present, and validates presence of all required keys for
+        either OpenAI or Azure OpenAI endpoints. Populates all attributes to be
+        consumed by clients.
+
+        Raises
+        ------
+        ValueError
+            If no OpenAI/Azure API key is detected.
+        ValueError
+            If Azure credentials are set but the endpoint base is missing.
+
+        Notes
+        -----
+        Loads `.env` using `dotenv` if present, for complete testability and
+        reproducibility in CI/development.
+
+        Examples
+        --------
+        >>> import os
+        >>> os.environ["API_KEY"] = "demo"
+        >>> from src.pipeline.ai_processor.config import OpenAIConfig
+        >>> cfg = OpenAIConfig()
+        >>> print(cfg.api_key)
+        demo
+
+        Failure (missing key):
+        >>> import os
+        >>> if "API_KEY" in os.environ: del os.environ["API_KEY"]  # doctest: +SKIP
+        >>> from src.pipeline.ai_processor.config import OpenAIConfig
+        >>> try:
+        ...   OpenAIConfig()
+        ... except ValueError as e:
+        ...   assert "Missing API key" in str(e)
         """
         # Resolve project root dynamically from src.config so tests can
         # monkeypatch ``src.config.PROJECT_ROOT`` if needed. This removes

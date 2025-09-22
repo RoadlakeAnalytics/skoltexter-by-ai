@@ -1,9 +1,37 @@
-"""AI API client wrapper.
+"""ai_processor.client module.
 
-This module exposes a single class `AIAPIClient` that accepts an
-`OpenAIConfig`-like object and provides a `process_content` coroutine that
-takes a string and returns an AI-processed string. It contains only the
-networking logic and no file I/O.
+This module defines the `AIAPIClient` class, which acts as a resilient asynchronous networking boundary for all outbound AI API requests in the school data pipeline. Its strict focus is on sending payloads to a remote AI endpoint (such as a GPT-style LLM service), handling transient network failures and error recovery, and returning parsed or error-enriched responses according to the project's robustness standards.
+
+All retries, backoff, and timeout logic are performed per configuration values provided via the `config` object, ensuring bounded concurrency and fault tolerance suitable for high-volume, highly parallelized school content transformation. The client **never** performs file I/O or business logic, and does not raise exceptions directly: instead, it always returns structured tuples describing results, error types, and raw responses, so that the calling processor (or tests) can translate or escalate via the project's explicit error taxonomy.
+
+See AGENTS.md for all guardrails and documentation mandates fulfilled by this implementation.
+
+Examples
+--------
+A minimal usage demonstrates robust API call and its error pattern:
+
+>>> import aiohttp
+>>> from src.pipeline.ai_processor.client import AIAPIClient
+>>> class DummyConfig:
+...     gpt4o_endpoint = "http://example.com/v1/ai"
+...     api_key = "secret"
+...     max_retries = 2
+...     backoff_factor = 0.1
+...     request_timeout = 3
+>>> payload = {"model": "gpt-4o", "messages": [{"role": "user", "content": "Hi"}]}
+>>> client = AIAPIClient(DummyConfig())
+>>> async def main():
+...     async with aiohttp.ClientSession() as session:
+...         ok, content, raw = await client.process_content(session, payload)
+...         print(ok, content is not None)
+>>> # To actually run:
+>>> # import asyncio; asyncio.run(main())
+
+Notes
+-----
+- This module is always imported by the core pipeline layer. No UI or CLI logic should reference it directly.
+- All configuration values (timeouts, endpoints, max_retries) are injected via the config argument, never hardcoded.
+- The error return pattern is a documented architectural commitment and must not be bypassed for exceptions.
 """
 
 import asyncio
@@ -17,46 +45,135 @@ logger = logging.getLogger(__name__)
 
 
 class AIAPIClient:
-    """Client wrapper that sends payloads to the configured AI endpoint.
+    r"""Asynchronous client for sending requests to an AI API endpoint.
 
-    The class encapsulates retry/backoff and basic response parsing so the
-    higher-level processor can focus on orchestration.
-    """
+    This class provides a resilient interface for AI content processing,
+    handling HTTP communication, retries, and response parsing. It is designed
+    for use in the `ai_processor` pipeline stage, where multiple school
+    descriptions are processed concurrently. The client uses dependency
+    injection for the config and session to enable testing and modularity.
+
+    Attributes
+    ----------
+    config : Any
+        The configuration object (e.g., `OpenAIConfig`) providing API keys,
+        endpoints, retry limits, and timeouts. Accessed via getattr for
+        optional attributes.
+
+    Methods
+    -------
+    __init__(config)
+        Initializes the client with configuration.
+    process_content(session, payload)
+        Sends a payload to the AI endpoint and returns processed content or
+        error details.
+
+    Notes
+    -----
+    The client does not perform rate limiting directly but relies on
+    `aiolimiter` integration in the calling orchestrator (e.g., `processor.py`).
+    All operations are asynchronous to support high concurrency without
+    blocking the event loop.
+
+    See Also
+    --------
+    src.pipeline.ai_processor.processor.AIProcessor : Higher-level orchestrator
+        using this client for batch processing.
+    src.exceptions.ExternalServiceError : Custom exception for API failures
+        raised by callers based on this client's error returns.
 
     def __init__(self, config: Any) -> None:
-        """Initialise the AI API client with the provided configuration.
+        r"""Create a new AIAPIClient with the specified configuration.
 
         Parameters
         ----------
         config : Any
-            Configuration object exposing API keys and endpoint URLs.
+            Configuration object supplying API keys, endpoint information,
+            and all relevant limits as attributes. See 'Attributes'.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> class ExampleConf:
+        ...     gpt4o_endpoint = "http://mock"
+        ...     api_key = "secret"
+        >>> AIAPIClient(ExampleConf())
+        <src.pipeline.ai_processor.client.AIAPIClient object at ...>
         """
         self.config = config
 
     async def process_content(
         self, session: aiohttp.ClientSession, payload: dict[str, Any]
     ) -> tuple[bool, str | None, dict[str, Any] | None]:
-        """Send the payload to the AI endpoint and return parsed result.
+        r"""Send a payload to the external AI API and return a normalized result or error.
 
-        The method is resilient to a number of failure modes:
-        - Returns a configuration error if no endpoint is configured.
-        - Handles HTTP 200 responses with empty or missing `choices`.
-        - Retries on transient errors according to `max_retries` and
-          `backoff_factor` config values.
+        This is the sole method for performing an outbound model call.
+        It handles:
+          * Configuration errors (no endpoint supplied, no API key)
+          * Network issues (retries on aiohttp.ClientError and TimeoutError, up to config.max_retries)
+          * Syntax errors in the remote response (invalid or missing "choices" keys, or malformed content)
+          * HTTP 429 (rate limit) with sleep-and-retry logic
+          * Other HTTP error codes (surface as error type and body only)
+        All failure conditions are reported in the return value for elevation by the orchestrator as per the error taxonomy (src/exceptions.py).
 
         Parameters
         ----------
         session : aiohttp.ClientSession
-            An aiohttp session or a test-double that implements `post`.
+            The aiohttp session for HTTP requests. Must support
+            an async 'post' method. Used and not closed by this method.
         payload : dict[str, Any]
-            The JSON payload to post to the AI endpoint.
+            The JSON-serializable payload to send to the AI endpoint.
 
         Returns
         -------
-        tuple[bool, str | None, dict[str, Any] | None]
-            A tuple `(ok, cleaned_content, raw_response)` where `ok` is True
-            on success, `cleaned_content` is the extracted text, and
-            `raw_response` is the parsed JSON response when available.
+        tuple[bool, str or None, dict[str, Any] or None]
+            Tuple of three elements:
+              - ok : bool
+                  True if valid content was extracted, otherwise False.
+              - cleaned_content : str or None
+                  The decoded response text, stripped of common code fences, or None on failure.
+              - raw_response : dict or None
+                  The parsed JSON response if returned, or a dict describing error metadata, or None.
+
+        Raises
+        ------
+        Does not raise, but error modes in the result include:
+          - ConfigurationError (no endpoint/API key)
+          - ClientError (network failure)
+          - TimeoutError (request exceeded configured timeout)
+          - Exception (unexpected error; see message)
+          - HTTP error with status code and body
+
+        See Also
+        --------
+        src.exceptions.ExternalServiceError
+            May be raised by pipeline code if this method yields a terminal error.
+        src/pipeline/ai_processor/processor.py
+            For handling and escalation of tuple-based errors.
+
+        Examples
+        --------
+        >>> import aiohttp
+        >>> class DummyConf:
+        ...     gpt4o_endpoint = "http://invalid_url"
+        ...     api_key = "x"
+        ...     max_retries = 0
+        ...     backoff_factor = 0.01
+        >>> payload = {"model": "x", "messages": [{"role": "user", "content": "test"}]}
+        >>> client = AIAPIClient(DummyConf())
+        >>> async def run_test():
+        ...     async with aiohttp.ClientSession() as session:
+        ...         ok, content, resp = await client.process_content(session, payload)
+        ...         assert ok is False
+        ...         assert "error_type" in (resp or {})
+        >>> # To run: import asyncio; asyncio.run(run_test())
+
+        Notes
+        -----
+        No exceptions will propagate to the caller; inspect the returned tuple for 'ok' and error type.
         """
         if not getattr(self.config, "gpt4o_endpoint", ""):
             return (

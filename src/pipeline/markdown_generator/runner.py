@@ -1,8 +1,34 @@
-"""CLI runner helpers for the markdown generator pipeline.
+"""Markdown Generator Runner Module.
 
-Provides a small, test-friendly entrypoint that other orchestration code
-can call directly instead of spawning a separate process. This replaces
-the previous top-level script API and removes the need for legacy shims.
+This module provides the testable, programmatic entrypoints and logging configuration utilities
+for the markdown generator step in the school data pipeline. It acts as the boundary API
+between orchestration/UI layers and the core markdown generation logic, enforcing strict separation
+of concerns as described in AGENTS.md standards.
+
+Its primary responsibility is to expose directly callable functions that replace legacy script-based
+interfaces, supporting robust automation, integration testing, and reproducibility. No business logic
+is present; all pipeline functionality is delegated to `processor.py` and `templating.py`. This ensures
+the core pipeline can run independently of any UI or CLI, fully in line with the project's decoupling targets.
+
+References
+----------
+- See AGENTS.md Section 3 (Architecture).
+- See data/templates/school_description_template.md and src/pipeline/markdown_generator/processor.py for implementation details.
+- Tests: tests/pipeline/markdown_generator/test_runner_unit.py.
+
+Notes
+-----
+All configuration values (paths, filenames, log format, etc.) are loaded via src/config.py as portfolio best practice.
+Docstrings and API interfaces comply strictly with NumPy and AGENTS.md requirements.
+
+Examples
+--------
+Basic usage from Python code:
+
+>>> from src.pipeline.markdown_generator.runner import run_from_config, configure_logging
+>>> configure_logging(log_level="INFO")  # optional: set up logging
+>>> success = run_from_config()  # run with config defaults
+>>> assert isinstance(success, bool)
 """
 
 from __future__ import annotations
@@ -26,11 +52,44 @@ logger = logging.getLogger(__name__)
 
 
 def configure_logging(log_level: str = "INFO", enable_file: bool = True) -> None:
-    """Configure logging for markdown generator runs.
+    r"""Configure logging for markdown generator pipeline execution.
 
-    This function mirrors the old entrypoint behaviour by attempting to
-    add a file handler but swallowing file handler creation errors to
-    facilitate testing.
+    Sets up both stream (console) and optional file logging handlers, applying the log format from project
+    configuration. File handler creation errors are intentionally swallowed to ensure test isolation
+    and reproducibility. This mirrors legacy script entrypoint behavior but is resilient for modern pipeline usage.
+
+    Parameters
+    ----------
+    log_level : str, optional
+        The logging level (e.g., "INFO", "DEBUG"). Defaults to "INFO".
+    enable_file : bool, optional
+        Whether to enable writing logs to a file. If True, uses LOG_DIR and LOG_FILENAME_GENERATE_MARKDOWNS
+        from src.config.py. Defaults to True.
+
+    Returns
+    -------
+    None
+        No return value.
+
+    Raises
+    ------
+    None
+        All exceptions during file handler creation are swallowed for safety.
+
+    See Also
+    --------
+    src.config.py : Contains LOG_DIR, LOG_FILENAME_GENERATE_MARKDOWNS, and LOG_FORMAT.
+    run_from_config : Pipeline runner below.
+
+    Notes
+    -----
+    This function clears out all existing handlers for root logger before configuring new ones.
+    It is safe to call repeatedly; it is idempotent.
+
+    Examples
+    --------
+    >>> from src.pipeline.markdown_generator.runner import configure_logging
+    >>> configure_logging(log_level="DEBUG", enable_file=False)
     """
     for h in logging.root.handlers[:]:
         logging.root.removeHandler(h)

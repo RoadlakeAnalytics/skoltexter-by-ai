@@ -1,14 +1,51 @@
-# src/exceptions.py
-"""Centralized application error hierarchy.
+"""exceptions.py
 
-This module defines a consistent, structured set of exception classes for the
-application. All application-level errors should inherit from the base ``AppError``.
-Third-party exceptions should be caught at the application boundary and
-re-raised as one of these specific types to create a clear and stable
-error taxonomy.
+Defines a centralized, explicit exception hierarchy for the school data pipeline.
 
-This module is part of the core pipeline layer (``src/pipeline/``) and provides
-the canonical exceptions used throughout the application.
+This module provides the `AppError` base class and a complete set of
+project-specific exception types, establishing a stable error taxonomy required
+for robust, auditable error handling as mandated by the project guardrails. All
+custom exceptions must subclass `AppError`, ensuring:
+    - Consistent error codes for programmatic and user-facing outputs.
+    - Machine-readable context for safe, structured logging at all layers.
+    - Distinction between transient (retryable) and permanent errors.
+    - Decoupling from third-party exceptions.
+
+Third-party exceptions (such as from `aiohttp`, `pandas`) are never propagated
+directly—catch them at process boundaries and re-raise with the appropriate
+specialized application error from this module.
+
+This file is imported by every pipeline component (launcher, orchestrator, and
+core processing layers) to ensure strict, uniform error signaling and taxonomy,
+enabling robust logging, alerting, and testing.
+
+Module Layout
+-------------
+- AppError : The root error class, with structured code/message/context/transient.
+- ConfigurationError : Raised for missing or invalid config.
+- DataValidationError : Raised on schema/content validation failure.
+- UserInputError : Raised for invalid or excessive user input.
+- APIRateLimitError : Raised when an API signals a rate/exhaustion condition.
+- RetryExhaustedError : Raised when all retries fail for a transient error.
+- TimeoutExceededError : Raised on deadline/time budget exhaustion.
+- ExternalServiceError : Raised for unexpected external service failures.
+
+References
+----------
+.. [1] AGENTS.md, "Explicit Error Taxonomy (Centralized Exceptions)", Section 5.2
+
+Examples
+--------
+>>> from src.exceptions import AppError, DataValidationError
+>>> e = AppError("TEST_CODE", "Test message")
+>>> str(e)
+'TEST_CODE: Test message'
+>>> e.to_dict()["error_code"]
+'TEST_CODE'
+>>> err = DataValidationError("Missing required column", context={"file": "table.csv"})
+>>> err.code
+'DATA_VALIDATION_ERROR'
+
 """
 
 from __future__ import annotations
@@ -17,18 +54,64 @@ from typing import Any, Mapping
 
 
 class AppError(Exception):
-    """Base class for all application-level errors.
+    r"""Base exception for all application-level errors in the pipeline.
+
+    All application-specific exceptions must inherit from this root class,
+    providing a stable error code, human-friendly message, log-safe context,
+    and a transient flag for bounded retry logic.
+
+    This class enables:
+      - Standardized error reporting and handling everywhere in the project.
+      - Safe structured logging without exposure of secrets.
+      - Downstream separation of permanent vs transient failures for robust retry
+        and alerting.
+      - Use-cases defined explicitly via the required taxonomy in AGENTS.md.
+
+    Use `AppError` directly only for generic, uncategorized errors. For all
+    canonical error types, use named subclasses.
+
+    Parameters
+    ----------
+    See constructor for init signature.
 
     Attributes
     ----------
     code : str
-        A stable, machine-readable error code (e.g., 'DATA_VALIDATION_ERROR').
+        Stable, machine-readable error code (e.g., "DATA_VALIDATION_ERROR").
     message : str
-        A human-readable message suitable for logs and user feedback.
+        Human-readable message, never containing secrets.
     context : Mapping[str, Any]
         Structured, non-sensitive details for logging (e.g., file names, IDs).
     transient : bool
         True if the error is temporary and a retry might succeed.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    The error taxonomy and design are described in AGENTS.md section 5.2
+    ("Explicit Error Taxonomy (Centralized Exceptions)").
+
+    References
+    ----------
+    .. [1] AGENTS.md, "Explicit Error Taxonomy (Centralized Exceptions)", Section 5.2
+
+    Examples
+    --------
+    >>> from src.exceptions import AppError
+    >>> e = AppError("TEST_CODE", "Test message", context={"key": "value"}, transient=True)
+    >>> e.code
+    'TEST_CODE'
+    >>> e.transient
+    True
+    >>> e.context["key"]
+    'value'
+    >>> str(e)
+    'TEST_CODE: Test message'
+    >>> e.to_dict()['is_transient']
+    True
     """
 
     __slots__ = ("code", "message", "context", "transient")
@@ -41,18 +124,22 @@ class AppError(Exception):
         context: Mapping[str, Any] | None = None,
         transient: bool = False,
     ) -> None:
-        """Initialize the application error.
+        r"""Initialize an AppError instance with structured error details.
+
+        This constructor sets the core attributes and ensures the exception
+        message is set via the superclass. It normalizes context to a dict
+        and booleanizes transient for consistency in retry decisions.
 
         Parameters
         ----------
         code : str
-            Stable machine-readable error code.
+            Stable machine-readable error code (e.g., 'DATA_VALIDATION_ERROR').
         message : str
-            Human-readable message without secrets.
+            Human-readable message without secrets or sensitive data.
         context : Mapping[str, Any] | None, optional
-            Structured, non-sensitive details for logging.
+            Structured, non-sensitive details for logging (defaults to empty dict).
         transient : bool, optional
-            True if the error is temporary and retries may succeed.
+            Indicates if the error is temporary and retries may succeed (default False).
 
         Returns
         -------
@@ -61,9 +148,14 @@ class AppError(Exception):
 
         Examples
         --------
+        >>> from src.exceptions import AppError
         >>> e = AppError('DATA_VALIDATION_ERROR', 'Missing column', context={'file': 'a.csv'})
         >>> isinstance(e, Exception)
         True
+        >>> e.code
+        'DATA_VALIDATION_ERROR'
+        >>> e.context
+        {'file': 'a.csv'}
         """
         super().__init__(message)
         self.code = code

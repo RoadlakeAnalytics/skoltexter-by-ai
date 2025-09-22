@@ -1,9 +1,22 @@
-"""Processor orchestrator for AI file processing.
+"""SchoolDescriptionProcessor: AI Description Orchestration Layer.
 
-This module contains the `SchoolDescriptionProcessor` class which wires the
-client, file handling and prompt/template parsing into a single orchestration
-unit. The heavy networking lives in `AIAPIClient`; the processor handles
-file discovery, per-file flow and persistence.
+This module orchestrates the transformation of prestructured school markdown files into rich, AI-generated descriptions and corresponding raw API responses, forming a core link in the school's data-processing pipeline.
+
+It implements the SchoolDescriptionProcessor class, which discovers input files, constructs and populates AI prompt templates, coordinates asynchronous API calls, and persists both cleaned markdown outputs and structured response artifacts. It delegates all networking to AIAPIClient, ensuring separation of IO orchestration and API communication concerns.
+
+This module is consumed by the headless batch pipeline and invoked through orchestrator-layer UI, and is intended to be fully decoupled, testable, and robust under varied concurrency and I/O workloads. All output, IO, and error management follows the explicit architectural standards defined in AGENTS.md. Portfolio-quality documentation and clear, complete error reporting are strict requirements.
+
+Examples
+--------
+Process all found markdown files and print summary statistics:
+
+>>> from src.pipeline.ai_processor.processor import SchoolDescriptionProcessor
+>>> from src.config import TestConfiguration
+>>> from pathlib import Path
+>>> processor = SchoolDescriptionProcessor(TestConfiguration(), Path("testdata/in"), Path("testdata/out"))
+>>> # In practice, run inside `asyncio.run(...)`
+>>> # stats = asyncio.run(processor.process_all_files())
+>>> # print(stats)
 """
 
 from __future__ import annotations
@@ -31,24 +44,41 @@ logger = logging.getLogger(__name__)
 
 
 class SchoolDescriptionProcessor:
-    """Orchestrates reading markdown files, calling the AI client and saving results.
+    """Orchestrate AI-powered transformation of school markdowns into AI-enhanced outputs.
 
-    This class discovers markdown files in the input directory, constructs
-    AI payloads from a prompt template, calls the AI client and persists the
-    generated descriptions and raw responses.
+    This class discovers, manages, and processes input markdown data for each school, constructing AI prompt payloads, invoking the AI API client, and persisting both cleaned descriptions and full raw API payloads as required by the project pipeline. All IO and orchestration is strictly decoupled from networking, and this class guarantees robust, repeatable processing and error handling compliant with architectural standards.
+
+    Examples
+    --------
+    Instantiate and process all markdown files:
+
+    >>> from src.pipeline.ai_processor.processor import SchoolDescriptionProcessor
+    >>> from src.config import TestConfiguration
+    >>> from pathlib import Path
+    >>> processor = SchoolDescriptionProcessor(TestConfiguration(), Path("tests/data/in"), Path("tests/data/out"))
+    >>> # Results are saved to markdown and JSON outputs per AI run.
     """
 
     def __init__(self, config: Any, input_dir: Path, output_dir_base: Path) -> None:
-        """Initialize the processor with configuration and IO directories.
+        """Initialize the processor with specific configuration and IO directories.
+
+        This constructor sets up the output directories and loads the prompt template. It is robust against missing paths and is generally called by the orchestrating pipeline component.
 
         Parameters
         ----------
         config : Any
-            Configuration object providing API and rate-limit settings.
+            Configuration object specifying API keys, endpoints, and resource limits.
         input_dir : Path
-            Directory containing input markdown files.
+            Filesystem directory from which markdown files are read.
         output_dir_base : Path
-            Base directory where processed outputs and raw responses are written.
+            Root directory where all processed outputs (markdown and JSON) are written.
+
+        Examples
+        --------
+        >>> from src.config import TestConfiguration
+        >>> from src.pipeline.ai_processor.processor import SchoolDescriptionProcessor
+        >>> from pathlib import Path
+        >>> proc = SchoolDescriptionProcessor(TestConfiguration(), Path("src/test/in"), Path("src/test/out"))
         """
         self.config = config
         self.client = AIAPIClient(config)
@@ -65,17 +95,32 @@ class SchoolDescriptionProcessor:
 
     @staticmethod
     def _load_prompt_template(template_path: Path) -> str:
-        """Load the AI prompt template from disk.
+        """Load an AI prompt template file from disk.
+
+        Reads the file located at `template_path` and returns its contents as a string.
 
         Parameters
         ----------
         template_path : Path
-            Filesystem path to the prompt template file.
+            The absolute or relative filesystem path to a UTF-8 encoded prompt template.
 
         Returns
         -------
         str
-            Contents of the template file as a string.
+            The full contents of the prompt template as a single string.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the file does not exist at the supplied path.
+        UnicodeDecodeError
+            If the file is not properly UTF-8 encoded.
+
+        Examples
+        --------
+        >>> from pathlib import Path
+        >>> SchoolDescriptionProcessor._load_prompt_template(Path("data/templates/ai_prompt_template.txt"))[:12]
+        'SYSTEM: You'
         """
         with template_path.open("r", encoding="utf-8") as fh:
             return fh.read()
@@ -206,23 +251,44 @@ class SchoolDescriptionProcessor:
         rate_limiter: AsyncLimiter,
         semaphore: asyncio.Semaphore,
     ) -> bool:
-        """Process a single school's markdown file through the AI.
+        """Process a single school's markdown file, running AI and saving outputs.
+
+        This is the main per-file orchestration method: it checks for existing outputs for idempotency, loads and prepares the prompt, submits to the language model, saves both cleaned markdown and raw API JSON artifacts, and returns robust status.
 
         Parameters
         ----------
         session : aiohttp.ClientSession
-            HTTP client session or a test double providing a ``post`` method.
+            HTTP client session or compatible test mock.
         markdown_file_path : Path
-            Path to the input markdown file for the school.
+            Path to the markdown file for the school.
         rate_limiter : AsyncLimiter
-            Rate limiter used to throttle API calls.
+            Instance throttling API calls.
         semaphore : asyncio.Semaphore
-            Semaphore to bound concurrent processing.
+            Limits concurrency/fan-out.
 
         Returns
         -------
         bool
-            True on success or when the output already exists; False on failure.
+            Returns True if the processing succeeded, or was already done. False on error.
+
+        Raises
+        ------
+        Exception
+            (Robustly logged and handled, rarely re-raised).
+
+        Notes
+        -----
+        Uses tolerant TypeError handling to improve test monkeypatch compatibility.
+
+        Examples
+        --------
+        >>> import asyncio, aiohttp
+        >>> from aiolimiter import AsyncLimiter
+        >>> p = SchoolDescriptionProcessor(TestConfig(), Path("i"), Path("o"))
+        >>> async def proc_one():
+        ...     async with aiohttp.ClientSession() as sess:
+        ...         return await p.process_school_file(sess, Path("school1.md"), AsyncLimiter(100,1), asyncio.Semaphore(2))
+        >>> # asyncio.run(proc_one()) # test file must exist, see actual test suite
         """
         school_id = markdown_file_path.stem
         # Support legacy and current filename patterns when checking for

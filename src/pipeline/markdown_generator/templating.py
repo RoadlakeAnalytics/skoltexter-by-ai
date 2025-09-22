@@ -1,4 +1,36 @@
-"""Templating utilities for markdown generation."""
+"""Templating utilities for Markdown-driven website generation.
+
+This module provides a robust, stateless templating API for the School Data Pipeline project.
+Its sole responsibility is handling template file loading, placeholder extraction, and
+context-driven rendering, enabling clean transformation of CSV-driven data into human-friendly
+Markdown blocks. All code is rigorously decoupled—no pipeline, orchestration, or side-effect logic
+lives here. It is built to be usable from tests, CLI scripts, and orchestrators alike.
+
+Boundaries
+----------
+- Does not write to disk or interact with network/IO outside template file reads.
+- Only string and file Path handling; does not interpret Markdown or HTML.
+- No external side effects; deterministic given inputs.
+- All configuration (e.g., missing data placeholder) is injected from `src/config.py`.
+
+References
+----------
+- See `AGENTS.md`, "Templating for Separation of Concerns".
+- Template files: `data/templates/school_description_template.md`, etc.
+- Used by: `src/pipeline/markdown_generator/runner.py, processor.py`.
+
+Portfolio Usage
+---------------
+Example usage in a pipeline step:
+
+>>> from src.pipeline.markdown_generator.templating import (
+...     load_template, extract_placeholders_from_template, render_template
+... )
+>>> template = load_template(Path("data/templates/school_description_template.md"))
+>>> placeholders = extract_placeholders_from_template(template)
+>>> output = render_template(template, {"Name": "Sundby School", "Location": "Stockholm"})
+>>> assert isinstance(output, str)
+"""
 
 import re
 from pathlib import Path
@@ -7,7 +39,37 @@ from src.config import MISSING_DATA_PLACEHOLDER
 
 
 def load_template(path: Path) -> str:
-    """Load the template file contents as a string.
+    r"""Read the contents of a template file as a string.
+
+    Loads a Markdown or text template from disk to memory. Used as the first step in
+    all site and prompt templating. This function is strictly responsible for reading
+    the file and does not perform validation or placeholder extraction.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the template file to be loaded.
+
+    Returns
+    -------
+    str
+        Contents of the template file as a string.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the file does not exist.
+    OSError
+        If the file cannot be read due to permissions or disk errors.
+
+    Examples
+    --------
+    >>> from pathlib import Path
+    >>> from src.pipeline.markdown_generator.templating import load_template
+    >>> path = Path("data/templates/school_description_template.md")
+    >>> content = load_template(path)
+    >>> assert isinstance(content, str) and "{Name}" in content
+    """
 
     Parameters
     ----------

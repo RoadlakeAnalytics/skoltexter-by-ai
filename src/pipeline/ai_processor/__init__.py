@@ -1,13 +1,32 @@
-"""AI processor package.
+"""The ai_processor package provides headless AI-driven data transformation for pipeline automation.
 
-This package isolates API client logic, configuration loading and file
-handling for AI processing.
+This package acts as the core AI processing layer within the pipeline architecture. It encapsulates asynchronous API client logic, configuration parsing, and file handling utilities required for large-scale content generation and post-processing steps involving external AI services. Its public API is stable and intended for use by both high-level pipeline runners and test suites.
 
-It also exposes a small set of lightweight compatibility helpers that were
-previously available on the legacy top-level entrypoint module
-``src.program2_ai_processor``. Tests and other modules should prefer using
-the concrete implementations in :mod:`src.pipeline.ai_processor`, however
-the compatibility layer here reduces churn while the refactor is finished.
+A limited number of lightweight compatibility helpers are provided for legacy modules, easing migration by preserving old import paths temporarily. Users are encouraged to depend directly on the concrete implementations documented below.
+
+The package does not expose any user-facing commands or entrypoints; execution should always occur via orchestrators or dedicated scripts.
+
+Modules exported
+----------------
+AIAPIClient
+    The resilient asyncio-driven API client for interacting with AI services.
+OpenAIConfig
+    Pipeline configuration class for model and service endpoints.
+SchoolDescriptionProcessor
+    Orchestrates the transformation of raw/templated text into AI-generated markdown.
+find_markdown_files, save_processed_files
+    File system helpers supporting batch processing of result artifacts.
+
+Examples
+--------
+Import the primary interface objects for integration:
+
+>>> from src.pipeline.ai_processor import AIAPIClient, SchoolDescriptionProcessor, find_markdown_files
+>>> client = AIAPIClient(OpenAIConfig(...))
+>>> processor = SchoolDescriptionProcessor(client)
+>>> files = find_markdown_files("data/markdown_inputs/")
+>>> # Process files using your orchestrator logic...
+
 """
 
 from __future__ import annotations

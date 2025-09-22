@@ -1,7 +1,64 @@
-"""Higher-level virtual environment manager.
+"""Virtual environment manager orchestration layer for setup flows.
 
-Encapsulates venv creation and package installation flow using a provided
-UI adapter for prompts and output.
+This module provides a portfolio-grade orchestration interface to create
+and update Python virtual environments for project bootstrapping and CI,
+suitable for strict test coverage and robust automation. It adheres to
+the architecture's separation of responsibilities, operating solely as
+the orchestrator entrypoint for environment lifecycle control, using an
+adapter pattern for all UI, prompt, and process interactions.
+
+Single Responsibility Principle (SRP):
+    - Manages virtual environment creation, safe recreation, and atomic
+      requirements installation in response to interactive or scripted
+      calls via a UI adapter. It is explicitly unaware of business logic
+      (pipeline/data), orchestration sequencing (menus, branching),
+      and downstream processing.
+
+System/CI Boundaries:
+    - Interacts with the project's config (see `src/config.py`) for
+      VENV_DIR, requirements filenames, and timeouts via UPPER_SNAKE_CASE
+      constants and environment variables.
+    - Detects and safeguards test/CI execution using the
+      PYTEST_CURRENT_TEST and SETUP_PIP_TIMEOUT environment variables to
+      ensure reproducible, non-destructive runs in pytest/CICD.
+    - Custom exception taxonomy is strictly enforced: all exceptions raised
+      from application logic are expected to be instances of custom classes
+      (see `src/exceptions.py`), and any third-party exceptions will be
+      caught, logged, and filtered/non-propagating where destructive.
+    - Migration guards are implemented to prevent legacy flow failures
+      during migration from shims; see dev journal 2025-09-21.
+
+Usage:
+    - Called only from launch or orchestrator UI layers (`setup_project.py`,
+      `src/setup/app_runner.py`), never directly by core pipeline logic.
+    - Employs a UI adapter providing contract attributes (`ask_text`,
+      `rprint`, `logger`, `subprocess`, etc.), supporting both robust TUI
+      (Rich) and CI mocks (see `tests/setup/test_venv_manager.py`).
+    - Removes, creates, or updates venv atomically, installing requirements
+      with hash enforcement and displaying clear user messaging for success,
+      failure, or destructive choices.
+
+Edge/Corner/Canonical Audit:
+    - Safeguards against destructive venv removals under test/CI.
+    - Full branching for recreate, skip, creation failure, missing pip/
+      python, permissions, timeouts, and restart conditions.
+    - Environment variables and config are always validated before use;
+      see `src/config.py` and tests for all canonical cases.
+
+Robustness/CI Traceability:
+    - All subprocess and file operations are guarded against race and
+      permission failures, logged and covered by explicit tests.
+    - Strict docstring coverage (`interrogate`) and type hinting required.
+
+References:
+    - src/config.py: Configuration values and environment integration.
+    - src/exceptions.py: Custom error taxonomy.
+    - data/templates/: Not used directly, but required downstream.
+    - tests/setup/test_venv_manager.py: Full coverage for all flows,
+      guardrails, fail/trap behaviors.
+    - docs/dev_journal/2025-09-21_migration_from_shims_and_test_fixes.md:
+      Background for migration-specific guards.
+
 """
 
 from __future__ import annotations
@@ -12,7 +69,8 @@ import subprocess
 import sys
 import venv
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+from types import ModuleType
 
 from . import venv as venvmod
 from .fs_utils import create_safe_path, safe_rmtree
@@ -116,10 +174,12 @@ def manage_virtual_environment(
             # by safe_rmtree). See the development journal entries for
             # background and migration guidance.
             pytest_running = bool(os.environ.get("PYTEST_CURRENT_TEST"))
+            cfg: Optional[ModuleType] = None
+            cfg_vdir: Optional[Path] = None
             try:
                 import src.config as cfg  # local import to avoid cycles
-
-                cfg_vdir = cfg.VENV_DIR
+                if cfg is not None:
+                    cfg_vdir = cfg.VENV_DIR
             except Exception:
                 cfg = None
                 cfg_vdir = None
