@@ -2079,3 +2079,130 @@ Ingen produktionskod ändrades. Ändringen påverkar endast testkonfigurationen 
 
 **5. Verifiering**
 Körde `timeout 30s venv/bin/pytest --maxfail=1 -q` efter ändringen — testsviten kördes igenom och varningarna `GetPassWarning` rapporterades inte längre.
+
+### Omgång 2025-09-21 20:00 - Ersättning av `tests/setup/test_app_import_variants.py`
+
+**1. Problembeskrivning**
+*   **Original testfil:** `tests/setup/test_app_import_variants.py`
+*   **Grundorsak:** Testet var designat för att verifiera import‑beteende i en legacy shim (`src/setup/app.py`) genom att manipulera ``sys.modules``. Detta gjorde testet beroende av en tillfällig, global modulnyckel och motverkade målet att testa den faktiska, refaktorerade logiken.
+
+**2. Åtgärd**
+Den gamla testfilen raderades helt och ersattes med ett nytt, kanoniskt test som direkt testar den konkreta produktionsmodulen.
+
+*   Raderad fil: `tests/setup/test_app_import_variants.py` (removed because it tested the shim itself).
+*   Ny kanonisk testfil: `tests/setup/test_console_helpers.py`.
+
+Det nya testet fokuserar uteslutande på :mod:`src.setup.console_helpers` och täcker:
+
+-    `ui_has_rich()` — returns True only when the optional `rich` package is importable and the module's runtime environment provides a console instance.
+-    `Panel` fallback — when `rich` is not present the module exposes a lightweight fallback Panel implementation; when `rich` is present the symbol should refer to the upstream implementation.
+
+Teknik: testerna använder ``monkeypatch`` för att temporärt injicera a minimal fake ``rich`` package (and its submodules) into ``sys.modules`` or to remove it entirely, then use ``importlib.reload`` on the concrete module so the guarded imports are re-evaluated in the controlled test context. Tests do not import or reference ``src.setup.app`` at any point.
+
+**3. Konsolidering av Tester**
+Inga ytterligare testflyttningar krävdes — det nya testfallet är kanoniskt för funktionen som testas.
+
+**4. Korrigering av Produktionskoden**
+Ingen produktionskod behövde ändras för denna åtgärd; arbetet var en ren test-migrering för att eliminera beroendet på legacy-shimmen.
+
+**5. Verifiering**
+Körde `pytest -q tests/setup/test_console_helpers.py` — alla tester i filen är **GRÖNA**.
+
+**6. Docstrings & Stil**
+Den nya testfilen innehåller tydliga, korta NumPy‑stil docstrings för hjälpfunktioner och testfall, i enlighet med projektriktlinjerna.
+
+### Omgång 2025-09-21 20:30 - Ersättning av `tests/setup/test_app_import_variants_extra.py`
+
+**1. Problembeskrivning**
+*   **Original testfil:** `tests/setup/test_app_import_variants_extra.py`
+*   **Grundorsak:** Filen laddade legacy-shimmen (`src.setup.app`) under olika `sys.modules`-tillstånd för att utvärdera importlogik. Det testade i praktiken shimmen i stället för de konkreta implementationerna och upprätthöll därför det oönskade beroendet vi håller på att eliminera.
+
+**2. Åtgärd**
+Den gamla testfilen raderades. Den meningsfulla testlogiken (verifiering av att `Panel` finns när en stubbed `rich.panel` tillhandahåller den) konsoliderades i den kanoniska filen `tests/setup/test_console_helpers.py`.
+
+*   Raderad fil: `tests/setup/test_app_import_variants_extra.py`.
+*   Mottagande kanonisk fil: `tests/setup/test_console_helpers.py` (innehåller nu fokuserade tester för `ui_has_rich()` och `Panel`‑beteendet).
+
+Beslut: Eftersom den ursprungliga filen testade en temporär kompatibilitets-shim så var radering och konsolidering till den konkreta testfilen den korrekta, långsiktiga lösningen.
+
+**3. Konsolidering av Tester**
+All testlogik som rör `src.setup.console_helpers` finns nu i `tests/setup/test_console_helpers.py` och ingen annan testfil testar shim‑beteendet.
+
+**4. Korrigering av Produktionskoden**
+Ingen ändring i produktionskoden behövdes; förbättringen var enbart en test-migrering för att ta bort beroendet på shimmen.
+
+**5. Verifiering**
+Körde `pytest -q tests/setup/test_console_helpers.py` — alla tester i filen är **GRÖNA**.
+
+**6. Docstrings & Stil**
+Den raderade filens syfte var test‑infrastruktur; den nya, kanoniska filen följer NumPy‑docstring‑standarden och projektets stilriktlinjer.
+
+### Omgång 2025-09-21 21:00 - Ersättning av `tests/setup/test_app_more_unit.py`
+
+**1. Problembeskrivning**
+*   **Original testfil:** `tests/setup/test_app_more_unit.py`
+*   **Grundorsak:** Filen var en samling av flera små enhetstester som i stor utsträckning förlitade sig på den legacy‑shimmen (`src.setup.app`) genom att både importera den och injicera attribut på modulobjektet. Många av dess testfall var redan migrerade till kanoniska testfiler men filen innehöll fortfarande några dubbletter och ett par testfall som behövde konsolideras.
+
+**2. Åtgärd**
+Den gamla filen raderades helt. De meningsfulla, icke‑duplicerade testfallen migrerades eller bekräftades i de kanoniska testfilerna:
+
+- `tests/setup/test_app_runner_unit.py` — mottog de entry-point-relaterade testerna som verifierar att `entry_point` anropar `set_language` när språkprompt inte är bortkopplad och respekterar `SETUP_SKIP_LANGUAGE_PROMPT` när den är satt. Dessa testfall lades till i den kanoniska testfilen som patchar konkreta implementationer i `src.setup.app_runner` och `src.setup.app_prompts`.
+- `tests/setup/test_app_prompts.py`, `tests/setup/test_app_ui.py`, och `tests/setup/test_console_helpers.py` — verifierar nu respektive prompt/UI/console‑beteende; flera dubbletter i den gamla filen var redan täckta här.
+
+*   Raderad fil: `tests/setup/test_app_more_unit.py`.
+
+Beslut: Konsolidering till de kanoniska filerna förbättrar testernas determinism och eliminerar beroendet på ett globalt shim‑objekt i `sys.modules`.
+
+**3. Konsolidering av Tester**
+All relevant testlogik finns nu i kanoniska filer: `tests/setup/test_app_runner_unit.py`, `tests/setup/test_app_prompts.py`, `tests/setup/test_app_ui.py`, och `tests/setup/test_console_helpers.py`.
+
+**4. Korrigering av Produktionskoden**
+Ingen ytterligare produktionskod behövde ändras; förändringen var en test‑migrering som säkerställer att testerna patchar konkreta moduler i stället för en legacy shim.
+
+**5. Verifiering**
+Körde `pytest -q tests/setup/test_app_runner_unit.py` — alla tester i filen är **GRÖNA**.
+
+**6. Docstrings & Stil**
+De tillagda testerna i `tests/setup/test_app_runner_unit.py` följer NumPy‑stil docstrings och projektets testkonventioner.
+
+### Omgång 2025-09-21 21:30 - Radering av `tests/setup/test_setup_project_unit.py`
+
+**1. Problembeskrivning**
+*   **Original testfil:** `tests/setup/test_setup_project_unit.py`
+*   **Grundorsak:** Filen innehöll en uppsättning tester för top‑level launcher/skriptet (`setup_project.py`) som i praktiken testade shim‑beteende och duplicerade coverage som redan fanns i de konkreta testfilerna för `app_venv`, `app_runner`, och `app_prompts`.
+
+**2. Åtgärd**
+Filen raderades. De relevanta beteendena verifieras i kanoniska modultester:
+
+- `tests/setup/test_app_venv.py` täcker `run_program`, `manage_virtual_environment` och relaterade venv‑(helper).
+- `tests/setup/test_app_runner_unit.py` täcker entrypoint/runner‑logik som `entry_point` och relaterade orkestreringsflöden.
+- `tests/setup/test_app_prompts.py` och `tests/setup/test_app_ui.py` täcker prompt‑ och UI‑beteenden.
+
+Beslut: Eftersom de flesta testfallen var antingen duplicerade eller bättre placerade i de konkreta modulfilerna, var radering och konsolidering den korrekta strategin.
+
+**3. Konsolidering av Tester**
+All relevant testlogik för launcher‑funktionalitet finns nu i kanoniska modultester listade ovan.
+
+**4. Korrigering av Produktionskoden**
+Ingen ändring i produktionskoden behövdes; ändringen var en testmigrering.
+
+**5. Verifiering**
+Körde `pytest -q tests/setup/test_app_venv.py tests/setup/test_app_runner_unit.py tests/setup/test_console_helpers.py tests/setup/test_app_prompts.py tests/setup/test_app_ui.py` — alla körda tester var **GRÖNA**.
+
+**6. Docstrings & Stil**
+Alla flyttade/nyttjade tester följer NumPy‑stil docstrings och projektets testkonventioner.
+
+### Omgång 2025-09-21 22:00 - Radering av `tools/migrate_shim_tests.py`
+
+**1. Problembeskrivning**
+*   **Verktyg:** `tools/migrate_shim_tests.py`
+*   **Grundorsak:** Detta hjälpskript användes ursprungligen för att automatisera migration av testsom injicerade en `ModuleType("src.setup.app")` i ``sys.modules``. Efter den manuella, noggranna migreringen av tester och konsolideringen till konkreta testfiler är skriptet överflödigt och kan missleda framtida bidragsgivare att återintroducera shims.
+
+**2. Åtgärd**
+Filen `tools/migrate_shim_tests.py` raderades permanent från kodbasen eftersom dess funktionalitet inte längre behövs och den utgör en risk för återintroduktion av teknisk skuld.
+
+**3. Verifiering**
+Efter borttagning kördes `pytest` på hela repot — samtliga tester kördes igenom och var **GRÖNA**, vilket bekräftar att borttagningen inte påverkade testsviten.
+
+**4. Dokumentation**
+Verktygets borttagning dokumenteras här så framtida bidragsgivare förstår att migrationen är slutförd och att migrationsskriptet togs bort avsiktligt.

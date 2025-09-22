@@ -371,3 +371,72 @@ def test_main_menu_swallows_exceptions(monkeypatch):
     monkeypatch.setattr(menu, "main_menu", _boom)
     # Should not raise when the app_runner wrapper swallows UI exceptions
     ar.main_menu()
+
+
+def test_entry_point_calls_set_language_when_not_skipped(monkeypatch):
+    """entry_point should invoke set_language when SETUP_SKIP_LANGUAGE_PROMPT is not set.
+
+    This test patches the concrete runner's argument parser and the
+    prompt helper so the function proceeds deterministically without
+    invoking the interactive menu.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch parsing and prompt functions.
+
+    Returns
+    -------
+    None
+    """
+    # Prepare CLI args that do not set a language and request no venv
+    monkeypatch.setattr(
+        "src.setup.app_runner.parse_cli_args",
+        lambda: SimpleNamespace(lang=None, no_venv=True, ui="rich"),
+    )
+    called = {}
+    # Patch concrete set_language implementation so we can observe invocation
+    monkeypatch.setattr(
+        "src.setup.app_prompts.set_language", lambda: called.setdefault("lang", True)
+    )
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
+    # Avoid running the interactive menu
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
+    # Ensure the env var that would skip the language prompt is not set
+    monkeypatch.delenv("SETUP_SKIP_LANGUAGE_PROMPT", raising=False)
+
+    # Call entry_point on the concrete runner module
+    ar.entry_point()
+    assert called.get("lang") is True
+
+
+def test_entry_point_respects_skip_language_env(monkeypatch):
+    """entry_point should skip language prompt when SETUP_SKIP_LANGUAGE_PROMPT is set.
+
+    The test ensures that when the environment variable requesting the
+    language prompt be skipped is present, ``set_language`` is not called.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to set environment and patch functions.
+
+    Returns
+    -------
+    None
+    """
+    monkeypatch.setenv("SETUP_SKIP_LANGUAGE_PROMPT", "1")
+    monkeypatch.setattr(
+        "src.setup.app_runner.parse_cli_args",
+        lambda: SimpleNamespace(lang=None, no_venv=True, ui="rich"),
+    )
+    called = {}
+    monkeypatch.setattr(
+        "src.setup.app_prompts.set_language", lambda: called.setdefault("lang", True)
+    )
+    monkeypatch.setattr("src.setup.app_runner.ensure_azure_openai_env", lambda: None)
+    monkeypatch.setattr("src.setup.app_runner.main_menu", lambda: None)
+
+    ar.entry_point()
+    # set_language must NOT have been called because env var requests skipping
+    assert called == {}

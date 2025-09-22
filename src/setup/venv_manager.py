@@ -284,7 +284,7 @@ def manage_virtual_environment(
                 env = os.environ.copy()
                 env["SETUP_SWITCHED_UI"] = "1"
                 env["SETUP_SKIP_LANGUAGE_PROMPT"] = "1"
-                argv = [str(venv_python), "-m", "src.setup.app"]
+                argv = [str(venv_python), "-m", "setup_project"]
                 lang_env = os.environ.get("LANG")
                 if lang_env:
                     lang_choice = "sv" if lang_env.lower().startswith("sv") else "en"

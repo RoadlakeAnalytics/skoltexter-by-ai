@@ -173,6 +173,12 @@ jobs:
         run: pre-commit run --all-files --show-diff-on-failure
       - name: Mypy (strict)
         run: mypy --strict src setup_project.py
+      - name: Check for legacy shim imports
+        run: |
+          if rg -q 'src\\.setup\\.app' src/ tests/; then
+            echo "::error::Forbidden import of legacy shim 'src.setup.app' detected. Please refactor to use direct imports."
+            exit 1
+          fi
 
   security:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
