@@ -1,33 +1,18 @@
-"""app_prompts.py : Interactive prompt helpers for orchestration UI.
+"""Prompt helpers for setup and orchestrator user interfaces.
 
-This module provides TUI-aware prompt functions for safe, testable user interaction
-during setup and orchestration of the school data pipeline. It strictly enforces
-bounded input attempts, encapsulates orchestrator flags, and provides a portfolio-
-compliant separation between UI logic and business code. Designed for high testability,
-robust user experience, and strict compatibility with CI and automation pipelines.
+This module exposes TUI-aware prompt functions used by setup and
+orchestrator code to gather bounded user input. Functions delegate
+rendering and interaction to the configured UI adapter.
 
-System Context
---------------
-- Upstream: Called from orchestrator logic and launcher (e.g. setup_project.py, pipeline/orchestrator.py).
-- Downstream: Delegates to rich/textual menus and core pipeline programs, with test toggles exposed for monkeypatching.
-- Boundaries: Never embeds business logic, shell commands, or configuration values; only pure user interaction.
-
-References
-----------
-- AGENTS.md (Robustness, docstring, and prompt rules)
-- src/config.py (magic numbers, bounded attempts)
-- src/exceptions.py (UserInputError and error taxonomy)
-- src/setup/pipeline/orchestrator.py (runtime TUI flags)
-- src/setup/ui/prompts.py, src/setup/app_ui.py (prompt adapters)
-
-Usage Example
--------------
+Examples
+--------
 >>> # Typical use: Ask the user to confirm setup, select options, manage virtual environments.
 >>> from src.setup.app_prompts import ask_text, ask_confirm, ask_select
 >>> name = ask_text("Enter project name:", default="schoolsite")
 >>> if ask_confirm("Begin setup?"):
 ...     lang = ask_select("Choose language:", ["en", "sv"])
 >>> # All prompts are bounded and testable via pytest/xdoctest.
+
 """
 
 
@@ -48,36 +33,21 @@ except ImportError:
 
 
 def _get_tui_flags() -> tuple[bool, Any, Any]:
-    r"""Return the current pipeline orchestrator TUI (Text User Interface) flags.
+    """Return the current TUI flags from the orchestrator module.
 
-    These flags govern runtime UI mode and adapters, supporting interactive prompts
-    under orchestration and ensuring consistency in test and manual environments.
-    The function reads the canonical interface toggles directly from the orchestrator,
-    enabling monkeypatching in tests for deterministic behaviour.
+    Returns the runtime toggles used to drive TUI behaviour. On error the
+    function returns conservative fallback values ``(False, None, None)``.
 
     Returns
     -------
     tuple[bool, Any, Any]
-        _TUI_MODE : bool
-            Whether the orchestration pipeline is in TUI mode.
-        _TUI_UPDATER : Any
-            Runtime UI updater callable or None.
-        _TUI_PROMPT_UPDATER : Any
-            Runtime prompt updater callable or None.
+        ``(is_tui_mode, updater, prompt_updater)`` where ``is_tui_mode`` is a
+        boolean and the other values are callables or ``None``.
 
-    Raises
-    ------
-    Exception
-        On module import or flag access failure; returns fallback values instead.
-
-    References
-    ----------
-    See src/setup/pipeline/orchestrator.py for flag definitions and control.
-
-    Examples
-    --------
-    >>> mode, updater, prompt_updater = _get_tui_flags()
-    >>> assert isinstance(mode, bool)
+    Notes
+    -----
+    Intended for internal use by the prompt helpers; callers should be
+    tolerant of fallback values when the orchestrator module is unavailable.
     """
     try:
         import src.setup.pipeline.orchestrator as _orch_mod

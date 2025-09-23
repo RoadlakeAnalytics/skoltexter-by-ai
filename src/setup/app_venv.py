@@ -1,23 +1,8 @@
-"""Virtual Environment Helper Utilities for Python project setup (app_venv.py).
+"""Virtual environment helpers for setup and subprocess invocation.
 
-Provides robust, platform-independent helpers for locating Python executables, managing subprocess invocation,
-and safe user interface abstraction for virtual environment orchestration. This module enforces strict Single Responsibility:
-it handles only concrete venv interactions, fully decoupled from pipeline and UI/business logic. All configuration is delegated
-to `src/config.py` and errors are encapsulated using the project's exception taxonomy.
-
-Extended Summary
-----------------
-All venv operations herein guarantee reproducible, testable results across CI, Windows, macOS, and Linux. This file is covered by
-comprehensive tests, fully typed, and strictly formatted/linted (AGENTS.md portfolio compliance). Helpers enable reliable orchestration
-and automation of setup tasks, with every function structured for robust error handling and maximal test isolation.
-
-References
-----------
-AGENTS.md, src/config.py, src/exceptions.py
-
-Notes
------
-Should only be used by orchestration flows under `src/setup/`. Platform differences are internally handled; all error states use explicit exceptions.
+Utilities for locating virtual environment executables and for invoking
+subprocesses using the appropriate interpreter. Functions are cross‑platform
+and intended for use by setup and orchestration code.
 
 Examples
 --------
@@ -27,6 +12,7 @@ Examples
 >>> assert ve.name.startswith("python")
 >>> from src.setup.app_venv import get_venv_bin_dir
 >>> assert get_venv_bin_dir(Path("/tmp/myvenv")).name in ("bin", "Scripts")
+
 """
 
 from __future__ import annotations
@@ -68,8 +54,8 @@ def get_venv_bin_dir(venv_path: Path) -> Path:
 
     Notes
     -----
-    Tests should patch helpers in `src.setup.venv` for maximal control (see AGENTS.md platform requirements).
-    This function always returns a path, never raises.
+    Tests may patch helpers in ``src.setup.venv`` to control platform branches
+    in unit tests. This function always returns a Path and does not raise.
 
     Examples
     --------

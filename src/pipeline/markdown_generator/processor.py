@@ -1,42 +1,8 @@
-"""Markdown generation processing module.
+"""Generate Markdown files from school CSV data.
 
-Transforms school CSV data into per-school markdown files for the static site pipeline.
-This module operates as a headless data layer, responsible solely for context construction,
-template rendering, error logging, and strict separation from orchestration/UI logic.
-
-Responsibilities
-----------------
-- Build template contexts from tabular school data and survey answers.
-- Render and write one markdown file per school, named by school code.
-- Log all missing data, skipped rows, and file I/O errors for robust auditability.
-
-See Also
---------
-src/pipeline/markdown_generator/data_loader.py
-src/pipeline/markdown_generator/templating.py
-AGENTS.md: Coding & Documentation Standards
-
-Notes
------
-All exceptions follow taxonomy set in src/exceptions.py and AGENTS.md.
-No business logic, retries, or concurrency are handled here.
-
-References
-----------
-.. [1] AGENTS.md: AI Coding & Project Standards: School Data Pipeline
-
-Examples
---------
->>> from src.pipeline.markdown_generator.processor import process_csv_and_generate_markdowns
->>> from pathlib import Path
->>> process_csv_and_generate_markdowns(
-...     Path("schools.csv"),
-...     "# {SchoolCode}\\nYear: {SurveySchoolYear}\\n",
-...     ["SchoolCode", "SurveySchoolYear"],
-...     Path("out_md")
-... )
-# Produces per-school markdown files in 'out_md'
-
+Transforms rows from a schools CSV into per-school Markdown files by building
+template contexts and rendering templates. This module focuses on data
+transformation and file output and does not manage orchestration or UI.
 """
 
 import logging
@@ -58,51 +24,44 @@ logger = logging.getLogger(__name__)
 def build_template_context(
     row: dict[str, str], template_placeholders: list[str]
 ) -> dict[str, str]:
-    """Construct mapping from template placeholders to resolved school row values.
+    """Construct a mapping from template placeholders to resolved row values.
 
-    This function creates the context required to render a markdown template for a single school.
-    It resolves every required field, including 'SchoolCode' and 'SurveySchoolYear', and any fields
-    referenced by the template. "SurveyAnswerCategory" placeholders are handled by data loader helpers.
+    Build the context required to render a markdown template for a single
+    school. This resolves required fields such as ``SchoolCode`` and
+    ``SurveySchoolYear`` and any additional placeholders used by the
+    template. Placeholders prefixed with ``SurveyAnswerCategory`` are
+    resolved using helper functions from the data loader.
 
     Parameters
     ----------
     row : dict[str, str]
-        Dictionary representing a school survey row. Must include "SchoolCode".
+        Dictionary representing a school survey row.
     template_placeholders : list[str]
         List of placeholder names required by the markdown template.
 
     Returns
     -------
     dict[str, str]
-        Dictionary mapping each placeholder to its resolved string value for rendering.
+        Dictionary mapping each placeholder to its resolved string value.
 
     Raises
     ------
     KeyError
-        If required direct fields are missing, i.e., not present in the row.
-    DataValidationError
-        If schema validation in helpers fails.
-
-    See Also
-    --------
-    src/pipeline/markdown_generator/data_loader.py
+        If a required direct field is missing from ``row``.
+    src.exceptions.DataValidationError
+        If schema validation in helper functions fails.
 
     Notes
     -----
-    'SchoolCode' and 'SurveySchoolYear' are always resolved and included.
-    Missing values may be replaced by MISSING_DATA_PLACEHOLDER.
-
-    References
-    ----------
-    .. [1] AGENTS.md: Docstring and robustness gold standard.
+    Missing values may be replaced by ``MISSING_DATA_PLACEHOLDER``.
 
     Examples
     --------
-        >>> sample = {"SchoolCode": "001", "SurveySchoolYear": "2023", "Other": "foo"}
-        >>> placeholders = ["SchoolCode", "SurveySchoolYear", "Other"]
-        >>> ctx = build_template_context(sample, placeholders)
-        >>> assert ctx["SchoolCode"] == "001"
-        >>> assert ctx["Other"] == "foo"
+    >>> sample = {"SchoolCode": "001", "SurveySchoolYear": "2023", "Other": "foo"}
+    >>> placeholders = ["SchoolCode", "SurveySchoolYear", "Other"]
+    >>> ctx = build_template_context(sample, placeholders)
+    >>> ctx["SchoolCode"] == "001"
+    True
     """
     context: dict[str, str] = {}
     context["SchoolCode"] = get_value_from_row(row, "SchoolCode")
@@ -122,11 +81,12 @@ def build_template_context(
 def process_csv_and_generate_markdowns(
     csv_path: Path, template_content: str, placeholders: list[str], output_dir: Path
 ) -> int:
-    """Process a school CSV and write a markdown file for each valid school row.
+    """Process a school CSV and write a markdown file for each valid row.
 
-    Reads all school rows from the source CSV, builds the template context, and writes
-    Markdown output per school. Skips rows missing a school code and logs any skipped or error events.
-    File write errors are logged but do not halt processing of subsequent rows.
+    Reads rows from the source CSV, builds the template context for each row,
+    renders the markdown content, and writes one file per school. Rows missing a
+    school code are skipped and logged; file write errors are logged and
+    processing continues for subsequent rows.
 
     Parameters
     ----------
@@ -137,44 +97,31 @@ def process_csv_and_generate_markdowns(
     placeholders : list[str]
         List of variable names required by the template.
     output_dir : Path
-        Output directory for the written markdown files.
+        Directory where the generated markdown files are written.
 
     Returns
     -------
     int
-        Number of successful markdown files generated.
+        Number of successfully generated markdown files.
 
     Raises
     ------
-    DataValidationError
+    src.exceptions.DataValidationError
         If the CSV is missing required structural columns.
     OSError
-        If output file writing fails due to system error.
-
-    See Also
-    --------
-    build_template_context
-    src/config.py: Configuration constants
+        If output file writing fails due to a system error.
 
     Notes
     -----
-    Rows lacking SchoolCode are skipped and logged. Output files are named "{SchoolCode}.md".
-    All errors and skipped events are logged for compliance and forensic debugging.
-
-    References
-    ----------
-    .. [1] AGENTS.md: Robustness Rules, Documentation
+    Output files are named ``{SchoolCode}.md``. All errors and skipped rows
+    are logged for diagnostics.
 
     Examples
     --------
-        >>> from src.pipeline.markdown_generator.processor import process_csv_and_generate_markdowns
-        >>> from pathlib import Path
-        >>> csv_path = Path("schools.csv")
-        >>> template = "# {SchoolCode}\\nYear: {SurveySchoolYear}\\n"
-        >>> out_dir = Path("out_md")
-        >>> n = process_csv_and_generate_markdowns(csv_path, template, ["SchoolCode", "SurveySchoolYear"], out_dir)
-        >>> isinstance(n, int)
-        True
+    >>> from pathlib import Path
+    >>> n = process_csv_and_generate_markdowns(Path("schools.csv"), "# {SchoolCode}", ["SchoolCode"], Path("out_md"))
+    >>> isinstance(n, int)
+    True
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     processed_count = 0
@@ -193,3 +140,4 @@ def process_csv_and_generate_markdowns(
         except OSError as error:
             logger.error(f"Error writing {output_path}: {error}")
     return processed_count
+

@@ -1,26 +1,13 @@
-"""Filesystem validation and removal utilities for orchestration/reset.
+"""Filesystem utilities to validate and safely remove whitelisted paths.
 
-Architectural Role:
-    This module provides robust primitives for validating and removing directories
-    in the School Data Pipeline setup and reset orchestration. It strictly enforces
-    project boundaries and destruction safety via explicit whitelisting and type stamping.
+This module provides helpers to validate that a path is safe to remove and
+to perform an explicit, logged removal of whitelisted project directories.
+It is intended for use by setup and reset orchestration utilities.
 
-Boundaries:
-    - Used exclusively by orchestration/setup/reset utilities, never core pipeline.
-    - Configurable solely via src/config.py attributes; no hard-coded values.
-    - All error handling uses custom taxonomy—see src/exceptions.py.
-
-Portfolio/CI/Test Context:
-    - Covered by targeted tests in tests/setup/test_fs_utils_unit.py and mutation tests.
-    - All edge/corner/canonical behaviors—both allowed and forbidden removals, and exception handling—
-      are tested.
-    - Mutation, bandit, and branch coverage gates enforced (see .bandit, mutmut config).
-    - Examples provided in docstrings are pytest/xdoctest compatible.
-
-References:
-    - AGENTS.md section 4 (docstring standard), section 5 (robustness, boundedness).
-    - tests/setup/test_fs_utils_unit.py (coverage).
-    - docs/dev_journal/2025-09-21_fixed_tests_and_code_summary.md (dev reasoning).
+Functions
+---------
+- ``create_safe_path``: Validate and stamp a path as safe for removal.
+- ``safe_rmtree``: Remove a validated directory tree.
 """
 
 from __future__ import annotations
@@ -66,10 +53,9 @@ def create_safe_path(path_to_validate: Path) -> _ValidatedPath:
 
     Notes
     -----
-    - Coverage: All checks are exercised via pytest.
-    - Corner edge: is_relative_to failure handled for older Python.
-    - Mutation: "unsafe" bypass impossible via static type, runtime guard, explicit custom errors.
-    - No recursion or unboundedness anywhere.
+    - Validates that the path is inside the project and in an explicit
+      whitelist before returning a stamped ``_ValidatedPath``.
+    - Handles older Python versions where ``is_relative_to`` is unavailable.
 
     Examples
     --------
@@ -169,10 +155,9 @@ def safe_rmtree(safe_path: _ValidatedPath | Path) -> None:
 
     Notes
     -----
-    - Explicit logging at WARNING and INFO levels before and after removal.
-    - All mutation and edge cases (nonexistent path, bad whitelist) are tested.
-    - No recursion, no unbounded behavior (all boundaries explicit).
-    - Example covers both removal and nonexistence.
+    - Logs actions at WARNING and INFO levels before and after removal.
+    - If the supplied path is not validated for removal, a PermissionError is raised.
+    - If the path does not exist, the function is a no-op.
 
     Examples
     --------

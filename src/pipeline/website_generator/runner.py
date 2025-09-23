@@ -1,67 +1,27 @@
-"""Website Generator Runner (School Data Pipeline Portfolio)
+"""Generate final HTML website from CSV and AI-generated Markdown.
 
-Strictly portfolio-compliant module providing the SRP-oriented, programmatic runner for
-the school website generation pipeline. This file is the canonical headless entrypoint
-for automated, scripted, and CI/CD execution—never UI, CLI, or interactive logic.
-
-Core Responsibilities
----------------------
-- Merge tabular CSV school data and AI-generated Markdown content via pipeline helpers.
-- Validate sources and render the final interactive HTML using project templates.
-- Export `run_from_config()` as the single-call, fully robust public API for jobs, tests, and automation.
-- Guarantee strict decoupling: all orchestration/config handled externally.
-- Explicitly handle missing/empty data with minimal HTML stubs and log all errors centrally.
-- All configuration sourced *only* from `src/config.py`, with no hard-coded values.
-- All error signaling via return values (never outward exceptions), compliant with AGENTS.md.
-- All error taxonomy enforced via `src/exceptions.py` (see below).
-
-System Context & Boundaries
----------------------------
-- Only generation logic—no orchestration, UI, or direct I/O loops.
-- Depends only on pipeline helpers: `data_aggregator` and `renderer`.
-- All I/O (csv, markdown, templates, output) is disk-based—inputs must exist on disk.
-- All logging uses the standard root logger; never prints or raises from this runner.
-- All documentation and examples are strictly file-local and self-contained for audit.
-
-Error Taxonomy Reference
-------------------------
-- Never directly raises; all exceptions from helpers are caught, logged, and signaled as return values.
-- Error classes are enumerated centrally in `src/exceptions.py`.
-- Portfolio reviewers can safely rely on file-local error documentation and xdoctest examples.
+This module provides a headless runner that merges CSV data and
+AI-generated Markdown content and renders the final HTML site using
+project templates. It is intended for programmatic invocation.
 
 Usage Examples
 --------------
-Typical programmatic usage with config defaults:
+Typical programmatic usage with config defaults::
 
-.. code-block:: python
+    from src.pipeline.website_generator.runner import run_from_config
+    result = run_from_config()
+    assert result is True
 
-   from src.pipeline.website_generator.runner import run_from_config
-   result = run_from_config()
-   assert result is True
+Explicit path usage::
 
-Explicit path usage:
+    from pathlib import Path
+    from src.pipeline.website_generator.runner import run_from_config
 
-.. code-block:: python
-
-   from pathlib import Path
-   from src.pipeline.website_generator.runner import run_from_config
-
-   run_from_config(
-       csv_path=Path("data/my_schools.csv"),
-       ai_markdown_dir=Path("outputs/ai_md"),
-       output_file=Path("sites/final.html")
-   )
-
-References
-----------
-- AGENTS.md, Section 3: "PROJECT CONTEXT & ARCHITECTURE"
-- Templates: `data/templates/website_template.html`, `data/templates/school_description_template.md`
-- Helpers: `src/pipeline/website_generator/data_aggregator.py`, `src/pipeline/website_generator/renderer.py`
-- Exception taxonomy: `src/exceptions.py`
-
-Portfolio Compliance
---------------------
-All documentation is file-local, gold-standard NumPy/AGENTS.md-compliant, and suitable for direct audit.
+    run_from_config(
+        csv_path=Path("data/my_schools.csv"),
+        ai_markdown_dir=Path("outputs/ai_md"),
+        output_file=Path("sites/final.html")
+    )
 
 """
 
@@ -90,56 +50,29 @@ def run_from_config(
     ai_markdown_dir: Path | None = None,
     output_file: Path | None = None,
 ) -> bool:
-    r"""Generate the final HTML portfolio website from CSV and AI Markdown sources.
+    """Generate the final HTML website from CSV and AI Markdown sources.
 
-    Runs the complete "website generation" pipeline for the school data portfolio project.
-    Accepts disk paths for the raw CSV, AI-generated Markdown directory, and output HTML file.
-    If any argument is ``None``, project-level config defaults from `src/config.py` are used.
-
-    This function:
-        - Resolves all provided or default file paths.
-        - Loads and merges input data (handling empty or missing sources gracefully).
-        - Renders the HTML site using pipeline helpers and templates.
-        - Writes output atomically to the specified disk location.
-        - Logs all errors and converts exceptions to a `False` result—never raises.
-
-    **Portfolio audit guarantee:** All behavior is deterministic and directly testable via file-local examples.
+    If any argument is ``None``, project-level defaults from
+    ``src.config`` are used. The function returns ``True`` on success and
+    ``False`` if an error occurred; exceptions are logged.
 
     Parameters
     ----------
     csv_path : pathlib.Path or None, optional
-        The source CSV file containing tabular school data. If ``None``, uses
-        ``ORIGINAL_CSV_PATH`` defined in ``src/config.py``.
+        Source CSV file containing tabular school data. If ``None``, uses
+        ``ORIGINAL_CSV_PATH`` from configuration.
     ai_markdown_dir : pathlib.Path or None, optional
-        Directory containing AI-generated Markdown files. If ``None``, uses ``AI_MARKDOWN_DIR``.
+        Directory containing AI-generated Markdown files. If ``None``, uses
+        ``AI_MARKDOWN_DIR`` from configuration.
     output_file : pathlib.Path or None, optional
-        Destination path for the generated HTML site. If ``None``, uses ``OUTPUT_HTML_FILE``.
+        Destination path for the generated HTML site. If ``None``, uses
+        ``OUTPUT_HTML_FILE`` from configuration.
 
     Returns
     -------
     bool
-        ``True`` if website generation succeeded and was written fully to disk,
-        ``False`` if any error or exception occurred (all details logged).
-
-    Raises
-    ------
-    Never raises. All exceptions are caught internally, logged via the module logger,
-    and signaled as a ``False`` result. Error taxonomy is defined in `src/exceptions.py`.
-    Portfolio users and auditors can expect strictly non-raising behavior.
-
-    See Also
-    --------
-    src/pipeline/website_generator/data_aggregator.py : Data loading, merging helpers.
-    src/pipeline/website_generator/renderer.py : HTML rendering and file writing.
-    src/config.py : Pipeline-wide configuration constants.
-    src/exceptions.py : Exception taxonomy and portfolio error classes.
-
-    Notes
-    -----
-    - Headless and non-interactive: suitable for automation, CI, jobs, or tests.
-    - All input and output paths are resolved using ``pathlib.Path``.
-    - Empty, missing, or invalid data results in a minimal valid HTML stub.
-    - All outputs are file-local and disk-based; no print/logout side-effects.
+        ``True`` if generation succeeded and the output was written to disk;
+        ``False`` if an error occurred (all errors are logged).
 
     Examples
     --------

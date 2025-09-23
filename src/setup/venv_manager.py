@@ -1,63 +1,13 @@
-"""Virtual environment manager orchestration layer for setup flows.
+"""Virtual environment manager for project setup.
 
-This module provides a portfolio-grade orchestration interface to create
-and update Python virtual environments for project bootstrapping and CI,
-suitable for strict test coverage and robust automation. It adheres to
-the architecture's separation of responsibilities, operating solely as
-the orchestrator entrypoint for environment lifecycle control, using an
-adapter pattern for all UI, prompt, and process interactions.
+This module provides helpers to create or update a project's Python
+virtual environment and to install dependencies from a requirements file
+or lock file. The functions use a UI adapter for prompts and logging and
+are intended to be invoked by setup or orchestrator code.
 
-Single Responsibility Principle (SRP):
-    - Manages virtual environment creation, safe recreation, and atomic
-      requirements installation in response to interactive or scripted
-      calls via a UI adapter. It is explicitly unaware of business logic
-      (pipeline/data), orchestration sequencing (menus, branching),
-      and downstream processing.
+Typical usage::
 
-System/CI Boundaries:
-    - Interacts with the project's config (see `src/config.py`) for
-      VENV_DIR, requirements filenames, and timeouts via UPPER_SNAKE_CASE
-      constants and environment variables.
-    - Detects and safeguards test/CI execution using the
-      PYTEST_CURRENT_TEST and SETUP_PIP_TIMEOUT environment variables to
-      ensure reproducible, non-destructive runs in pytest/CICD.
-    - Custom exception taxonomy is strictly enforced: all exceptions raised
-      from application logic are expected to be instances of custom classes
-      (see `src/exceptions.py`), and any third-party exceptions will be
-      caught, logged, and filtered/non-propagating where destructive.
-    - Migration guards are implemented to prevent legacy flow failures
-      during migration from shims; see dev journal 2025-09-21.
-
-Usage:
-    - Called only from launch or orchestrator UI layers (`setup_project.py`,
-      `src/setup/app_runner.py`), never directly by core pipeline logic.
-    - Employs a UI adapter providing contract attributes (`ask_text`,
-      `rprint`, `logger`, `subprocess`, etc.), supporting both robust TUI
-      (Rich) and CI mocks (see `tests/setup/test_venv_manager.py`).
-    - Removes, creates, or updates venv atomically, installing requirements
-      with hash enforcement and displaying clear user messaging for success,
-      failure, or destructive choices.
-
-Edge/Corner/Canonical Audit:
-    - Safeguards against destructive venv removals under test/CI.
-    - Full branching for recreate, skip, creation failure, missing pip/
-      python, permissions, timeouts, and restart conditions.
-    - Environment variables and config are always validated before use;
-      see `src/config.py` and tests for all canonical cases.
-
-Robustness/CI Traceability:
-    - All subprocess and file operations are guarded against race and
-      permission failures, logged and covered by explicit tests.
-    - Strict docstring coverage (`interrogate`) and type hinting required.
-
-References:
-    - src/config.py: Configuration values and environment integration.
-    - src/exceptions.py: Custom error taxonomy.
-    - data/templates/: Not used directly, but required downstream.
-    - tests/setup/test_venv_manager.py: Full coverage for all flows,
-      guardrails, fail/trap behaviors.
-    - docs/dev_journal/2025-09-21_migration_from_shims_and_test_fixes.md:
-      Background for migration-specific guards.
+    from src.setup.venv_manager import manage_virtual_environment
 
 """
 
@@ -87,16 +37,7 @@ def manage_virtual_environment(
 
     This function orchestrates the creation or updating of a project's
     virtual environment. It uses the provided ``ui`` adapter for prompts,
-    logging and subprocess execution. The flow covers these high-level
-    responsibilities:
-
-    - Detect whether the current interpreter is an active venv and act
-      accordingly.
-    - When a VENV directory already exists, prompt the user to confirm
-      a recreate and call the safe removal helper.
-    - If no venv exists, attempt to create one (prefer platform-specific
-      helpers) and then install dependencies from either the lockfile or
-      fallback requirements file.
+    logging and subprocess execution.
 
     Parameters
     ----------
@@ -164,15 +105,6 @@ def manage_virtual_environment(
             ui._("confirm_recreate_venv"), default="n"
         ).lower()
         if recreate_choice in ["y", "j"]:
-            # TODO(migration): Temporary safety guard to avoid accidental
-            # removal of the repository's canonical VENV_DIR during pytest
-            # runs. This guard exists only as a short-term protection while
-            # tests and callsites are migrated away from the legacy shim
-            # (`src.setup.app`). When the migration is complete this guard
-            # should be removed and the code simplified to its original
-            # behaviour (explicit validation via create_safe_path followed
-            # by safe_rmtree). See the development journal entries for
-            # background and migration guidance.
             pytest_running = bool(os.environ.get("PYTEST_CURRENT_TEST"))
             cfg: Optional[ModuleType] = None
             cfg_vdir: Optional[Path] = None
@@ -195,15 +127,12 @@ def manage_virtual_environment(
                         )
                         return
                 except Exception:
-                    # Be conservative: if we cannot determine equivalence,
-                    # skip the destructive operation while under pytest.
                     ui.logger.warning(
                         "Skipping venv removal under pytest (path resolution failed)"
                     )
                     return
 
             try:
-                # Ensure the requested venv path is validated before removal.
                 validated = create_safe_path(venv_dir)
                 safe_rmtree(validated)
             except PermissionError as e:
@@ -237,12 +166,6 @@ def manage_virtual_environment(
                     created = False
             if not created:
                 _venv.create(venv_dir, with_pip=True)
-
-            pip_executable = venvmod.get_venv_pip_executable(venv_dir)
-            python_executable = venvmod.get_venv_python_executable(venv_dir)
-        except Exception as error:
-            ui.logger.error(f"Error creating virtual environment: {error}")
-            return
 
     if not pip_executable or not pip_executable.exists():
         if venv_dir.exists():
@@ -334,7 +257,6 @@ def manage_virtual_environment(
 
         try:
             venv_python = venvmod.get_venv_python_executable(venv_dir)
-            # Evaluate restart branch conditions.
             if (
                 (not venvmod.is_venv_active())
                 and venv_python.exists()
@@ -358,3 +280,4 @@ def manage_virtual_environment(
         ui.logger.error(f"{ui._('deps_install_failed')} Error: {error}")
     except FileNotFoundError:
         ui.logger.error(f"Error: {pip_python} or {requirements_file} not found.")
+

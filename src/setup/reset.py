@@ -1,33 +1,8 @@
-"""Destructive reset module for generated data and logs in the school data pipeline.
+"""Utilities to safely remove generated artifacts and logs.
 
-Single-responsibility: This module manages secure, validated deletion of all project-generated artefacts and logs.
-It enforces strict architectural boundaries—handling only reset operations via config-defined paths using safe, robust interfaces.
-
-Boundaries
-----------
-- No pipeline or orchestration logic is implemented here.
-- All destructive actions use interactive confirmation, UI helpers, and strict path validation through configured constants.
-- Only artefacts inside `config.PROJECT_ROOT` and `config.LOG_DIR` are ever deleted.
-- Each operation logs security-relevant issues, handles edge/corner cases, and complies with AGENTS.md §4/5 on robustness and exception taxonomy.
-
-Portfolio/Test/CI References
-----------------------------
-- Validation for boundaries and security logs tested in: `tests/setup/test_reset.py`, `tests/setup/test_console_and_fs_and_i18n.py`
-- Custom exceptions defined in `src/exceptions.py` cover all error scenarios.
-- Configuration constants enforced from `src/config.py`: no hard-coded magic values.
-- Module always passes zero-warning CI gates for lint/type/tests: ruff, black, mypy --strict, pytest, bandit.
-
-Usage
------
-Never auto-called from pipeline stages.
-Intended for orchestrator-driven terminal UI or direct invocation in setup scripts.
-Ensures full safety for destructive actions and compliance for portfolio/CI.
-
-References
-----------
-- AGENTS.md (§4: Documentation; §5: Robustness; §6: CI Gates)
-- `src/config.py`, `src/exceptions.py`
-- Test files: `tests/setup/test_reset.py`, `tests/setup/test_console_and_fs_and_i18n.py`
+Functions in this module resolve project paths, enumerate generated
+artifacts, and perform an interactive reset that removes generated data
+and log files. All destructive operations validate paths before deletion.
 """
 
 from __future__ import annotations
@@ -44,28 +19,16 @@ from src.setup.ui.basic import ui_rule
 
 
 def _resolve_project_paths() -> tuple[Path, Path]:
-    r"""Resolve and return project root and log directory paths for reset operations.
+    """Return the project root and log directory paths.
 
-    Returns config-driven boundaries for safe artefact deletion, isolating all destructive logic.
-
-    Parameters
-    ----------
-    None
+    The returned paths are derived from project configuration constants and
+    are intended for use by reset operations.
 
     Returns
     -------
     tuple[Path, Path]
-        ``(project_root, log_dir)``; both are Path objects, guaranteed to match config-driven boundaries.
-
-    Raises
-    ------
-    None
-
-    Notes
-    -----
-    All path values come from `src/config.py` UPPER_SNAKE_CASE constants.
-    Boundaries are strictly enforced throughout reset operations per AGENTS.md §5.
-
+        ``(project_root, log_dir)``.
+    
     Examples
     --------
     >>> from src.setup import reset
@@ -73,34 +36,21 @@ def _resolve_project_paths() -> tuple[Path, Path]:
     >>> assert root.is_dir() and logdir.is_dir()
     """
 
+
 logger = logging.getLogger("setup_project.reset")
 
 
 def _gather_generated_paths() -> list[Path]:
-    r"""Gather all project-generated files targeted for deletion by reset.
+    """Collect generated files targeted for deletion.
 
-    Searches config-driven generated directories and logs, returning a flat list of files
-    (never directories). All paths are strictly validated to prevent out-of-bound deletions.
-
-    Parameters
-    ----------
-    None
+    Returns a list of validated file paths that represent generated
+    artefacts. The function returns an empty list if none are found.
 
     Returns
     -------
     list[Path]
-        List of config-rooted, validated file Paths—never returns directories or external files.
-
-    Raises
-    ------
-    None
-
-    Notes
-    -----
-    Relies on _resolve_project_paths() and directory boundaries in `src/config.py`.
-    Never fails; returns an empty list if no generated artefacts exist.
-    All files are enumerated recursively within configured directories only.
-
+        List of validated file Paths.
+    
     Examples
     --------
     >>> from src.setup import reset
@@ -113,24 +63,13 @@ def _gather_generated_paths() -> list[Path]:
     ...     assert all(f.is_file() for f in files)
     """
 
+
 def reset_project() -> None:
-    r"""Interactively reset (delete) all generated artefacts and logs for the project.
+    """Interactively remove generated artefacts and logs.
 
-    Removes generated data and log directories after interactive user confirmation.
-    Validates every deletion using configuration constants and a safe validation layer before
-    destructively clearing content.
-
-    The process:
-        - Prompts the user for confirmation using system localization/i18n.
-        - Gathers all generated artefact file paths (see `_gather_generated_paths()`).
-        - If none are found, prints the canonical "no logs" message (config/localizable).
-        - Lists each directory targeted for deletion (config-driven).
-        - Validates deletion for each directory (`create_safe_path()` then `safe_rmtree()`).
-        - Logs all permission/security issues; robustly continues if possible.
-
-    Parameters
-    ----------
-    None
+    Prompts the user for confirmation before deleting configured directories
+    that contain generated content. Each directory is validated before
+    deletion to prevent accidental removal of unrelated files.
 
     Returns
     -------
@@ -139,17 +78,10 @@ def reset_project() -> None:
     Raises
     ------
     PermissionError
-        Raised internally/logged if a directory could not be validated for deletion.
+        If a directory cannot be validated for deletion.
     Exception
-        Any unexpected errors during deletion are logged and skipped.
-
-    Notes
-    -----
-    - All destructive actions gated by interactive confirmation; never run non-interactively in CI/pipeline.
-    - Only config-rooted directories are wiped; out-of-bound attempts are strictly rejected.
-    - Permission errors log and continue; unexpected errors log and continue (never fail full reset).
-    - Tested via `tests/setup/test_reset.py`.
-
+        Other unexpected errors are logged and skipped.
+    """
     Examples
     --------
     >>> import builtins
@@ -161,7 +93,7 @@ def reset_project() -> None:
     >>> # Simulate confirmation (prints and deletes)
     >>> # builtins.input = lambda _: "y"
     >>> # reset.reset_project()
-    """
+
 
     project_root, log_dir = _resolve_project_paths()
     try:
@@ -202,24 +134,15 @@ def reset_project() -> None:
     for dir_path in dirs_to_check:
         try:
             if dir_path.exists():
-                # STEP 1: Validate the path and obtain a stamped _ValidatedPath.
-                # This will raise PermissionError if the path is outside the
-                # permitted set of directories.
                 validated = create_safe_path(dir_path)
-
-                # STEP 2: Perform the destructive operation using the validated
-                # object. The separation makes it impossible to call the
-                # destructive code with an unvalidated Path.
                 safe_rmtree(validated)
                 deleted_dirs_count += 1
         except PermissionError as e:
-            # Log security-related issues but continue with other directories
             logger.error(f"Could not reset directory '{dir_path}': {e}")
         except Exception as e:
-            logger.error(
-                f"An unexpected error occurred while resetting '{dir_path}': {e}"
-            )
+            logger.error(f"An unexpected error occurred while resetting '{dir_path}': {e}")
 
     rprint(f"{translate('reset_complete')} ({deleted_dirs_count} directories cleared)")
+
 
 __all__ = ["reset_project"]

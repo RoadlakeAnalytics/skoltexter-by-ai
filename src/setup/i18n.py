@@ -1,31 +1,13 @@
-"""Internationalization layer for setup orchestration.
+"""Internationalization helpers for setup and orchestrator code.
 
-This module serves as the central resource for all user-facing textual
-content and runtime language selection for the setup and orchestrator layer
-of the School Data Pipeline. It is architecturally designed to:
-- Provide a decoupled, file-local source of all translations for
-  program prompts, menus, statuses, and high-level error output.
-- Allow UI code (including orchestration CLI/TUI) to transparently
-  switch languages using a well-bounded selection dialog.
-- Strictly protect language selection to prevent unbounded loops, and
-  fail gracefully under CI/test, missing dependencies, or explicit
-  boundedness violations (see AGENTS.md robustness and error taxonomy).
+Provide translation strings and utilities to select and apply the
+current UI language. The module exposes ``translate`` and helpers for
+interactive language selection used by setup and orchestrator interfaces.
 
-Boundaries:
-- No coupling to core pipeline, markdown, or AI layers; only the
-  Orchestrator/program entrypoints and central UI/TUI helpers touch
-  this module.
-- All language choices and prompt behaviors are bounded by config via
-  LANGUAGE_PROMPT_MAX_INVALID (from src/config.py).
+Typical usage::
 
-Portfolio/CI/Test Context:
-- This module is covered by full pytest/xdoctest test suite.
-- Edge behaviors for language, fallbacks, and error handling are tested in
-  tests/setup/test_i18n_unit.py, test_i18n_more.py, and generic orchestration CI.
+    from src.setup.i18n import translate, set_language, LANG
 
-References:
-- See AGENTS.md section 4 and 5 for docstring and robustness rules.
-- Related docs/dev_journal/2025-09-21_migration_from_shims_and_test_fixes.md
 """
 
 from src.config import LOG_DIR, VENV_DIR, LANGUAGE_PROMPT_MAX_INVALID
@@ -60,9 +42,9 @@ def translate(key: str) -> str:
 
     Notes
     -----
-    - CI and test coverage includes missing key/language fallback, and
-      branch for exception coverage for translation robustness.
-    - Robust against accidental removal or failure in TEXTS data.
+    Returns the key itself when a translation is missing, providing a
+    graceful fallback for environments where translation data is
+    incomplete.
 
     Examples
     --------
@@ -84,36 +66,17 @@ _ = translate
 
 
 def set_language() -> None:
-    r"""Prompt user for setup UI language and set global LANG.
+    r"""Prompt the user to select and set the UI language.
 
-    Presents a bounded user dialog for selecting UI/program language,
-    updating the global LANG variable. Handles all prompt errors,
-    unboundedness, and dependency failure as specified in AGENTS.md.
-    If selection is invalid more than LANGUAGE_PROMPT_MAX_INVALID times,
-    exits gracefully under SystemExit. Robust in CI/test and edge cases.
-
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    None
+    Presents a bounded prompt for language selection and updates the
+    module-level ``LANG`` variable. If the maximum number of invalid
+    attempts is exceeded, the function raises ``SystemExit``.
 
     Raises
     ------
     SystemExit
-        When invalid selection attempts exceed LANGUAGE_PROMPT_MAX_INVALID
-        or on keyboard interrupt.
-    None
-        (Other errors are handled internally for test/robustness.)
-
-    Notes
-    -----
-    - Uses src.config.LANGUAGE_PROMPT_MAX_INVALID for bounding the number
-      of invalid attempts to avoid unbounded user interaction.
-    - CI coverage includes keyboard interrupt, config fallback, and module
-      resolve failures.
+        When invalid selection attempts exceed the configured limit or on
+        keyboard interrupt.
 
     Examples
     --------

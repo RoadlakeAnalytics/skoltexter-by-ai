@@ -1,49 +1,14 @@
-"""Delegated wrapper interface for pipeline orchestration and testable monkeypatching.
+"""Thin wrappers that delegate orchestration operations to the orchestrator.
 
-Short Summary
--------------
-Provides high-clarity wrapper functions that delegate orchestration to
-`src.setup.pipeline.orchestrator`, enabling robust CI integration, safe test monkeypatching,
-and strict separation of pipeline boundaries. No business logic or orchestration state is
-duplicated; these interfaces only delegate and temporarily inject helpers for reliable UI and test control.
-
-Extended Summary
-----------------
-This module is intentionally minimal and portfolio-compliant: each wrapper exposes a single-responsibility delegation
-to the orchestrator layer. They're extracted from the main app entrypoint for architectural purity, clean CI/test boundaries,
-and precise injection of interactive helpers (`ask_confirm`, etc.) during runtime or tests. All helper patching is temporary
-(state always reverted) to prevent leaks. Integration complexity (Rich UI, text UI, CLI) is handled only downstream.
-
-Boundaries and System Context
------------------------------
-- Only orchestration delegation and prompt monkeypatching are permitted here. No pipeline logic or state.
-- All business/data processing occurs in `src.setup.pipeline.orchestrator`.
-- Helpers may be patched for UI/test—this is reverted after use.
-- CI, pytest, and xdoctest may target these wrappers for injection or coverage testing.
-
-Usage
------
->>> from src.setup import app_pipeline
->>> result = app_pipeline._run_pipeline_step("step_name")
->>> print(result)
-some_pipeline_step_result
-
-References
-----------
-- AGENTS.md: School Data Pipeline Project Standards.
-- src/setup/pipeline/orchestrator.py: All orchestration logic.
-- src/setup/app_prompts.py, src/setup/app_runner.py: Interactive helpers.
-- Portfolio docstring standard: NumPy + custom pipeline rules.
+This module provides minimal wrapper functions that forward calls to the
+implementations in ``src.setup.pipeline.orchestrator``. The wrappers exist to
+expose a stable import surface for setup code and to simplify testing.
 
 Examples
 --------
 >>> from src.setup import app_pipeline
->>> res = app_pipeline._status_label("running")
->>> print(res)
-"[bold yellow]Running[/bold yellow]"
->>> table = app_pipeline._render_pipeline_table({"steps": [...]})
->>> print(table)
-# (Rich Table object, or test-stable output)
+>>> result = app_pipeline._run_pipeline_step("step_name")
+>>> print(result)
 """
 
 from __future__ import annotations
@@ -100,7 +65,7 @@ def _render_pipeline_table(*args: Any, **kwargs: Any) -> Any:
 
     Summarizes the pipeline state or recent steps using the orchestrator's Rich table
     renderer or other output format, depending on configuration. All arguments are passed
-    directly to the orchestrator implementation, enabling CI/test patching and UI flexibility.
+    directly to the orchestrator implementation.
 
     Parameters
     ----------
@@ -117,7 +82,7 @@ def _render_pipeline_table(*args: Any, **kwargs: Any) -> Any:
     Raises
     ------
     Exception
-        Any exception propagated from the orchestrator downstream (should be pipeline-specific).
+        Any exception propagated from the orchestrator downstream.
 
     See Also
     --------
@@ -125,12 +90,8 @@ def _render_pipeline_table(*args: Any, **kwargs: Any) -> Any:
 
     Notes
     -----
-    No custom logic is present here; pure delegation for coverage and separation.
-
-    Examples
-    --------
-    >>> tbl = _render_pipeline_table({"step": "ai"})
-    >>> assert "ai" in str(tbl)
+    This is a pure delegation helper; callers should consult the orchestrator
+    implementation for rendering details.
     """
     from src.setup.pipeline.orchestrator import _render_pipeline_table as _impl
 
@@ -154,11 +115,6 @@ def _run_processing_pipeline_plain() -> None:
 
         orch = importlib.import_module("src.setup.pipeline.orchestrator")
 
-        # Prefer explicit, concrete helpers so production code does not
-        # depend on a legacy shim module in ``sys.modules``. Tests should
-        # patch the concrete modules (for example ``src.setup.app_prompts``
-        # or ``src.setup.app_runner``) rather than injecting a global
-        # module object.
         try:
             from src.setup.app_prompts import (
                 ask_confirm as _ask_confirm,
@@ -215,9 +171,6 @@ def _run_processing_pipeline_rich(*args: Any, **kwargs: Any) -> None:
 
         orch = importlib.import_module("src.setup.pipeline.orchestrator")
 
-        # Use explicit concrete helpers instead of reading from a legacy
-        # shim module. This makes behaviour predictable and easier for
-        # tests to patch without relying on global module state.
         try:
             from src.setup.app_prompts import (
                 ask_confirm as _ask_confirm,
@@ -270,3 +223,4 @@ __all__ = [
     "_run_processing_pipeline_plain",
     "_run_processing_pipeline_rich",
 ]
+

@@ -1,51 +1,10 @@
-"""exceptions.py
+"""Central application exception hierarchy.
 
-Defines a centralized, explicit exception hierarchy for the school data pipeline.
-
-This module provides the `AppError` base class and a complete set of
-project-specific exception types, establishing a stable error taxonomy required
-for robust, auditable error handling as mandated by the project guardrails. All
-custom exceptions must subclass `AppError`, ensuring:
-    - Consistent error codes for programmatic and user-facing outputs.
-    - Machine-readable context for safe, structured logging at all layers.
-    - Distinction between transient (retryable) and permanent errors.
-    - Decoupling from third-party exceptions.
-
-Third-party exceptions (such as from `aiohttp`, `pandas`) are never propagated
-directly—catch them at process boundaries and re-raise with the appropriate
-specialized application error from this module.
-
-This file is imported by every pipeline component (launcher, orchestrator, and
-core processing layers) to ensure strict, uniform error signaling and taxonomy,
-enabling robust logging, alerting, and testing.
-
-Module Layout
--------------
-- AppError : The root error class, with structured code/message/context/transient.
-- ConfigurationError : Raised for missing or invalid config.
-- DataValidationError : Raised on schema/content validation failure.
-- UserInputError : Raised for invalid or excessive user input.
-- APIRateLimitError : Raised when an API signals a rate/exhaustion condition.
-- RetryExhaustedError : Raised when all retries fail for a transient error.
-- TimeoutExceededError : Raised on deadline/time budget exhaustion.
-- ExternalServiceError : Raised for unexpected external service failures.
-
-References
-----------
-.. [1] AGENTS.md, "Explicit Error Taxonomy (Centralized Exceptions)", Section 5.2
-
-Examples
---------
->>> from src.exceptions import AppError, DataValidationError
->>> e = AppError("TEST_CODE", "Test message")
->>> str(e)
-'TEST_CODE: Test message'
->>> e.to_dict()["error_code"]
-'TEST_CODE'
->>> err = DataValidationError("Missing required column", context={"file": "table.csv"})
->>> err.code
-'DATA_VALIDATION_ERROR'
-
+This module defines the base application exception ``AppError`` and a set of
+specialized subclasses used throughout the codebase to represent common
+failure modes (configuration, data validation, user input, external services,
+timeouts and retry exhaustion). Using a centralized hierarchy makes error
+handling and testing consistent.
 """
 
 from __future__ import annotations
@@ -54,64 +13,35 @@ from typing import Any, Mapping
 
 
 class AppError(Exception):
-    r"""Base exception for all application-level errors in the pipeline.
-
-    All application-specific exceptions must inherit from this root class,
-    providing a stable error code, human-friendly message, log-safe context,
-    and a transient flag for bounded retry logic.
-
-    This class enables:
-      - Standardized error reporting and handling everywhere in the project.
-      - Safe structured logging without exposure of secrets.
-      - Downstream separation of permanent vs transient failures for robust retry
-        and alerting.
-      - Use-cases defined explicitly via the required taxonomy in AGENTS.md.
-
-    Use `AppError` directly only for generic, uncategorized errors. For all
-    canonical error types, use named subclasses.
+    """Base exception for all application-level errors.
 
     Parameters
     ----------
-    See constructor for init signature.
+    code : str
+        Machine-readable error code (e.g., ``'DATA_VALIDATION_ERROR'``).
+    message : str
+        Human-readable message describing the error.
+    context : Mapping[str, Any] | None, optional
+        Optional structured context for logging.
+    transient : bool, optional
+        Whether the error is temporary and may be retried.
 
     Attributes
     ----------
     code : str
-        Stable, machine-readable error code (e.g., "DATA_VALIDATION_ERROR").
+        Stable machine-readable error code.
     message : str
-        Human-readable message, never containing secrets.
-    context : Mapping[str, Any]
-        Structured, non-sensitive details for logging (e.g., file names, IDs).
+        Human-readable message.
+    context : dict
+        Structured, non-sensitive context for logging.
     transient : bool
-        True if the error is temporary and a retry might succeed.
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    The error taxonomy and design are described in AGENTS.md section 5.2
-    ("Explicit Error Taxonomy (Centralized Exceptions)").
-
-    References
-    ----------
-    .. [1] AGENTS.md, "Explicit Error Taxonomy (Centralized Exceptions)", Section 5.2
+        True if the error is transient.
 
     Examples
     --------
-    >>> from src.exceptions import AppError
-    >>> e = AppError("TEST_CODE", "Test message", context={"key": "value"}, transient=True)
+    >>> e = AppError('CODE', 'message', context={'k': 'v'}, transient=True)
     >>> e.code
-    'TEST_CODE'
-    >>> e.transient
-    True
-    >>> e.context["key"]
-    'value'
-    >>> str(e)
-    'TEST_CODE: Test message'
-    >>> e.to_dict()['is_transient']
-    True
+    'CODE'
     """
 
     __slots__ = ("code", "message", "context", "transient")
@@ -124,39 +54,6 @@ class AppError(Exception):
         context: Mapping[str, Any] | None = None,
         transient: bool = False,
     ) -> None:
-        r"""Initialize an AppError instance with structured error details.
-
-        This constructor sets the core attributes and ensures the exception
-        message is set via the superclass. It normalizes context to a dict
-        and booleanizes transient for consistency in retry decisions.
-
-        Parameters
-        ----------
-        code : str
-            Stable machine-readable error code (e.g., 'DATA_VALIDATION_ERROR').
-        message : str
-            Human-readable message without secrets or sensitive data.
-        context : Mapping[str, Any] | None, optional
-            Structured, non-sensitive details for logging (defaults to empty dict).
-        transient : bool, optional
-            Indicates if the error is temporary and retries may succeed (default False).
-
-        Returns
-        -------
-        None
-            This constructor does not return a value.
-
-        Examples
-        --------
-        >>> from src.exceptions import AppError
-        >>> e = AppError('DATA_VALIDATION_ERROR', 'Missing column', context={'file': 'a.csv'})
-        >>> isinstance(e, Exception)
-        True
-        >>> e.code
-        'DATA_VALIDATION_ERROR'
-        >>> e.context
-        {'file': 'a.csv'}
-        """
         super().__init__(message)
         self.code = code
         self.message = message
@@ -164,40 +61,11 @@ class AppError(Exception):
         self.transient = bool(transient)
 
     def __str__(self) -> str:
-        """Return a string representation of the error.
-
-        The returned string contains the machine-readable error code and the
-        human-readable message.
-
-        Returns
-        -------
-        str
-            Formatted string like ``'CODE: message'``.
-
-        Examples
-        --------
-        >>> e = AppError('E', 'msg')
-        >>> print(str(e))
-        E: msg
-        """
+        """Return a compact string representation of the error."""
         return f"{self.code}: {self.message}"
 
     def to_dict(self) -> dict[str, Any]:
-        """Render a log-safe dictionary payload of the error.
-
-        Returns
-        -------
-        dict[str, Any]
-            Dictionary with keys ``error_code``, ``message``, ``context`` and
-            ``is_transient`` suitable for structured logging.
-
-        Examples
-        --------
-        >>> e = AppError('CODE', 'message', context={'k': 'v'}, transient=True)
-        >>> d = e.to_dict()
-        >>> d['error_code']
-        'CODE'
-        """
+        """Return a log-safe dictionary representation of the error."""
         return {
             "error_code": self.code,
             "message": self.message,
@@ -206,36 +74,12 @@ class AppError(Exception):
         }
 
 
-# --- Specific, concrete error types ---
-
-
 class ConfigurationError(AppError):
     """Raised for invalid or missing configuration."""
 
     def __init__(
         self, message: str, *, context: Mapping[str, Any] | None = None
     ) -> None:
-        """Initialize a ConfigurationError.
-
-        Parameters
-        ----------
-        message : str
-            Human-readable error message describing what is wrong in the
-            configuration.
-        context : Mapping[str, Any] | None, optional
-            Optional structured context for logging (e.g., which key or file
-            failed validation).
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> e = ConfigurationError('Missing API key')
-        >>> isinstance(e, ConfigurationError)
-        True
-        """
         super().__init__(
             "CONFIGURATION_ERROR", message, context=context, transient=False
         )
@@ -247,25 +91,6 @@ class DataValidationError(AppError):
     def __init__(
         self, message: str, *, context: Mapping[str, Any] | None = None
     ) -> None:
-        """Initialize a DataValidationError.
-
-        Parameters
-        ----------
-        message : str
-            Description of the validation failure.
-        context : Mapping[str, Any] | None, optional
-            Contextual information such as row number or filename.
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> e = DataValidationError('Missing column: name')
-        >>> isinstance(e, DataValidationError)
-        True
-        """
         super().__init__(
             "DATA_VALIDATION_ERROR", message, context=context, transient=False
         )
@@ -277,85 +102,26 @@ class UserInputError(AppError):
     def __init__(
         self, message: str, *, context: Mapping[str, Any] | None = None
     ) -> None:
-        """Initialize a UserInputError.
-
-        Parameters
-        ----------
-        message : str
-            Explanation of why the input is invalid or which limit was
-            exceeded.
-        context : Mapping[str, Any] | None, optional
-            Optional context about the input attempt (e.g., attempt count).
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> e = UserInputError('Too many attempts')
-        >>> isinstance(e, UserInputError)
-        True
-        """
         super().__init__("USER_INPUT_ERROR", message, context=context, transient=False)
 
 
 class APIRateLimitError(AppError):
-    """Raised when an external API signals a rate limit has been hit."""
+    """Raised when an external API indicates a rate limit condition."""
 
     def __init__(
         self, message: str, *, context: Mapping[str, Any] | None = None
     ) -> None:
-        """Initialize an APIRateLimitError.
-
-        Parameters
-        ----------
-        message : str
-            Message describing the rate limit condition (e.g., headers or
-            reset time if available).
-        context : Mapping[str, Any] | None, optional
-            Contextual details from the API response.
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> e = APIRateLimitError('429 Too Many Requests')
-        >>> isinstance(e, APIRateLimitError)
-        True
-        """
         super().__init__(
             "API_RATE_LIMIT_ERROR", message, context=context, transient=True
         )
 
 
 class RetryExhaustedError(AppError):
-    """Raised when all retry attempts for a transient error have failed."""
+    """Raised when retry attempts for a transient error have been exhausted."""
 
     def __init__(
         self, message: str, *, context: Mapping[str, Any] | None = None
     ) -> None:
-        """Initialize a RetryExhaustedError.
-
-        Parameters
-        ----------
-        message : str
-            Message explaining which operation exhausted its retries.
-        context : Mapping[str, Any] | None, optional
-            Optional debugging context such as last exception details.
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> e = RetryExhaustedError('Retries exhausted contacting AI service')
-        >>> isinstance(e, RetryExhaustedError)
-        True
-        """
         super().__init__(
             "RETRY_EXHAUSTED_ERROR", message, context=context, transient=False
         )
@@ -367,32 +133,13 @@ class TimeoutExceededError(AppError):
     def __init__(
         self, message: str, *, context: Mapping[str, Any] | None = None
     ) -> None:
-        """Initialize a TimeoutExceededError.
-
-        Parameters
-        ----------
-        message : str
-            Explanation of which timeout was exceeded (operation and value).
-        context : Mapping[str, Any] | None, optional
-            Optional context such as configured timeout value.
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> e = TimeoutExceededError('Request timed out after 10s')
-        >>> isinstance(e, TimeoutExceededError)
-        True
-        """
         super().__init__(
             "TIMEOUT_EXCEEDED_ERROR", message, context=context, transient=True
         )
 
 
 class ExternalServiceError(AppError):
-    """Raised for unexpected errors from an external service (e.g., HTTP 5xx)."""
+    """Raised for unexpected failures from an external service."""
 
     def __init__(
         self,
@@ -401,29 +148,7 @@ class ExternalServiceError(AppError):
         context: Mapping[str, Any] | None = None,
         transient: bool = True,
     ) -> None:
-        """Initialize an ExternalServiceError.
-
-        Parameters
-        ----------
-        message : str
-            Message describing the external failure (status code, body,
-            or other diagnostic information).
-        context : Mapping[str, Any] | None, optional
-            Optional context from the external service response.
-        transient : bool, optional
-            Whether this external failure is considered transient and
-            therefore retryable.
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> e = ExternalServiceError('HTTP 502 Bad Gateway')
-        >>> isinstance(e, ExternalServiceError)
-        True
-        """
         super().__init__(
             "EXTERNAL_SERVICE_ERROR", message, context=context, transient=transient
         )
+

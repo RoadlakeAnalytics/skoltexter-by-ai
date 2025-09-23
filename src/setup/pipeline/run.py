@@ -1,40 +1,9 @@
-"""Portfolio-grade module: Controlled subprocess runner for pipeline programs under orchestrator sequencing.
+"""Subprocess runner for pipeline programs.
 
-Single Responsibility Principle (SRP)
-------------------------------------
-This module's sole responsibility is to launch and manage external pipeline program subprocesses
-with strict boundaries, error/audit taxonomy, and TUI/test integration.
-
-Architecture & Orchestration Topology
--------------------------------------
-- Consumed by orchestrator (`src/setup/pipeline/orchestrator.py`).
-- Decoupled from legacy shims; directly references canonical config constants (`src/config.py`/PROJECT_ROOT).
-- Operates as core launching service for headless pipeline programs under CI/test/interactive dashboard.
-
-Configuration & Canonical Cross-References
-------------------------------------------
-- Subprocesses launched relative to canonical project root (`PROJECT_ROOT` constant, see `src/config.py`).
-- Language, environment, and logging levels injected via live configuration.
-- TUI rendering hooks (`_TUI_UPDATER`, `_PROGRESS_RENDERABLE`) optionally monkeypatched for integrated or test mode.
-
-Usage Boundaries & Robustness Auditing
---------------------------------------
-- Streaming output, TUI mutation, and dashboard integrations observe strict error/result boundaries.
-- Tests/mutation smoke branches monkeypatch local hooks; all test double flows strictly handled.
-- All subprocess return code branches, error results, and test/audit logs covered.
-- CI/test logic matches canonical execution and mutation testing flows (`tests/setup/pipeline/test_run*.py`).
-
-Error & Result Branches
------------------------
-- Logs all errors, failures, and output captures.
-- Does not raise; returns explicit status.
-- Compliance: Centralized error taxonomy (`src/exceptions.py`), mutation/test result audit (`pytest-mutmut`).
-
-Rationale for Usage Boundaries
-------------------------------
-Designed to guarantee auditability, CI mutation flow integrity, and strict decoupling for portability and easy
-test coverage. Portfolio compliance enforced by automated docstring interrogation (`interrogate`), type checking (`mypy`), mutation tests (`mutmut`), and zero-warnings CI (`ruff`, `black`).
-
+Utilities to launch and manage external pipeline program subprocesses with
+optional streaming support for TUI integration. The module focuses on
+starting processes, capturing output, and returning an explicit success
+status; orchestration logic is provided by the caller.
 """
 
 from __future__ import annotations

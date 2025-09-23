@@ -3,9 +3,9 @@
 This tool generates a temporary Software Bill of Materials (CycloneDX JSON)
 from ``requirements.lock`` using ``cyclonedx_py``. When a tracked
 ``sbom.json`` is present in the repository, the script compares the generated
-SBOM with the tracked file and signals a mismatch in CI. When no tracked
-SBOM exists (current policy), the script treats successful generation as a
-pass and skips comparison. Designed for use in pre-commit and CI.
+SBOM with the tracked file. When no tracked SBOM exists, the script treats
+successful generation as a pass and skips comparison. The tool is suitable
+for use in automation such as pre-commit hooks or CI pipelines.
 
 Usage
 -----
@@ -29,15 +29,15 @@ def main() -> int:
 
     The function always attempts SBOM generation from ``requirements.lock``.
     If a tracked ``sbom.json`` is present, the generated document is parsed and
-    compared to the tracked one. In CI, a mismatch results in a non-zero exit
-    code. When no tracked SBOM is present, comparison is skipped and the check
-    passes provided generation succeeded.
+    compared to the tracked one. A mismatch results in a non-zero exit code
+    to signal failure to the caller. When no tracked SBOM is present,
+    comparison is skipped and the check passes provided generation succeeded.
 
     Returns
     -------
     int
         ``0`` on success (generation succeeded and comparison passed or was
-        skipped), otherwise ``1`` when generation or comparison fails in CI.
+        skipped), otherwise ``1`` on failure.
     """
     root = Path(__file__).resolve().parents[2]
     req_lock = root / "requirements.lock"

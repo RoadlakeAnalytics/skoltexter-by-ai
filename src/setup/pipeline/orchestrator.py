@@ -1,37 +1,17 @@
-"""Orchestration and interactive state management for the school data pipeline.
+"""Orchestrator for pipeline sequencing and UI integration.
 
-This module enforces the Single Responsibility Principle by exclusively managing
-high-level orchestration and state/control boundary logic for the three-process
-school data pipeline. It provides canonical entrypoints for both plain and Rich/Textual
-TUI flows, robustly mapping interactive user choices to underlying pipeline commands.
-Decoupling is strict: no business logic or direct data processing occurs here—only
-sequencing and UI update bridging. The orchestrator links all TUI flows and programmatic
-execution to CI-ready, testable pipeline runners (see AGENTS.md §3, §4).
+Provides the entrypoints used by setup and launcher code to sequence the
+pipeline stages (markdown generation, AI processing, website generation)
+and to update TUI dashboards. The orchestrator mediates user prompts,
+status rendering and delegates execution to the pipeline runners.
 
-API and boundary notes:
-- Calls are made to in-process runners or to subprocess wrappers, always respecting
-  mutation testing, test injection, and CI patching protocols.
-- All configuration values (paths, program names, i18n keys) are defined in `src/config.py`.
-- All exceptions follow AGENTS.md taxonomy and should be mapped accordingly—no third-party
-  errors are allowed to escape these entrypoints.
-- Robustness: User interaction, streaming, and retries are bounded by constants; all flows
-  support direct monkeypatching for mutation and CI edge-case simulation.
+This module focuses on orchestration and does not implement core data
+processing logic.
 
-Canonical usage topology:
-- The launcher (`setup_project.py`) only invokes this orchestrator—never the pipeline directly.
-- The orchestrator mediates UI state, TUI content updating, prompt handling, and status/progress
-  rendering for testability and auditability.
+Typical usage::
 
-Testing and audit:
-- All flows are covered by tests in `tests/setup/pipeline/test_orchestrator_*` and checked for
-  CI, error, and mutation robustness per AGENTS.md Power-of-10.
-- Coverage includes edge cases (prompt skips, connectivity failures, test doubles for UI,
-  monkeypatching runners, legacy compatibility fallback).
-- All error branches are explicitly injectable/testable via dependency patching.
-
-Rationale:
-This placement partitions orchestration code at a clear architecture boundary, supporting strict
-decoupling, audit-compliant control, rule-based configuration, and test-first documentation.
+    from src.setup.pipeline import orchestrator
+    orchestrator.run_pipeline()
 
 """
 
@@ -81,62 +61,41 @@ def _compose_and_update() -> None:
         return
     content: Any
     if _STATUS_RENDERABLE is not None and _PROGRESS_RENDERABLE is not None:
-        # Prefer Rich's Group when available; fall back to a lightweight
-        # container named `Group` so tests that check the type name keep
-        # working even when Rich is not callable in the current context.
         try:
             from src.setup.console_helpers import Group as _RichGroup
 
-            # Cast the dynamic renderables to Any to satisfy static typing
             a: Any = _STATUS_RENDERABLE
             b: Any = _PROGRESS_RENDERABLE
             content = _RichGroup(a, b)
-            # Ensure a test-friendly `.items` attribute exists even when
-            # Rich's Group is used so tests can inspect the container.
             try:
                 if not hasattr(content, "items"):
                     content.items = a, b
             except Exception:
-                # Defensive: ignore failures when object is not attribute-writable
                 pass
         except Exception:
 
             class Group:
-                r"""Lightweight container for Richless TUI testing and CI patching.
-   
-                Stores two renderable items and exposes them for inspection—used
-                exclusively in unit tests and legacy fallback flows for auditability
-                and mutation coverage. No rendering logic is present.
-   
-                Parameters
-                ----------
-                a : Any
-                    First item, typically pipeline status renderable.
-                b : Any
-                    Second item, typically progress/status renderable.
-   
-                Notes
-                -----
-                Used only if Rich's Group class is unavailable or direct patching
-                for CI mutation/fallback branch. All audit/test cases injectable.
-   
+                r"""Lightweight container for environments without Rich.
+
+                Stores two renderable items and exposes them for inspection.
+
                 Examples
                 --------
                 >>> grp = Group("foo", "bar")
                 >>> assert grp.items == ("foo", "bar")
                 >>> # Used in TUI CI fallback or mutation flows—never in production logic.
                 """
-    
+
                 def __init__(self, a: Any, b: Any) -> None:
                     r"""Initialize with two items; audit/test-only container.
-   
+
                     Parameters
                     ----------
                     a : Any
                         First renderable/status item.
                     b : Any
                         Second renderable/progress item.
-   
+
                     Examples
                     --------
                     >>> Group("A", "B").items
@@ -144,33 +103,30 @@ def _compose_and_update() -> None:
                     """
                     self.items = (a, b)
 
-            content = Group(_STATUS_RENDERABLE, _PROGRESS_RENDERABLE)
+            a: Any = _STATUS_RENDERABLE
+            b: Any = _PROGRESS_RENDERABLE
+            content = Group(a, b)
     elif _STATUS_RENDERABLE is not None:
         content = _STATUS_RENDERABLE
     elif _PROGRESS_RENDERABLE is not None:
         content = _PROGRESS_RENDERABLE
     else:
-        content = Panel("", title="")
-    _TUI_UPDATER(content)
+        return
+
+    try:
+        _TUI_UPDATER(content)
+    except Exception:
+        # Do not let updater errors crash the orchestrator; log and continue.
+        try:
+            rprint("[red]TUI update failed[/red]")
+        except Exception:
+            pass
 
 
-def set_tui_mode(
-    update_right: Callable[[Any], None] | None,
-    update_prompt: Callable[[Any], None] | None = None,
-) -> Callable[[], None]:
+def set_tui_mode(update_right: Callable[[Any], None] | None, update_prompt: Callable[[Any], None] | None = None):
     """Enable or disable TUI mode and register updater callbacks.
 
-    Parameters
-    ----------
-    update_right : Callable[[Any], None] | None
-        Callback to update the main right-hand renderable.
-    update_prompt : Callable[[Any], None] | None, optional
-        Optional callback to update the prompt area.
-
-    Returns
-    -------
-    Callable[[], None]
-        A restore function that will revert previous TUI state when called.
+    Returns a restore function that reinstates the previous TUI state.
     """
     global _TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER
     prev = (_TUI_MODE, _TUI_UPDATER, _TUI_PROMPT_UPDATER)
@@ -282,12 +238,6 @@ def _run_pipeline_step(
     """
     choice = ask_text(_(prompt_key), default="y").lower()
     if choice in ["y", "j"]:
-        # Delegate execution to the run_program helper. Tests frequently
-        # monkeypatch ``run_program`` to avoid spawning subprocesses, and
-        # the setup/launcher can install an adapter that routes known
-        # program names to in-process runners. Keeping this call here
-        # preserves testability and separation of concerns.
-        # Prefer a run_program patched on this module (tests set orch.run_program)
         rp = globals().get("run_program")
         if rp is None:
             from .run import run_program as _rp
@@ -298,219 +248,3 @@ def _run_pipeline_step(
         if not ok:
             ui_warning(_(fail_key) + " Aborting pipeline.")
             return False
-        ui_success(_(confirmation_key))
-    elif choice in ["s", "skip", "h", "hoppa"]:
-        if skip_message:
-            ui_info(_(skip_message))
-        else:
-            ui_warning(_(fail_key))
-    else:
-        ui_warning(_(fail_key))
-        return False
-    return True
-
-
-def run_pipeline_by_name(program_name: str, stream_output: bool = False) -> bool:
-    """Run a pipeline step by its canonical name (program_1/2/3).
-
-    This helper is intended for programmatic consumption (e.g. the TUI) and
-    mirrors the behaviour used by the interactive flows but without
-    prompting. It maps the canonical name to an in-process runner that
-    invokes pipeline code directly.
-    """
-    try:
-        if program_name == "program_1":
-            return run_markdown()
-        if program_name == "program_2":
-            ai_processor_main()
-            return True
-        if program_name == "program_3":
-            return run_website()
-        # Unknown: fall back to subprocess runner (keeps backwards compatibility)
-        rp = globals().get("run_program")
-        if rp is None:
-            from .run import run_program as _rp
-
-            rp = _rp
-
-        return rp(
-            program_name,
-            Path(PROJECT_ROOT / "src" / f"{program_name}.py"),
-            stream_output=stream_output,
-        )
-    except Exception:
-        return False
-
-
-def _run_processing_pipeline_plain() -> None:
-    """Run the processing pipeline in a plain (non-Rich) terminal flow.
-
-    The function prompts for AI connectivity, runs the three canonical
-    pipeline steps in sequence and prints status messages to the console.
-    """
-    ui_rule(_("pipeline_title"))
-    rprint(
-        f"[bold]{translate('ai_check_title')}[/bold]"
-        if ui_has_rich()
-        else translate("ai_check_title")
-    )
-    if ask_confirm(translate("ai_check_prompt"), default_yes=True):
-        ok = run_ai_connectivity_check_interactive()
-        if not ok:
-            return
-    if not _run_pipeline_step(
-        "run_program_1_prompt",
-        "program_1",
-        SRC_DIR / "program1_generate_markdowns.py",
-        "program_1_failed",
-        "markdown_created",
-    ):
-        return
-    _run_pipeline_step(
-        "run_program_2_prompt",
-        "program_2",
-        SRC_DIR / "program2_ai_processor.py",
-        "program_2_failed",
-        "ai_descriptions_created",
-        skip_message="program_2_skipped",
-        stream_output=True,
-    )
-    program3_success = _run_pipeline_step(
-        "run_program_3_prompt",
-        "program_3",
-        SRC_DIR / "program3_generate_website.py",
-        "program_3_failed",
-        "website_created",
-    )
-    ui_success(_("pipeline_complete"))
-    if program3_success:
-        html_path = PROJECT_ROOT / "output" / "index.html"
-        open_msg = {
-            "en": f"\nOpen the file in your browser by double-clicking it in your file explorer:\n  {html_path.resolve()}",
-            "sv": f"\nÖppna filen i din webbläsare genom att dubbelklicka på den i Utforskaren:\n  {html_path.resolve()}",
-        }
-        rprint(open_msg.get(LANG, open_msg["en"]))
-
-
-def _run_processing_pipeline_rich(
-    content_updater: Callable[[Any], None] | None = None,
-) -> None:
-    """Run the processing pipeline using Rich/TUI update callbacks.
-
-    Parameters
-    ----------
-    content_updater : Callable[[Any], None] | None, optional
-        Optional callback that receives Rich renderables to update the UI.
-    """
-    if content_updater is not None:
-        set_tui_mode(content_updater)
-        content_updater(Panel(translate("ai_check_title"), title="AI"))
-    else:
-        rprint(f"[bold]{translate('ai_check_title')}[/bold]")
-    if ask_confirm(translate("ai_check_prompt"), default_yes=True):
-        ok = run_ai_connectivity_check_interactive()
-        if not ok:
-            return
-    s1 = _status_label("waiting")
-    s2 = _status_label("waiting")
-    s3 = _status_label("waiting")
-    # Manual update flow using provided updater or fallback printing
-    globals()["_STATUS_RENDERABLE"] = _render_pipeline_table(s1, s2, s3)
-    _compose_and_update()
-    # Step 1
-    s1 = _status_label("running")
-    globals()["_STATUS_RENDERABLE"] = _render_pipeline_table(s1, s2, s3)
-    _compose_and_update()
-    ok1 = _run_pipeline_step(
-        "run_program_1_prompt",
-        "program_1",
-        SRC_DIR / "program1_generate_markdowns.py",
-        "program_1_failed",
-        "markdown_created",
-    )
-    s1 = _status_label("ok" if ok1 else "fail")
-    globals()["_STATUS_RENDERABLE"] = _render_pipeline_table(s1, s2, s3)
-    _compose_and_update()
-    # Step 2
-    s2 = _status_label("running")
-    globals()["_STATUS_RENDERABLE"] = _render_pipeline_table(s1, s2, s3)
-    _compose_and_update()
-    ok2 = _run_pipeline_step(
-        "run_program_2_prompt",
-        "program_2",
-        SRC_DIR / "program2_ai_processor.py",
-        "program_2_failed",
-        "ai_descriptions_created",
-        skip_message="program_2_skipped",
-        stream_output=True,
-    )
-    s2 = _status_label("ok" if ok2 else "fail")
-    globals()["_STATUS_RENDERABLE"] = _render_pipeline_table(s1, s2, s3)
-    _compose_and_update()
-    # Step 3
-    s3 = _status_label("running")
-    globals()["_STATUS_RENDERABLE"] = _render_pipeline_table(s1, s2, s3)
-    _compose_and_update()
-    ok3 = _run_pipeline_step(
-        "run_program_3_prompt",
-        "program_3",
-        SRC_DIR / "program3_generate_website.py",
-        "program_3_failed",
-        "website_created",
-    )
-    s3 = _status_label("ok" if ok3 else "fail")
-    globals()["_STATUS_RENDERABLE"] = _render_pipeline_table(s1, s2, s3)
-    _compose_and_update()
-    ui_success(_("pipeline_complete"))
-    if ok3:
-        html_path = PROJECT_ROOT / "output" / "index.html"
-        if content_updater is not None:
-            content_updater(
-                Panel(
-                    {
-                        "en": f"\nOpen the file in your browser by double-clicking it in your file explorer:\n  {html_path.resolve()}",
-                        "sv": f"\nÖppna filen i din webbläsare genom att dubbelklicka på den i Utforskaren:\n  {html_path.resolve()}",
-                    }.get(LANG, ""),
-                    title="Pipeline",
-                )
-            )
-        else:
-            rprint(
-                {
-                    "en": f"\nOpen the file in your browser by double-clicking it in your file explorer:\n  {html_path.resolve()}",
-                    "sv": f"\nÖppna filen i din webbläsare genom att dubbelklicka på den i Utforskaren:\n  {html_path.resolve()}",
-                }.get(LANG, "")
-            )
-
-
-def run_processing_pipeline(
-    content_updater: Callable[[Any], None] | None = None,
-) -> None:
-    """Run the processing pipeline, choosing Rich UI when available.
-
-    Parameters
-    ----------
-    content_updater : Callable[[Any], None] | None, optional
-        Optional updater callback for TUI content rendering.
-    """
-    if content_updater is not None or ui_has_rich():
-        _run_processing_pipeline_rich(content_updater)
-    else:
-        _run_processing_pipeline_plain()
-
-
-__all__ = [
-    "_PROGRESS_RENDERABLE",
-    "_STATUS_RENDERABLE",
-    "_TUI_MODE",
-    "_TUI_UPDATER",
-    "_compose_and_update",
-    "_render_pipeline_table",
-    "_run_pipeline_step",
-    "_run_processing_pipeline_plain",
-    "_run_processing_pipeline_rich",
-    "_status_label",
-    "run_ai_connectivity_check_interactive",
-    "run_processing_pipeline",
-    "set_tui_mode",
-]

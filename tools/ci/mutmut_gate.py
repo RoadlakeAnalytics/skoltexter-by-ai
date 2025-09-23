@@ -1,8 +1,8 @@
 """Pre-push mutation testing gate using mutmut.
 
 Runs mutmut against the ``src`` package and fails with a non-zero
-exit code if any mutants survive. Designed to be invoked from
-pre-commit in the ``push`` stage.
+exit code if any mutants survive. Intended for use as part of automated
+quality checks (for example, in pre-commit or CI workflows).
 
 Usage
 -----
