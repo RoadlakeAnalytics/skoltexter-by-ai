@@ -189,14 +189,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          endpoints=( "https://api.github.com" "https://raw.githubusercontent.com" "https://codeload.github.com" )
+          # Include a few GitHub action related hostnames which runner
+          # background processes may contact during job startup.
+          endpoints=( \
+            "https://api.github.com" \
+            "https://raw.githubusercontent.com" \
+            "https://codeload.github.com" \
+            "https://results-receiver.actions.githubusercontent.com" \
+            "https://actions-results-receiver-production.githubapp.com" \
+            "https://hosted-compute-watchdog-prod-iad-01.githubapp.com" \
+            "https://productionresultssa12.blob.core.windows.net" \
+          )
+          tries=12
+          delay=2
           for u in "${endpoints[@]}"; do
-            if ! curl -sS --max-time 8 -I "$u" >/dev/null; then
-              echo "ERROR: cannot reach $u" >&2
+            ok=0
+            for i in $(seq 1 $tries); do
+              if curl -sS --max-time 8 -I "$u" >/dev/null 2>&1; then
+                ok=1
+                break
+              fi
+              echo "WARN: cannot reach $u (attempt $i/$tries), sleeping $delay"
+              sleep $delay
+            done
+            if [ $ok -ne 1 ]; then
+              echo "ERROR: cannot reach $u after $tries attempts" >&2
               exit 1
             fi
           done
-          if curl -sS --max-time 8 -I https://example.com >/dev/null; then
+          # Ensure a clearly disallowed host is not reachable
+          if curl -sS --max-time 8 -I https://example.com >/dev/null 2>&1; then
             echo "ERROR: disallowed host reachable (policy not applied)" >&2
             exit 1
           fi
