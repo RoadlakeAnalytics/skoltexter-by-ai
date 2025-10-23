@@ -43,6 +43,26 @@ jobs:
         with:
           extra_args: --all-files --hook-stage push
 
+  prepare-repo:
+    # Create a single repository artifact so subsequent jobs do not need to
+    # perform `actions/checkout` themselves. This allows us to run a single
+    # networked checkout early (when egress is open) and then let hardened
+    # jobs download the artifact without contacting github.com.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Pack repository
+        run: |
+          # Exclude the generated tarball to avoid recursion
+          tar --exclude='./repo.tar.gz' -czf repo.tar.gz .
+      - name: Upload repository artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: repo
+          path: repo.tar.gz
+
   branch-quick-matrix:
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -122,14 +142,20 @@ jobs:
   lint-and-types:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    needs: prepare-repo
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - name: Download repository artifact
+        uses: actions/download-artifact@v3
         with:
-          fetch-depth: 2
+          name: repo
+          path: repo_artifact
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
         with:
@@ -194,12 +220,20 @@ jobs:
   security:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    needs: prepare-repo
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - name: Download repository artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: repo
+          path: repo_artifact
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
         with:
@@ -272,10 +306,16 @@ jobs:
   secrets-scan:
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    needs: prepare-repo
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - name: Download repository artifact
+        uses: actions/download-artifact@v3
         with:
-          fetch-depth: 0
+          name: repo
+          path: repo_artifact
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
         with:
@@ -346,7 +386,14 @@ jobs:
             codecov-flag: 'macos-py313'
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - name: Download repository artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: repo
+          path: repo_artifact
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
         with:
@@ -422,7 +469,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [tests]
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - name: Download repository artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: repo
+          path: repo_artifact
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
         with:
@@ -489,8 +543,16 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    needs: prepare-repo
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - name: Download repository artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: repo
+          path: repo_artifact
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
         with:
@@ -537,8 +599,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    needs: prepare-repo
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - name: Download repository artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: repo
+          path: repo_artifact
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
         with:
@@ -573,9 +643,16 @@ jobs:
     name: docs-quality
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    needs: [lint-and-types]
+    needs: [prepare-repo, lint-and-types]
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - name: Download repository artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: repo
+          path: repo_artifact
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
         with:
