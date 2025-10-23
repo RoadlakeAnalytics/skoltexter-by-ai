@@ -128,12 +128,29 @@ jobs:
           else
             echo "WARNING: wheelhouse not present; skipping cyclonedx-bom installation to avoid network egress"
           fi
-      - uses: pre-commit/action@v3.0.1
+      # Run local checks directly to avoid network fetches performed by
+      # pre-commit when installing external hook repositories (e.g. psf/black).
+      # These checks mirror the repository-local pre-commit hooks and operate
+      # offline using packages installed from the wheelhouse.
+      - name: Cleanup mutants and caches
         env:
           PYTHONPATH: .
-          SKIP: sbom-generate
-        with:
-          extra_args: --all-files --hook-stage push
+        run: python tools/ci/cleanup_caches.py
+
+      - name: Pip check (installed deps)
+        env:
+          PYTHONPATH: .
+        run: python tools/ci/pip_check.py
+
+      - name: License allowlist
+        env:
+          PYTHONPATH: .
+        run: python tools/policy/check_licenses.py
+
+      - name: Interrogate (docstring coverage)
+        env:
+          PYTHONPATH: .
+        run: interrogate -v --fail-under 100 src/
 
   pack-repo:
     # Create a single repository artifact so subsequent jobs do not need to
