@@ -705,14 +705,18 @@ def manage_virtual_environment() -> None:
                         exe_name = f"python{ver}"
                         exe_path = shutil.which(exe_name)
                         if exe_path:
-                            subprocess.check_call([exe_path, "-m", "venv", str(VENV_DIR)])
+                            subprocess.check_call(
+                                [exe_path, "-m", "venv", str(VENV_DIR)]
+                            )
                             created = True
                             break
                     # 2) If not created and on Windows, try the py launcher
                     if not created and sys.platform == "win32" and shutil.which("py"):
                         for ver in preferred_versions:
                             try:
-                                subprocess.check_call(["py", f"-{ver}", "-m", "venv", str(VENV_DIR)])
+                                subprocess.check_call(
+                                    ["py", f"-{ver}", "-m", "venv", str(VENV_DIR)]
+                                )
                                 created = True
                                 break
                             except Exception:

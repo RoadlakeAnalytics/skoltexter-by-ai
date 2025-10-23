@@ -988,12 +988,12 @@ def test_manage_virtual_environment_search_exception(monkeypatch, tmp_path: Path
     def create_with_python(path, with_pip=True):
         bindir = sp_local.get_venv_bin_dir(sp_local.VENV_DIR)
         bindir.mkdir(parents=True, exist_ok=True)
-        (bindir / ("python.exe" if sp_local.sys.platform == "win32" else "python")).write_text(
-            "", encoding="utf-8"
-        )
-        (bindir / ("pip.exe" if sp_local.sys.platform == "win32" else "pip")).write_text(
-            "", encoding="utf-8"
-        )
+        (
+            bindir / ("python.exe" if sp_local.sys.platform == "win32" else "python")
+        ).write_text("", encoding="utf-8")
+        (
+            bindir / ("pip.exe" if sp_local.sys.platform == "win32" else "pip")
+        ).write_text("", encoding="utf-8")
 
     monkeypatch.setattr(sp_local.venv, "create", create_with_python)
     monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)

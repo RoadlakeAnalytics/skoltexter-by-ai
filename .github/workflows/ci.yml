@@ -55,8 +55,11 @@ jobs:
           fetch-depth: 0
       - name: Pack repository
         run: |
-          # Exclude the generated tarball to avoid recursion
-          tar --exclude='./repo.tar.gz' -czf repo.tar.gz .
+          # Create an archive from the committed tree to avoid race conditions
+          # where files are modified while tar is reading them (causes tar error).
+          # `git archive` exports the stable HEAD snapshot which is unaffected
+          # by runtime modifications to the working directory.
+          git archive --format=tar HEAD | gzip > repo.tar.gz
       - name: Upload repository artifact
         uses: actions/upload-artifact@v4
         with:
