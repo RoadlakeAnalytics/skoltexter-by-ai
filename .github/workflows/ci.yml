@@ -14,9 +14,7 @@ on:
   pull_request:
     paths-ignore: ['**/*.md', 'docs/**']
   schedule:
-    # Daglig körning för Linux & Windows (02:00 UTC)
     - cron: "0 2 * * *"
-    # Veckovis körning för macOS (Måndagar kl 03:00 UTC)
     - cron: "0 3 * * 1"
   workflow_dispatch:
 
@@ -183,31 +181,7 @@ jobs:
             semgrep.dev:443
             osv.dev:443
             api.osv.dev:443
-           codeload.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
+            codeload.github.com:443
             results-receiver.actions.githubusercontent.com:443
             actions-results-receiver-production.githubapp.com:443
             hosted-compute-watchdog-prod-iad-01.githubapp.com:443
