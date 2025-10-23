@@ -159,7 +159,36 @@ jobs:
           tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-$(cat /tmp/canonical_allowed.txt)
+        with:
+          egress-policy: block
+          allowed-endpoints: |
+            pypi.org:443
+            files.pythonhosted.org:443
+            pypi.python.org:443
+            pip.pypa.io:443
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            uploads.github.com:443
+            ghcr.io:443
+            pkg-containers.githubusercontent.com:443
+            codecov.io:443
+            api.codecov.io:443
+            uploader.codecov.io:443
+            uploads.codecov.io:443
+            static.codecov.io:443
+            storage.googleapis.com:443
+            registry.semgrep.dev:443
+            semgrep.dev:443
+            osv.dev:443
+            api.osv.dev:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
       - name: Wait for egress policy to apply
         run: sleep 5
 
@@ -213,7 +242,36 @@ $(cat /tmp/canonical_allowed.txt)
           tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-$(cat /tmp/canonical_allowed.txt)
+        with:
+          egress-policy: block
+          allowed-endpoints: |
+            pypi.org:443
+            files.pythonhosted.org:443
+            pypi.python.org:443
+            pip.pypa.io:443
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            uploads.github.com:443
+            ghcr.io:443
+            pkg-containers.githubusercontent.com:443
+            codecov.io:443
+            api.codecov.io:443
+            uploader.codecov.io:443
+            uploads.codecov.io:443
+            static.codecov.io:443
+            storage.googleapis.com:443
+            registry.semgrep.dev:443
+            semgrep.dev:443
+            osv.dev:443
+            api.osv.dev:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
       - name: Wait for egress policy to apply
         run: sleep 5
 
@@ -555,7 +613,36 @@ $(cat /tmp/canonical_allowed.txt)
           tar -xzf repo_artifact/repo.tar.gz -C .
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-$(cat /tmp/canonical_allowed.txt)
+        with:
+          egress-policy: block
+          allowed-endpoints: |
+            pypi.org:443
+            files.pythonhosted.org:443
+            pypi.python.org:443
+            pip.pypa.io:443
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            uploads.github.com:443
+            ghcr.io:443
+            pkg-containers.githubusercontent.com:443
+            codecov.io:443
+            api.codecov.io:443
+            uploader.codecov.io:443
+            uploads.codecov.io:443
+            static.codecov.io:443
+            storage.googleapis.com:443
+            registry.semgrep.dev:443
+            semgrep.dev:443
+            osv.dev:443
+            api.osv.dev:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
       - name: Wait for egress policy to apply
         run: sleep 5
 
