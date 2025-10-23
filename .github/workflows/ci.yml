@@ -90,7 +90,21 @@ jobs:
           else
             pip install --require-hashes -r requirements.lock
           fi
-          python -m pip install cyclonedx-bom
+          # Attempt offline install of SBOM tooling from the wheelhouse to avoid
+          # network egress in hardened jobs. If the package is not present in
+          # the wheelhouse, skip installation rather than attempting a network
+          # fetch which will fail under the hardened runner.
+          if [ -d "$WHEEL" ]; then
+            if pip install --no-index --find-links "$WHEEL" cyclonedx-bom; then
+              echo "Installed cyclonedx-bom from wheelhouse"
+            elif pip install --no-index --find-links "$WHEEL" cyclonedx-python-lib; then
+              echo "Installed cyclonedx-python-lib (provides cyclonedx_py) from wheelhouse"
+            else
+              echo "WARNING: cyclonedx-bom not found in wheelhouse; skipping SBOM tooling installation to avoid network egress"
+            fi
+          else
+            echo "WARNING: wheelhouse not present; skipping cyclonedx-bom installation to avoid network egress"
+          fi
       - uses: pre-commit/action@v3.0.1
         env:
           PYTHONPATH: .
