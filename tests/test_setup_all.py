@@ -968,6 +968,42 @@ def test_manage_virtual_environment_prefer_python313(monkeypatch, tmp_path: Path
     assert created["ok"] is True
 
 
+def test_manage_virtual_environment_search_exception(monkeypatch, tmp_path: Path):
+    """If a search for python executables raises, fall back to venv.create."""
+    import setup_project as sp_local
+
+    vdir = tmp_path / "v_ex"
+    monkeypatch.setattr(sp_local, "VENV_DIR", vdir)
+    monkeypatch.setattr(sp_local, "is_venv_active", lambda: False)
+    monkeypatch.setattr(sp_local, "ask_text", lambda prompt, default="y": "y")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+
+    # Make shutil.which raise to exercise the outer exception handler
+    def which_raiser(name):
+        raise RuntimeError("boom search")
+
+    monkeypatch.setattr(sp_local.shutil, "which", which_raiser)
+
+    # Ensure venv.create will happily create a minimal venv for later checks
+    def create_with_python(path, with_pip=True):
+        bindir = sp_local.get_venv_bin_dir(sp_local.VENV_DIR)
+        bindir.mkdir(parents=True, exist_ok=True)
+        (bindir / ("python.exe" if sp_local.sys.platform == "win32" else "python")).write_text(
+            "", encoding="utf-8"
+        )
+        (bindir / ("pip.exe" if sp_local.sys.platform == "win32" else "pip")).write_text(
+            "", encoding="utf-8"
+        )
+
+    monkeypatch.setattr(sp_local.venv, "create", create_with_python)
+    monkeypatch.setattr(sp_local.subprocess, "check_call", lambda *a, **k: None)
+
+    sp_local.manage_virtual_environment()
+
+    # venv.create should have produced a python executable inside the venv
+    assert sp_local.get_venv_python_executable(vdir).exists()
+
+
 def test_manage_virtual_environment_win_py_success(monkeypatch, tmp_path: Path):
     """On Windows, prefer 'py -3.13 -m venv' when available (success path)."""
     import setup_project as sp_local
