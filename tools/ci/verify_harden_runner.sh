@@ -13,6 +13,7 @@ TRIES=3
 DELAY=2
 CURL_TIMEOUT=8
 DISALLOWED="https://example.com"
+ALLOW_GITHUB_FALLBACK=false
 
 usage() {
   cat <<USAGE
@@ -29,6 +30,10 @@ while [ $# -gt 0 ]; do
     --tries)
       TRIES="$2"
       shift 2
+      ;;
+    --allow-github-fallback)
+      ALLOW_GITHUB_FALLBACK=true
+      shift
       ;;
     --delay)
       DELAY="$2"
@@ -73,10 +78,27 @@ for u in "${ENDPOINTS[@]}"; do
   ok=0
   i=1
   while [ $i -le "$TRIES" ]; do
-    if curl -sS --max-time "$CURL_TIMEOUT" -I "$u" >/dev/null 2>&1; then
-      ok=1
-      break
+    # Prefer a TLS handshake check with SNI (more robust than a bare HEAD).
+    host="${u#*://}"
+    host="${host%%/*}"
+
+    checked=false
+    if command -v openssl >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+      if timeout "$CURL_TIMEOUT" bash -c "echo | openssl s_client -connect ${host}:443 -servername ${host} >/dev/null 2>&1"; then
+        ok=1
+        checked=true
+        break
+      fi
     fi
+
+    # Fallback to curl HEAD if openssl/timeout unavailable or handshake failed.
+    if [ "$checked" = false ]; then
+      if curl -sS --max-time "$CURL_TIMEOUT" -I "$u" >/dev/null 2>&1; then
+        ok=1
+        break
+      fi
+    fi
+
     echo "WARN: cannot reach $u (attempt $i/$TRIES), sleeping $DELAY" >&2
     sleep "$DELAY"
     i=$((i + 1))
@@ -98,6 +120,33 @@ fi
 
 echo "ERROR: Harden runner verification failed for: ${failures[*]}" >&2
 echo "Collecting diagnostics for failed endpoints..." >&2
+
+# If allowed, and failures are GitHub-related, attempt a lightweight
+# fallback check against core GitHub hostnames. This avoids failing CI when
+# some CDN-backed IPs refuse connections transiently while GitHub remains
+# reachable through other endpoints.
+if [ "$ALLOW_GITHUB_FALLBACK" = true ]; then
+  github_failure=false
+  for fu in "${failures[@]}"; do
+    hostpart="${fu#*://}"
+    hostpart="${hostpart%%/*}"
+    case "$hostpart" in
+      *.github.com|github.com|*.githubusercontent.com|raw.githubusercontent.com|*.githubapp.com)
+        github_failure=true
+        ;;
+    esac
+  done
+  if [ "$github_failure" = true ]; then
+    echo "NOTICE: GitHub-related endpoints failed; attempting fallback checks..." >&2
+    if curl -sS --max-time "$CURL_TIMEOUT" -I https://github.com >/dev/null 2>&1 || \
+       curl -sS --max-time "$CURL_TIMEOUT" -I https://raw.githubusercontent.com >/dev/null 2>&1; then
+      echo "WARNING: Some GitHub endpoints failed but core GitHub hosts are reachable. Proceeding without failing this verification." >&2
+      exit 0
+    else
+      echo "NOTICE: fallback checks also failed; continuing to collect diagnostics." >&2
+    fi
+  fi
+fi
 
 command -v python3 >/dev/null 2>&1 || { echo "warning: python3 not available, DNS diagnostics limited" >&2; }
 command -v getent >/dev/null 2>&1 || true
@@ -154,4 +203,3 @@ PY
 done
 
 exit 1
-

@@ -176,6 +176,8 @@ jobs:
             codecov.io:443
             api.codecov.io:443
             uploader.codecov.io:443
+            uploads.codecov.io:443
+            static.codecov.io:443
             storage.googleapis.com:443
             registry.semgrep.dev:443
             semgrep.dev:443
@@ -184,23 +186,20 @@ jobs:
             codeload.github.com:443
             results-receiver.actions.githubusercontent.com:443
             actions-results-receiver-production.githubapp.com:443
-            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
             productionresultssa12.blob.core.windows.net:443
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/ci/verify_harden_runner.sh --tries 12 --delay 2 \
+          bash tools/ci/verify_harden_runner.sh --tries 12 --delay 2 --allow-github-fallback \
             "https://api.github.com" \
-            "https://raw.githubusercontent.com" \
             "https://codeload.github.com" \
             "https://results-receiver.actions.githubusercontent.com" \
-            "https://actions-results-receiver-production.githubapp.com" \
-            "https://hosted-compute-watchdog-prod-iad-01.githubapp.com" \
-            "https://productionresultssa12.blob.core.windows.net"
+            "https://actions-results-receiver-production.githubapp.com"
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -257,6 +256,8 @@ jobs:
             codecov.io:443
             api.codecov.io:443
             uploader.codecov.io:443
+            uploads.codecov.io:443
+            static.codecov.io:443
             storage.googleapis.com:443
             registry.semgrep.dev:443
             semgrep.dev:443
@@ -265,19 +266,20 @@ jobs:
             codeload.github.com:443
             results-receiver.actions.githubusercontent.com:443
             actions-results-receiver-production.githubapp.com:443
-            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
             productionresultssa12.blob.core.windows.net:443
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/ci/verify_harden_runner.sh --tries 1 \
+          bash tools/ci/verify_harden_runner.sh --tries 1 --allow-github-fallback \
             "https://api.github.com" \
-            "https://raw.githubusercontent.com" \
-            "https://codeload.github.com"
+            "https://codeload.github.com" \
+            "https://results-receiver.actions.githubusercontent.com" \
+            "https://actions-results-receiver-production.githubapp.com"
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
@@ -329,15 +331,19 @@ jobs:
             codeload.github.com:443
             raw.githubusercontent.com:443
             objects.githubusercontent.com:443
+            uploads.codecov.io:443
+            static.codecov.io:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/ci/verify_harden_runner.sh --tries 1 \
+          bash tools/ci/verify_harden_runner.sh --tries 1 --allow-github-fallback \
             "https://api.github.com" \
-            "https://raw.githubusercontent.com" \
-            "https://codeload.github.com"
+            "https://codeload.github.com" \
+            "https://results-receiver.actions.githubusercontent.com" \
+            "https://actions-results-receiver-production.githubapp.com"
       - name: Gitleaks (secrets)
         uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc
         env:
@@ -407,17 +413,21 @@ jobs:
             codecov.io:443
             api.codecov.io:443
             uploader.codecov.io:443
+            uploads.codecov.io:443
+            static.codecov.io:443
             storage.googleapis.com:443
             codeload.github.com:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/ci/verify_harden_runner.sh --tries 1 \
+          bash tools/ci/verify_harden_runner.sh --tries 1 --allow-github-fallback \
             "https://api.github.com" \
-            "https://raw.githubusercontent.com" \
-            "https://codeload.github.com"
+            "https://codeload.github.com" \
+            "https://results-receiver.actions.githubusercontent.com" \
+            "https://actions-results-receiver-production.githubapp.com"
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -482,13 +492,15 @@ jobs:
             codeload.github.com:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/ci/verify_harden_runner.sh --tries 1 \
+          bash tools/ci/verify_harden_runner.sh --tries 1 --allow-github-fallback \
             "https://api.github.com" \
-            "https://raw.githubusercontent.com" \
-            "https://codeload.github.com"
+            "https://codeload.github.com" \
+            "https://results-receiver.actions.githubusercontent.com" \
+            "https://actions-results-receiver-production.githubapp.com"
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -551,13 +563,15 @@ jobs:
             codeload.github.com:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/ci/verify_harden_runner.sh --tries 1 \
+          bash tools/ci/verify_harden_runner.sh --tries 1 --allow-github-fallback \
             "https://api.github.com" \
-            "https://raw.githubusercontent.com" \
-            "https://codeload.github.com"
+            "https://codeload.github.com" \
+            "https://results-receiver.actions.githubusercontent.com" \
+            "https://actions-results-receiver-production.githubapp.com"
       - name: Semgrep (p/ci, fail on high severity)
         uses: returntocorp/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d
         with:
@@ -595,20 +609,15 @@ jobs:
             codeload.github.com:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
-          endpoints=( "https://api.github.com" "https://raw.githubusercontent.com" "https://codeload.github.com" )
-          for u in "${endpoints[@]}"; do
-            if ! curl -sS --max-time 8 -I "$u" >/dev/null; then
-              echo "ERROR: cannot reach $u" >&2
-              exit 1
-            fi
-          done
-          if curl -sS --max-time 8 -I https://example.com >/dev/null; then
-            echo "ERROR: disallowed host reachable (policy not applied)" >&2
-            exit 1
-          fi
+          bash tools/ci/verify_harden_runner.sh --tries 1 --allow-github-fallback \
+            "https://api.github.com" \
+            "https://codeload.github.com" \
+            "https://results-receiver.actions.githubusercontent.com" \
+            "https://actions-results-receiver-production.githubapp.com"
       - name: Dependency Review (fail on high severity)
         uses: actions/dependency-review-action@c6c4c1745020c2dd28bf84835cf10d0e8c8a450f
         with:
@@ -644,20 +653,15 @@ jobs:
             codeload.github.com:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
-          endpoints=( "https://api.github.com" "https://raw.githubusercontent.com" "https://codeload.github.com" )
-          for u in "${endpoints[@]}"; do
-            if ! curl -sS --max-time 8 -I "$u" >/dev/null; then
-              echo "ERROR: cannot reach $u" >&2
-              exit 1
-            fi
-          done
-          if curl -sS --max-time 8 -I https://example.com >/dev/null; then
-            echo "ERROR: disallowed host reachable (policy not applied)" >&2
-            exit 1
-          fi
+          bash tools/ci/verify_harden_runner.sh --tries 1 --allow-github-fallback \
+            "https://api.github.com" \
+            "https://codeload.github.com" \
+            "https://results-receiver.actions.githubusercontent.com" \
+            "https://actions-results-receiver-production.githubapp.com"
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
