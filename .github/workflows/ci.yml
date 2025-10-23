@@ -183,7 +183,37 @@ jobs:
             semgrep.dev:443
             osv.dev:443
             api.osv.dev:443
-            codeload.github.com:443
+           codeload.github.com:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
         shell: bash
@@ -284,6 +314,12 @@ jobs:
             osv.dev:443
             api.osv.dev:443
             codeload.github.com:443
+            results-receiver.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            hosted-compute-watchdog-prod-iad-01.githubapp.com:443
+            productionresultssa12.blob.core.windows.net:443
+            productionresultssa9.blob.core.windows.net:443
+            agent.api.stepsecurity.io:443
       - name: Verify Harden Runner
         if: runner.os != 'Windows'
         shell: bash
