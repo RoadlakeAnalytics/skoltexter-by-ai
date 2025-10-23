@@ -20,6 +20,7 @@ on:
 
 jobs:
   validate-local-checks:
+    needs: prepare-repo
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -141,6 +142,7 @@ jobs:
           path: lockfiles
 
   branch-quick-matrix:
+    needs: prepare-repo
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
