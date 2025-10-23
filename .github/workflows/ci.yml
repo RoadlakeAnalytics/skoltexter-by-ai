@@ -429,7 +429,7 @@ jobs:
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner (preflight)
-        if: runner.os != "Windows"
+        if: runner.os != 'Windows'
         continue-on-error: true
         shell: bash
         run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
@@ -523,7 +523,7 @@ jobs:
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner (preflight)
-        if: runner.os != "Windows"
+        if: runner.os != 'Windows'
         continue-on-error: true
         shell: bash
         run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
@@ -617,7 +617,7 @@ jobs:
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner (preflight)
-        if: runner.os != "Windows"
+        if: runner.os != 'Windows'
         continue-on-error: true
         shell: bash
         run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
@@ -706,7 +706,7 @@ jobs:
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner (preflight)
-        if: runner.os != "Windows"
+        if: runner.os != 'Windows'
         continue-on-error: true
         shell: bash
         run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
@@ -811,7 +811,7 @@ jobs:
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner (preflight)
-        if: runner.os != "Windows"
+        if: runner.os != 'Windows'
         continue-on-error: true
         shell: bash
         run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
@@ -911,7 +911,7 @@ jobs:
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner (preflight)
-        if: runner.os != "Windows"
+        if: runner.os != 'Windows'
         continue-on-error: true
         shell: bash
         run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
@@ -974,7 +974,7 @@ jobs:
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner (preflight)
-        if: runner.os != "Windows"
+        if: runner.os != 'Windows'
         continue-on-error: true
         shell: bash
         run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
@@ -1030,7 +1030,7 @@ jobs:
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
       - name: Verify Harden Runner (preflight)
-        if: runner.os != "Windows"
+        if: runner.os != 'Windows'
         continue-on-error: true
         shell: bash
         run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
