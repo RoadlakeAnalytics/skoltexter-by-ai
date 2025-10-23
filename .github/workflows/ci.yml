@@ -58,7 +58,7 @@ jobs:
           # Exclude the generated tarball to avoid recursion
           tar --exclude='./repo.tar.gz' -czf repo.tar.gz .
       - name: Upload repository artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: repo
           path: repo.tar.gz
@@ -149,7 +149,7 @@ jobs:
         python-version: ['3.11', '3.12', '3.13']
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: repo
           path: repo_artifact
@@ -227,7 +227,7 @@ jobs:
         python-version: ['3.11', '3.12', '3.13']
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: repo
           path: repo_artifact
@@ -298,7 +298,7 @@ jobs:
           python -m pip install cyclonedx-bom
           python -m cyclonedx_py environment -o sbom.json --output-format json
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ matrix.python-version }}
           path: sbom.json
@@ -309,7 +309,7 @@ jobs:
     needs: prepare-repo
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: repo
           path: repo_artifact
@@ -387,7 +387,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: repo
           path: repo_artifact
@@ -470,7 +470,7 @@ jobs:
     needs: [tests]
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: repo
           path: repo_artifact
@@ -546,7 +546,7 @@ jobs:
     needs: prepare-repo
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: repo
           path: repo_artifact
@@ -602,7 +602,7 @@ jobs:
     needs: prepare-repo
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: repo
           path: repo_artifact
@@ -646,7 +646,7 @@ jobs:
     needs: [prepare-repo, lint-and-types]
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: repo
           path: repo_artifact
