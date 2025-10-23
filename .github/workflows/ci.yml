@@ -25,7 +25,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Download repository artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: repo
+          path: repo_artifact
+
+      - name: Extract repository
+        run: |
+          tar -xzf repo_artifact/repo.tar.gz -C .
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -127,6 +135,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip pip-tools
           pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=lockfiles/requirements.lock-3.13 requirements.txt
+      # Python 3.14 support: As of October 2025, Python 3.14 is the latest stable
+      # release but has not reached full ecosystem maturity. Several critical
+      # libraries (pytest, pytest-cov, and other testing dependencies) still lack
+      # official support. We include 3.14 in testing to prepare for future adoption,
+      # but allow failures until the ecosystem catches up.
       - name: Lockfile for 3.14
         uses: actions/setup-python@v5
         with:
@@ -146,6 +159,7 @@ jobs:
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Allow Python 3.14 to fail: Ecosystem libraries (pytest, etc.) not yet fully compatible
     continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       fail-fast: false
@@ -165,6 +179,7 @@ jobs:
           path: lockfiles
 
       - name: Install dependencies
+        # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
         continue-on-error: ${{ matrix.python-version == '3.14' }}
         run: |
           python -m pip install --upgrade pip
@@ -175,6 +190,7 @@ jobs:
             pip install --require-hashes -r requirements.lock
           fi
       - name: Quick tests (single seed, no coverage)
+        # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
         continue-on-error: ${{ matrix.python-version == '3.14' }}
         env:
           PYTHONPATH: .
@@ -184,6 +200,7 @@ jobs:
     if: github.event.schedule == '0 2 * * *'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    # Allow Python 3.14 to fail: Ecosystem libraries (pytest, etc.) not yet fully compatible
     continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       fail-fast: false
@@ -223,6 +240,7 @@ jobs:
     if: github.event.schedule == '0 3 * * 1'
     runs-on: macos-latest
     timeout-minutes: 60
+    # Allow Python 3.14 to fail: Ecosystem libraries (pytest, etc.) not yet fully compatible
     continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       fail-fast: false
@@ -427,11 +445,15 @@ jobs:
           pip check
       - name: Bandit (MEDIUM+)
         run: bandit -r src/ -x tests -ll
+      # CVE PYSEC-2022-42969 ignored: This issue affects the 'py' library.
+      # It is a disputed ReDoS vulnerability in SVN info parsing that security researchers
+      # have deemed non-reproducible under real-world conditions. Our dependency on 'py'
+      # is limited to development and testing (via pytest), with no exposure in production.
       - name: pip-audit (deps)
         run: pip-audit --requirement requirements.lock --strict --ignore-vuln PYSEC-2022-42969
       - name: License allowlist
         run: python tools/policy/check_licenses.py
-      # --- SBOM EFTER licenskollen ---
+      # SBOM AFTER license check
       - name: SBOM (CycloneDX via python -m)
         shell: bash
         run: |
