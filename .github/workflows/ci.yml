@@ -106,13 +106,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-3.12
-          path: lockfiles
+          path: .
 
       - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-3.12
-          path: wheelhouse
+          path: .
 
       - name: Verify offline artifacts
         run: |
@@ -366,13 +366,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-${{ matrix.python-version }}
-          path: lockfiles
+          path: .
 
       - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-${{ matrix.python-version }}
-          path: wheelhouse
+          path: .
 
       - name: Install dependencies
         # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
@@ -456,13 +456,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-${{ matrix.python-version }}
-          path: lockfiles
+          path: .
 
       - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-${{ matrix.python-version }}
-          path: wheelhouse
+          path: .
 
       - name: Install dependencies
         run: |
@@ -543,7 +543,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-${{ matrix.python-version }}
-          path: lockfiles
+          path: .
 
       - name: Install dependencies
         run: |
@@ -726,13 +726,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-${{ matrix.python-version }}
-          path: lockfiles
+          path: .
 
       - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-${{ matrix.python-version }}
-          path: wheelhouse
+          path: .
 
       - name: Download OSV database artifact
         uses: actions/download-artifact@v4
@@ -963,13 +963,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-${{ matrix.python-version }}
-          path: lockfiles
+          path: .
 
       - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-${{ matrix.python-version }}
-          path: wheelhouse
+          path: .
 
       - name: Install deps (hash-locked)
         uses: ./.github/actions/install-deps
@@ -1087,13 +1087,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-3.12
-          path: lockfiles
+          path: .
 
       - name: Download wheelhouse artifact (3.12)
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-3.12
-          path: wheelhouse
+          path: .
 
       - name: Verify offline artifacts
         run: |
@@ -1354,13 +1354,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-3.12
-          path: lockfiles
+          path: .
 
       - name: Download wheelhouse artifact (3.12)
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-3.12
-          path: wheelhouse
+          path: .
 
       - name: Verify offline artifacts
         run: |
