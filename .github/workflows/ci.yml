@@ -558,9 +558,17 @@ jobs:
           name: wheelhouse
           path: wheelhouse
 
+      - name: Verify offline artifacts
+        run: |
+          LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
+          WHEEL=wheelhouse/${{ matrix.python-version }}
+          bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
+
       - name: Install requirements (hash-locked)
         run: |
-          python -m pip install --upgrade pip
+          # Intentionally skip upgrading pip in hardened/offline jobs to avoid
+          # unintended network access; the wheelhouse should provide all
+          # required packages for offline installs.
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
@@ -572,8 +580,8 @@ jobs:
           fi
       - name: Ruff (lint)
         run: ruff check . --output-format=github
-      - name: Pre-commit (format & hooks)
-        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Black (format check)
+        run: python -m black --check . --line-length=88
       - name: Mypy (strict)
         run: mypy --strict src setup_project.py
 
@@ -664,9 +672,22 @@ jobs:
           name: lockfiles
           path: lockfiles
 
+      - name: Download wheelhouse artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wheelhouse
+          path: wheelhouse
+
+      - name: Verify offline artifacts
+        run: |
+          LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
+          WHEEL=wheelhouse/${{ matrix.python-version }}
+          bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
+
       - name: Install requirements (hash-locked)
         run: |
-          python -m pip install --upgrade pip
+          # Skip pip upgrade in hardened/offline jobs to avoid unintended
+          # network access; prefer installing from the pre-built wheelhouse.
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
