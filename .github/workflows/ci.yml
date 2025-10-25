@@ -20,85 +20,32 @@ on:
 
 jobs:
   validate-local-checks:
-    needs: prepare-artifacts
+    # This job provides quick, local-only checks and should not be blocked
+    # by the long-running artifact preparation step. Use a normal checkout
+    # so this job can run in parallel and provide fast feedback.
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: repo
-          path: repo_artifact
-
-      - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools like pre-commit
-          # which expect git metadata. Initialize a local repo if none present.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            github.com:443
-            codeload.github.com:443
-            api.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            storage.googleapis.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
-      - name: Download lockfiles artifact
+        uses: ./.github/actions/harden-runner
+      - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-3.12
           path: lockfiles
 
-      - name: Download wheelhouse artifact
+      - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: wheelhouse-3.12
           path: wheelhouse
 
       - name: Install project dependencies (hash-locked) + cyclonedx-bom
@@ -176,7 +123,8 @@ jobs:
     # Matrix job: create one lockfile+wheelhouse per Python version. Each
     # matrix axis is independent so a failure for one Python version does not
     # prevent others from completing. 3.14 is explicitly allowed to fail.
-    needs: pack-repo
+    # Use a direct checkout here so generate-locks does not have to wait on
+    # the separate `pack-repo` job; this reduces the overall critical path.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -184,36 +132,9 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     continue-on-error: ${{ matrix.python-version == '3.14' }}
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: repo
-          path: repo_artifact
-      - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -339,6 +260,23 @@ jobs:
         with:
           name: lockfiles
           path: lockfiles
+      - name: Download OSV vulnerability database (bulk)
+        env:
+          OSV_BULK_URL: ${{ secrets.OSV_BULK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OSV_BULK_URL:-}" ]; then
+            echo "ERROR: secrets.OSV_BULK_URL is not set; cannot produce offline OSV database." >&2
+            exit 1
+          fi
+          mkdir -p vuln-db
+          echo "Downloading OSV bulk database from: $OSV_BULK_URL"
+          curl -fsSL "$OSV_BULK_URL" -o vuln-db/osv.json
+      - name: Upload OSV database artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: osv-db
+          path: vuln-db
       - name: Upload wheelhouse artifact
         uses: actions/upload-artifact@v4
         with:
@@ -346,7 +284,7 @@ jobs:
           path: wheelhouse
 
   branch-quick-matrix:
-    needs: prepare-artifacts
+    # Quick branch matrix should not be blocked by global artifact preparation.
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -363,16 +301,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
           cache: 'pip'
-      - name: Download lockfiles artifact
+      - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
-      - name: Download wheelhouse artifact
+      - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse
 
       - name: Install dependencies
@@ -398,6 +336,8 @@ jobs:
         run: pytest -q --maxfail=1 --randomly-seed=1 tests
 
   nightly-matrix:
+    # Ensure per-version lockfiles/wheelhouses are generated before scheduled runs.
+    needs: generate-locks
     if: github.event.schedule == '0 2 * * *'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -415,16 +355,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
           cache: 'pip'
-      - name: Download lockfiles artifact
+      - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
-      - name: Download wheelhouse artifact
+      - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse
 
       - name: Install dependencies
@@ -448,6 +388,8 @@ jobs:
           pytest --randomly-seed=2 tests
 
   weekly-macos-matrix:
+    # Ensure per-version lockfiles are generated before scheduled macOS runs.
+    needs: generate-locks
     if: github.event.schedule == '0 3 * * 1'
     runs-on: macos-latest
     timeout-minutes: 60
@@ -464,10 +406,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
           cache: 'pip'
-      - name: Download lockfiles artifact
+      - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
       - name: Install dependencies
@@ -490,79 +432,16 @@ jobs:
   lint-and-types:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    needs: prepare-artifacts
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.11', '3.12', '3.13']
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: repo
-          path: repo_artifact
-      - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
+          fetch-depth: 0
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            storage.googleapis.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+        uses: ./.github/actions/harden-runner
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -572,16 +451,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Download lockfiles artifact
+      - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
-      - name: Download wheelhouse artifact
+      - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse
 
       - name: Verify offline artifacts
@@ -591,19 +470,10 @@ jobs:
           bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
 
       - name: Install requirements (hash-locked)
-        run: |
-          # Intentionally skip upgrading pip in hardened/offline jobs to avoid
-          # unintended network access; the wheelhouse should provide all
-          # required packages for offline installs.
-          LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
-          WHEEL=wheelhouse/${{ matrix.python-version }}
-          if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
-            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
-          elif [ -f "$LOCK" ]; then
-            pip install --require-hashes -r "$LOCK"
-          else
-            pip install --require-hashes -r requirements.lock
-          fi
+        uses: ./.github/actions/install-deps
+        with:
+          lockfile: lockfiles/requirements.lock-${{ matrix.python-version }}
+          wheel-dir: wheelhouse/${{ matrix.python-version }}
       - name: Ruff (lint)
         run: ruff check . --output-format=github
       - name: Black (format check)
@@ -613,96 +483,40 @@ jobs:
 
   security:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
     needs: prepare-artifacts
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.11', '3.12', '3.13']
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: repo
-          path: repo_artifact
-      - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
+          fetch-depth: 0
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            storage.googleapis.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+        uses: ./.github/actions/harden-runner
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Download lockfiles artifact
+      - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
-      - name: Download wheelhouse artifact
+      - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse
+
+      - name: Download OSV database artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: osv-db
+          path: osv-db
 
       - name: Verify offline artifacts
         run: |
@@ -711,27 +525,19 @@ jobs:
           bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
 
       - name: Install requirements (hash-locked)
-        run: |
-          # Skip pip upgrade in hardened/offline jobs to avoid unintended
-          # network access; prefer installing from the pre-built wheelhouse.
-          LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
-          WHEEL=wheelhouse/${{ matrix.python-version }}
-          if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
-            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
-          elif [ -f "$LOCK" ]; then
-            pip install --require-hashes -r "$LOCK"
-          else
-            pip install --require-hashes -r requirements.lock
-          fi
-          pip check
+        uses: ./.github/actions/install-deps
+        with:
+          lockfile: lockfiles/requirements.lock-${{ matrix.python-version }}
+          wheel-dir: wheelhouse/${{ matrix.python-version }}
       - name: Bandit (MEDIUM+)
         run: bandit -r src/ -x tests -ll
       # CVE PYSEC-2022-42969 ignored: This issue affects the 'py' library.
       # It is a disputed ReDoS vulnerability in SVN info parsing that security researchers
       # have deemed non-reproducible under real-world conditions. Our dependency on 'py'
       # is limited to development and testing (via pytest), with no exposure in production.
-      - name: pip-audit (deps)
-        run: pip-audit --requirement requirements.lock --strict --ignore-vuln PYSEC-2022-42969 --disable-pip
+      - name: pip-audit (deps) (offline)
+        run: |
+          pip-audit --requirement requirements.lock --strict --ignore-vuln PYSEC-2022-42969 --disable-pip --database osv-db/osv.json
       - name: License allowlist
         run: python tools/policy/check_licenses.py
       # SBOM AFTER license check
@@ -765,75 +571,12 @@ jobs:
   secrets-scan:
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    needs: prepare-artifacts
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: repo
-          path: repo_artifact
-      - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
+          fetch-depth: 0
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            storage.googleapis.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+        uses: ./.github/actions/harden-runner
       - name: Gitleaks (secrets)
         uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc
         env:
@@ -878,73 +621,11 @@ jobs:
             codecov-flag: 'macos-py313'
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: repo
-          path: repo_artifact
-      - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
+          fetch-depth: 0
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            storage.googleapis.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+        uses: ./.github/actions/harden-runner
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -954,31 +635,23 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Download lockfiles artifact
+      - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
-      - name: Download wheelhouse artifact
+      - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse
 
       - name: Install deps (hash-locked)
-        run: |
-          # Do not upgrade pip here; print current pip version instead
-          python -m pip --version
-          LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
-          WHEEL=wheelhouse/${{ matrix.python-version }}
-          if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
-            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
-          elif [ -f "$LOCK" ]; then
-            pip install --require-hashes -r "$LOCK"
-          else
-            pip install --require-hashes -r requirements.lock
-          fi
+        uses: ./.github/actions/install-deps
+        with:
+          lockfile: lockfiles/requirements.lock-${{ matrix.python-version }}
+          wheel-dir: wheelhouse/${{ matrix.python-version }}
       - name: Pytest (seed=1, coverage 100%, branch coverage)
         env:
           PYTHONPATH: .
@@ -1006,73 +679,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [tests]
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: repo
-          path: repo_artifact
-      - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
+          fetch-depth: 0
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            storage.googleapis.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+        uses: ./.github/actions/harden-runner
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -1082,16 +693,16 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - name: Download lockfiles artifact
+      - name: Download lockfiles artifact (3.12)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-3.12
           path: lockfiles
 
-      - name: Download wheelhouse artifact
+      - name: Download wheelhouse artifact (3.12)
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: wheelhouse-3.12
           path: wheelhouse
 
       - name: Verify offline artifacts
@@ -1104,18 +715,10 @@ jobs:
           bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
 
       - name: Install deps (hash-locked)
-        run: |
-          # Do not upgrade pip here; print current pip version instead
-          python -m pip --version
-          LOCK=lockfiles/requirements.lock-3.12
-          WHEEL=wheelhouse/3.12
-          if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
-            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
-          elif [ -f "$LOCK" ]; then
-            pip install --require-hashes -r "$LOCK"
-          else
-            pip install --require-hashes -r requirements.lock
-          fi
+        uses: ./.github/actions/install-deps
+        with:
+          lockfile: lockfiles/requirements.lock-3.12
+          wheel-dir: wheelhouse/3.12
       - name: Run mutation tests (mutmut)
         env:
           PYTHONPATH: .
@@ -1141,73 +744,12 @@ jobs:
       security-events: write
     needs: pack-repo
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: repo
-          path: repo_artifact
       - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
-      - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
+        uses: ./.github/actions/restore-repo
         with:
-          egress-policy: block
-          allowed-endpoints: |
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            storage.googleapis.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+          artifact-name: repo
+      - name: Harden Runner
+        uses: ./.github/actions/harden-runner
       - name: Semgrep (p/ci, fail on high severity)
         uses: returntocorp/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d
         with:
@@ -1226,73 +768,12 @@ jobs:
       contents: read
     needs: pack-repo
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: repo
-          path: repo_artifact
       - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
-      - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
+        uses: ./.github/actions/restore-repo
         with:
-          egress-policy: block
-          allowed-endpoints: |
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            storage.googleapis.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+          artifact-name: repo
+      - name: Harden Runner
+        uses: ./.github/actions/harden-runner
       - name: Dependency Review (fail on high severity)
         uses: actions/dependency-review-action@c6c4c1745020c2dd28bf84835cf10d0e8c8a450f
         with:
@@ -1302,89 +783,30 @@ jobs:
     name: docs-quality
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    needs: [prepare-artifacts, lint-and-types]
+    # Only depend on lint-and-types; docs-quality can run without the global
+    # aggregated artifacts and will prefer per-version wheelhouses if present.
+    needs: [lint-and-types]
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: repo
-          path: repo_artifact
-      - name: Restore repository
-        run: |
-          set -euo pipefail
-          # Prefer bundle if present (preserves .git), otherwise extract archive.
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "No bundle found; extracting repo tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-          else
-            echo "ERROR: repository artifact not found" >&2
-            exit 1
-          fi
-
-          # Ensure a valid git repository exists locally for tools that expect it.
-          if [ ! -d .git ]; then
-            git init
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add --all || true
-            git commit -m "CI: import repository" || true
-          fi
+          fetch-depth: 0
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            github.com:443
-            api.github.com:443
-            codeload.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            storage.googleapis.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-      - name: Verify Harden Runner (preflight)
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+        uses: ./.github/actions/harden-runner
+      
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
           cache: 'pip'
-      - name: Download lockfiles artifact
+      - name: Download lockfiles artifact (3.12)
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
+          name: lockfiles-3.12
           path: lockfiles
 
-      - name: Download wheelhouse artifact
+      - name: Download wheelhouse artifact (3.12)
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: wheelhouse-3.12
           path: wheelhouse
 
       - name: Verify offline artifacts
