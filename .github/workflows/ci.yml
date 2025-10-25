@@ -284,51 +284,10 @@ jobs:
           elif apt-cache show "$PKG_GENERIC" >/dev/null 2>&1; then
             sudo apt-get install -y "$PKG_GENERIC"
           else
-            echo "apt does not provide $PKG_VERNAME nor $PKG_GENERIC; attempting pip-based remediation" >&2
-
-            # Check if the running Python interpreter already exposes distutils.
-            if python - <<'PY' >/dev/null 2>&1
-try:
-    import distutils
-    print('HAS_DISTUTILS')
-except Exception:
-    raise SystemExit(2)
-PY
-            then
-              echo "distutils is already importable in the interpreter; continuing"
-            else
-              echo "distutils not importable; attempting to remediate by upgrading pip/setuptools/wheel and bootstrapping ensurepip" >&2
-              python -m pip install --upgrade pip setuptools wheel
-              # Recheck
-              if python - <<'PY' >/dev/null 2>&1
-try:
-    import distutils
-    print('HAS_DISTUTILS')
-except Exception:
-    raise SystemExit(2)
-PY
-              then
-                echo "distutils became available after pip-based remediation; continuing"
-              else
-                echo "distutils still not available after pip remediation; attempting ensurepip and re-installation" >&2
-                python -m ensurepip --upgrade || true
-                python -m pip install --upgrade setuptools wheel
-                if python - <<'PY' >/dev/null 2>&1
-try:
-    import distutils
-    print('HAS_DISTUTILS')
-except Exception:
-    raise SystemExit(2)
-PY
-                then
-                  echo "distutils available after ensurepip remediation; continuing"
-                else
-                  echo "ERROR: distutils is not available after all remediation attempts." >&2
-                  echo "Please run generate-locks on a runner that provides the distutils apt package for the active Python, add appropriate apt sources, or build the wheelhouse in a manylinux Docker environment." >&2
-                  exit 1
-                fi
-              fi
-            fi
+            echo "ERROR: neither $PKG_VERNAME nor $PKG_GENERIC are available via apt on this runner." >&2
+            echo "This CI job requires distutils to be installable via apt for the active Python." >&2
+            echo "Options: run generate-locks on a runner that provides these packages, add the appropriate apt sources, or build the wheelhouse in a manylinux container." >&2
+            exit 1
           fi
 
           # Ensure the Python tooling is up-to-date in the interpreter we will use.

@@ -74,4 +74,3 @@ pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file="
 
 echo "Lockfile generated: $OUT_FILE"
 echo "Please review and commit the new lockfile if the changes are intentional."
-
