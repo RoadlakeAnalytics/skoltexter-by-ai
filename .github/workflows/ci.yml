@@ -273,23 +273,28 @@ jobs:
             PT_VER=$(printf "%s" "$PT_LINE" | sed -E 's/^pip-tools==([0-9A-Za-z.+-]+).*/\1/')
             PT_VER=$(printf "%s" "$PT_VER" | tr -d '\\' | tr -d '\r' | tr -d '[:space:]')
           fi
+
+          # Create and use an isolated virtualenv for pip-tools to avoid
+          # pip/pip-tools internal incompatibilities. Pin venv pip to a
+          # stable version.
+          VENV_DIR=".venv-piptools"
+          python -m venv "$VENV_DIR"
+          "$VENV_DIR/bin/python" -m pip install --upgrade pip==23.3.1 setuptools wheel
+
           if [ -n "$PT_VER" ]; then
-            echo "Installing pip-tools==$PT_VER (from requirements.lock)"
-            python -m pip install "pip-tools==$PT_VER"
+            echo "Installing pip-tools==$PT_VER into venv (from requirements.lock)"
+            "$VENV_DIR/bin/pip" install "pip-tools==$PT_VER"
           else
-            echo "pip-tools not pinned in requirements.lock; installing latest pip-tools"
-            python -m pip install pip-tools
+            echo "pip-tools not pinned in requirements.lock; installing latest pip-tools into venv"
+            "$VENV_DIR/bin/pip" install pip-tools
           fi
-          
-          echo "After install: python -m pip --version"
-          python -m pip --version || true
-          echo "pip-compile version and pip-tools info:"
-          pip-compile --version || true
-          python -m pip show pip-tools || true
-          
+
+          echo "Using venv pip-compile: $VENV_DIR/bin/pip-compile"
+          "$VENV_DIR/bin/pip-compile" --version || true
+
           mkdir -p lockfiles
-          pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=lockfiles/requirements.lock-${{ matrix.python-version }} requirements.txt
-          
+          "$VENV_DIR/bin/pip-compile" --allow-unsafe --generate-hashes --no-emit-index-url --output-file=lockfiles/requirements.lock-${{ matrix.python-version }} requirements.txt
+
           mkdir -p wheelhouse/${{ matrix.python-version }}
           bash tools/ci/build_wheelhouse.sh --python python --lock lockfiles/requirements.lock-${{ matrix.python-version }} --wheel-dir wheelhouse/${{ matrix.python-version }}
       - name: Debug - list wheelhouse contents
