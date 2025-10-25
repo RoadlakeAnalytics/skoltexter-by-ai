@@ -8,10 +8,11 @@ Usage
 -----
 bash tools/ci/verify_offline_artifacts.sh <path-to-lockfile> <path-to-wheel-dir>
 
-The script exits with non-zero status if the lockfile is missing. If the
-wheel directory is missing it prints a warning (we allow this so jobs can
-fall back to a networked install when appropriate), but the calling CI job
-should treat that as a policy decision.
+The script exits with non-zero status if the lockfile is missing. It also
+exits with non-zero status if the wheel directory is missing. This enforces
+the offline policy for hardened CI jobs: jobs that expect to install from
+the wheelhouse must fail fast rather than falling back to networked
+installs.
 """
 
 set -euo pipefail
@@ -36,9 +37,11 @@ if [ ! -f "$LOCKFILE" ]; then
 fi
 
 if [ ! -d "$WHEELDIR" ]; then
-  echo "WARNING: wheelhouse not found at: $WHEELDIR" >&2
-  echo "If the lockfile references packages not available in the wheelhouse," >&2
-  echo "pip will attempt a network fetch which is blocked in hardened jobs." >&2
+  echo "ERROR: wheelhouse not found at: $WHEELDIR" >&2
+  echo "Contents of wheelhouse root (if any):" >&2
+  ls -la "$(dirname \"$WHEELDIR\")" || true
+  echo "Failing because offline installs must be satisfied from the wheelhouse." >&2
+  exit 1
 else
   echo "Wheelhouse present; listing up to 200 entries:" 
   ls -la "$WHEELDIR" | sed -n '1,200p' || true
@@ -49,4 +52,3 @@ else
 fi
 
 echo "Offline artifact verification complete."
-

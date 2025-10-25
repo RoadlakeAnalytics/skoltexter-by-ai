@@ -109,7 +109,8 @@ jobs:
 
       - name: Install project dependencies (hash-locked) + cyclonedx-bom
         run: |
-          python -m pip install --upgrade pip
+          # Do not upgrade pip in offline/hardened jobs; print version for diagnostics
+          python -m pip --version
           LOCKFILE=lockfiles/requirements.lock-3.12
           WHEEL=wheelhouse/3.12
           if [ -d "$WHEEL" ] && [ -f "$LOCKFILE" ]; then
@@ -229,7 +230,18 @@ jobs:
           echo "Before install: python -m pip --version"
           python -m pip --version || true
 
-          PT_VER=$(awk -F'==' '/^pip-tools==/ {print $2; exit}' requirements.lock || true)
+          # Extract pip-tools version from requirements.lock robustly. The
+          # lockfile contains line-continuations ("\") after package lines,
+          # so avoid naively splitting on '==' which can capture the trailing
+          # backslash. We extract the full line and then parse the version.
+          PT_LINE=$(awk '/^pip-tools==/ {print; exit}' requirements.lock || true)
+          PT_VER=""
+          if [ -n "$PT_LINE" ]; then
+            # Extract a sane version token (digits/letters/dot/+-) from the line.
+            PT_VER=$(printf "%s" "$PT_LINE" | sed -E 's/^pip-tools==([0-9A-Za-z.+-]+).*/\1/')
+            # Defensive: strip any stray backslashes or whitespace
+            PT_VER=$(printf "%s" "$PT_VER" | tr -d '\\' | tr -d '\r' | tr -d '[:space:]')
+          fi
           if [ -n "$PT_VER" ]; then
             echo "Installing pip-tools==$PT_VER (from requirements.lock)"
             python -m pip install "pip-tools==$PT_VER"
@@ -373,7 +385,8 @@ jobs:
         # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
         continue-on-error: ${{ matrix.python-version == '3.14' }}
         run: |
-          python -m pip install --upgrade pip
+          # Do not upgrade pip here; print current pip version instead
+          python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
@@ -422,7 +435,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          # Do not upgrade pip here; print current pip version instead
+          python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
@@ -464,7 +478,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          # Do not upgrade pip here; print current pip version instead
+          python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           if [ -f "$LOCK" ]; then
             pip install --require-hashes -r "$LOCK"
@@ -729,7 +744,8 @@ jobs:
       - name: SBOM (CycloneDX via python -m)
         shell: bash
         run: |
-          python -m pip install --upgrade pip
+          # Do not upgrade pip here; print current pip version instead
+          python -m pip --version
           # Try to install SBOM tooling from local wheelhouse to avoid network egress
           WHEEL=wheelhouse/${{ matrix.python-version }}
           if [ -d "$WHEEL" ]; then
@@ -958,7 +974,8 @@ jobs:
 
       - name: Install deps (hash-locked)
         run: |
-          python -m pip install --upgrade pip
+          # Do not upgrade pip here; print current pip version instead
+          python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
@@ -1085,7 +1102,8 @@ jobs:
 
       - name: Install deps (hash-locked)
         run: |
-          python -m pip install --upgrade pip
+          # Do not upgrade pip here; print current pip version instead
+          python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           if [ -f "$LOCK" ]; then
             pip install --require-hashes -r "$LOCK"
@@ -1359,7 +1377,8 @@ jobs:
 
       - name: Install deps (hash-locked)
         run: |
-          python -m pip install --upgrade pip
+          # Do not upgrade pip here; print current pip version instead
+          python -m pip --version
           LOCK=lockfiles/requirements.lock-3.12
           if [ -f "$LOCK" ]; then
             pip install --require-hashes -r "$LOCK"
