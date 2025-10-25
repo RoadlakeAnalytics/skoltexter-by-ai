@@ -58,10 +58,54 @@ if [ ! -d "$WHEELDIR" ]; then
 else
   echo "Wheelhouse present; listing up to 200 entries:"
   ls -la "$WHEELDIR" | sed -n '1,200p' || true
-  if ! ls "$WHEELDIR"/*aiohappyeyeballs* >/dev/null 2>&1; then
-    echo "Note: 'aiohappyeyeballs' not found in the wheelhouse (filename check)." >&2
-  fi
+fi
+
+# Strict verification: ensure that every top-level package listed in the
+# pip-compile-generated lockfile has a corresponding wheel in the wheelhouse.
+# This enforces the offline policy: fail early if any wheel is missing.
+echo "Performing strict wheelhouse verification against lockfile..."
+if ! python - "$LOCKFILE" "$WHEELDIR" <<'PY'
+from pathlib import Path
+import re, sys
+
+lock = Path(sys.argv[1])
+wheels = Path(sys.argv[2])
+
+if not lock.exists():
+    print(f"ERROR: lockfile not found: {lock}", file=sys.stderr)
+    sys.exit(2)
+
+# Extract top-level package names in the form `name==version` from the lockfile.
+names = []
+for line in lock.read_text().splitlines():
+    m = re.match(r'^\s*([A-Za-z0-9_.+-]+)==', line)
+    if m:
+        names.append(m.group(1).lower())
+names = sorted(set(names))
+
+if not wheels.is_dir():
+    print(f"ERROR: wheel directory not found: {wheels}", file=sys.stderr)
+    sys.exit(3)
+
+wheel_files = [p.name.lower() for p in wheels.iterdir() if p.is_file()]
+missing = []
+for n in names:
+    n_dash = n.replace('_', '-')
+    # Consider a wheel present if its filename contains the normalized package
+    # name. This is a pragmatic check that works for most common wheels.
+    if not any(n_dash in wf or n in wf for wf in wheel_files):
+        missing.append(n)
+
+if missing:
+    print("ERROR: missing wheels for: " + ", ".join(missing), file=sys.stderr)
+    sys.exit(4)
+
+print("All wheels present.")
+PY
+then
+  echo "ERROR: strict wheelhouse verification failed. Missing wheels reported above." >&2
+  exit 1
+fi
 fi
 
 echo "Offline artifact verification complete."
-

@@ -67,4 +67,3 @@ runs:
         # conservative and retries a few times to account for transient CI
         # runner scheduling delays.
         bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
-
