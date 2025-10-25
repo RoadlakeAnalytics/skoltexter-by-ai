@@ -271,10 +271,10 @@ jobs:
           # generic python3-distutils. If neither is available, fail hard so
           # the runner owner can correct the environment.
           PY_VER=$(python - <<'PY'
-import sys
-print(f"{sys.version_info.major}.{sys.version_info.minor}")
-PY
-)
+          import sys
+          print(f"{sys.version_info.major}.{sys.version_info.minor}")
+          PY
+          )
           PKG_VERNAME="python${PY_VER}-distutils"
           PKG_GENERIC="python3-distutils"
 
