@@ -116,12 +116,11 @@ if missing:
     print("ERROR: missing wheels for: " + ", ".join(missing), file=sys.stderr)
     sys.exit(4)
 
-print("All wheels present.")
+    print("All wheels present.")
 PY
 then
   echo "ERROR: strict wheelhouse verification failed. Missing wheels reported above." >&2
   exit 1
-fi
 fi
 
 echo "Offline artifact verification complete."
