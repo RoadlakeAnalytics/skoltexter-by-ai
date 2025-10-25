@@ -35,20 +35,33 @@ if [ ! -f "$LOCKFILE" ]; then
   exit 1
 fi
 
+# If the exact per-version wheel dir is missing, allow a fallback to the
+# wheelhouse root (parent directory) if it contains .whl files. This helps
+# when artifacts are packed without a per-version subdirectory.
 if [ ! -d "$WHEELDIR" ]; then
-  echo "ERROR: wheelhouse not found at: $WHEELDIR" >&2
-  echo "Contents of wheelhouse root (if any):" >&2
-  # Korrigerat ls-kommando nedan
-  ls -la "$(dirname "$WHEELDIR")" || true
-  echo "Failing because offline installs must be satisfied from the wheelhouse." >&2
-  exit 1
+  PARENT_DIR="$(dirname "$WHEELDIR")"
+  if [ -d "$PARENT_DIR" ] && ls "$PARENT_DIR"/*.whl >/dev/null 2>&1; then
+    echo "NOTICE: wheelhouse directory '$WHEELDIR' not found; using wheelhouse root '$PARENT_DIR' as fallback." >&2
+    WHEELDIR="$PARENT_DIR"
+    echo "Wheelhouse present (fallback); listing up to 200 entries:"
+    ls -la "$WHEELDIR" | sed -n '1,200p' || true
+    if ! ls "$WHEELDIR"/*aiohappyeyeballs* >/dev/null 2>&1; then
+      echo "Note: 'aiohappyeyeballs' not found in the wheelhouse (filename check)." >&2
+    fi
+  else
+    echo "ERROR: wheelhouse not found at: $WHEELDIR" >&2
+    echo "Contents of wheelhouse root (if any):" >&2
+    ls -la "$PARENT_DIR" || true
+    echo "Failing because offline installs must be satisfied from the wheelhouse." >&2
+    exit 1
+  fi
 else
   echo "Wheelhouse present; listing up to 200 entries:"
-  ls -la "$WHEELDIR" | head -n 200 || true
-  # quick filename check for a common problematic package
+  ls -la "$WHEELDIR" | sed -n '1,200p' || true
   if ! ls "$WHEELDIR"/*aiohappyeyeballs* >/dev/null 2>&1; then
     echo "Note: 'aiohappyeyeballs' not found in the wheelhouse (filename check)." >&2
   fi
 fi
 
 echo "Offline artifact verification complete."
+
