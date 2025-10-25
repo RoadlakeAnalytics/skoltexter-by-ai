@@ -88,12 +88,28 @@ if not wheels.is_dir():
     sys.exit(3)
 
 wheel_files = [p.name.lower() for p in wheels.iterdir() if p.is_file()]
+print('wheelhouse contains (sample):')
+for wf in wheel_files[:200]:
+    print('  ', wf)
 missing = []
 for n in names:
-    n_dash = n.replace('_', '-')
-    # Consider a wheel present if its filename contains the normalized package
-    # name. This is a pragmatic check that works for most common wheels.
-    if not any(n_dash in wf or n in wf for wf in wheel_files):
+    norm = n.lower()
+    alt1 = norm.replace('-', '_')
+    alt2 = norm.replace('_', '-')
+    candidates = {norm, alt1, alt2}
+    found = False
+    for wf in wheel_files:
+        for token in candidates:
+            # Match common wheel filename patterns: token followed by '-' or '_' or '.'
+            if wf.startswith(token + '-') or wf.startswith(token + '_'):
+                found = True
+                break
+            if token + '-' in wf or token + '_' in wf or token + '.' in wf:
+                found = True
+                break
+        if found:
+            break
+    if not found:
         missing.append(n)
 
 if missing:
