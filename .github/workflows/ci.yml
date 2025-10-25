@@ -280,52 +280,52 @@ jobs:
         run: mkdir -p temp/lockfiles temp/wheelhouse lockfiles wheelhouse
       - name: Download lockfiles 3.11
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: lockfiles-3.11
           path: temp/lockfiles/3.11
-          if-no-files-found: warn
       - name: Download lockfiles 3.12
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: lockfiles-3.12
           path: temp/lockfiles/3.12
-          if-no-files-found: warn
       - name: Download lockfiles 3.13
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: lockfiles-3.13
           path: temp/lockfiles/3.13
-          if-no-files-found: warn
       - name: Download lockfiles 3.14
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: lockfiles-3.14
           path: temp/lockfiles/3.14
-          if-no-files-found: warn
       - name: Download wheelhouse 3.11
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: wheelhouse-3.11
           path: temp/wheelhouse/3.11
-          if-no-files-found: warn
       - name: Download wheelhouse 3.12
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: wheelhouse-3.12
           path: temp/wheelhouse/3.12
-          if-no-files-found: warn
       - name: Download wheelhouse 3.13
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: wheelhouse-3.13
           path: temp/wheelhouse/3.13
-          if-no-files-found: warn
       - name: Download wheelhouse 3.14
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: wheelhouse-3.14
           path: temp/wheelhouse/3.14
-          if-no-files-found: warn
       - name: Assemble artifacts
         run: |
           set -euo pipefail
