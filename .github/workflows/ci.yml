@@ -101,12 +101,6 @@ jobs:
           name: wheelhouse
           path: wheelhouse
 
-      - name: Download wheelhouse artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: wheelhouse
-          path: wheelhouse
-
       - name: Install project dependencies (hash-locked) + cyclonedx-bom
         run: |
           # Do not upgrade pip in offline/hardened jobs; print version for diagnostics
@@ -737,7 +731,7 @@ jobs:
       # have deemed non-reproducible under real-world conditions. Our dependency on 'py'
       # is limited to development and testing (via pytest), with no exposure in production.
       - name: pip-audit (deps)
-        run: pip-audit --requirement requirements.lock --strict --ignore-vuln PYSEC-2022-42969
+        run: pip-audit --requirement requirements.lock --strict --ignore-vuln PYSEC-2022-42969 --disable-pip-version-check
       - name: License allowlist
         run: python tools/policy/check_licenses.py
       # SBOM AFTER license check
@@ -1100,12 +1094,24 @@ jobs:
           name: wheelhouse
           path: wheelhouse
 
+      - name: Verify offline artifacts
+        run: |
+          # mutation-testing runs on Python 3.12 in this workflow. Verify that
+          # the per-version lockfile and wheelhouse are present for offline
+          # installation before attempting to install packages.
+          LOCK=lockfiles/requirements.lock-3.12
+          WHEEL=wheelhouse/3.12
+          bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
+
       - name: Install deps (hash-locked)
         run: |
           # Do not upgrade pip here; print current pip version instead
           python -m pip --version
-          LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
-          if [ -f "$LOCK" ]; then
+          LOCK=lockfiles/requirements.lock-3.12
+          WHEEL=wheelhouse/3.12
+          if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
+            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
+          elif [ -f "$LOCK" ]; then
             pip install --require-hashes -r "$LOCK"
           else
             pip install --require-hashes -r requirements.lock
@@ -1375,12 +1381,27 @@ jobs:
           name: lockfiles
           path: lockfiles
 
+      - name: Download wheelhouse artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wheelhouse
+          path: wheelhouse
+
+      - name: Verify offline artifacts
+        run: |
+          LOCK=lockfiles/requirements.lock-3.12
+          WHEEL=wheelhouse/3.12
+          bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
+
       - name: Install deps (hash-locked)
         run: |
           # Do not upgrade pip here; print current pip version instead
           python -m pip --version
           LOCK=lockfiles/requirements.lock-3.12
-          if [ -f "$LOCK" ]; then
+          WHEEL=wheelhouse/3.12
+          if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
+            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
+          elif [ -f "$LOCK" ]; then
             pip install --require-hashes -r "$LOCK"
           else
             pip install --require-hashes -r requirements.lock
