@@ -114,6 +114,12 @@ jobs:
           name: wheelhouse-3.12
           path: wheelhouse
 
+      - name: Verify offline artifacts
+        run: |
+          LOCK=lockfiles/requirements.lock-3.12
+          WHEEL=wheelhouse/3.12
+          bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
+
       - name: Install project dependencies (hash-locked) + cyclonedx-bom
         run: |
           # Do not upgrade pip in offline/hardened jobs; print version for diagnostics
