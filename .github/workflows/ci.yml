@@ -255,25 +255,42 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install system build dependencies
+      - name: Install system build dependencies (strict)
         # Ensure the runner has compilers and development headers so `pip wheel`
         # can build wheels from sdists when binary wheels are not available.
-        # Some Ubuntu releases (e.g. noble) may not provide `python3-distutils`
-        # as a package; attempt to install it only if present and avoid failing
-        # the job when it is absent. Ensure pip/setuptools/wheel are present
-        # in the chosen Python interpreter afterwards.
+        # This step will *fail* explicitly if a required distutils package is
+        # not available from apt. We do not silently skip installation.
         run: |
+          set -euo pipefail
           sudo apt-get update
-          # Install core build dependencies (do not fail the job if a package is unavailable)
-          sudo apt-get install -y build-essential python3-dev libssl-dev libffi-dev pkg-config || true
-          # Attempt to install python3-distutils only when available to avoid
-          # failing on Ubuntu releases that do not provide that package.
-          if apt-cache show python3-distutils >/dev/null 2>&1; then
-            sudo apt-get install -y python3-distutils || true
+          sudo apt-get install -y build-essential python3-dev libssl-dev libffi-dev pkg-config
+
+          # Determine the active Python major.minor (e.g. 3.12) and try to
+          # install the corresponding distutils package. We try the
+          # version-specific package (python3.X-distutils) first, then the
+          # generic python3-distutils. If neither is available, fail hard so
+          # the runner owner can correct the environment.
+          PY_VER=$(python - <<'PY'
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)
+          PKG_VERNAME="python${PY_VER}-distutils"
+          PKG_GENERIC="python3-distutils"
+
+          echo "Attempting to install distutils package for Python $PY_VER"
+          if apt-cache show "$PKG_VERNAME" >/dev/null 2>&1; then
+            sudo apt-get install -y "$PKG_VERNAME"
+          elif apt-cache show "$PKG_GENERIC" >/dev/null 2>&1; then
+            sudo apt-get install -y "$PKG_GENERIC"
           else
-            echo "python3-distutils not available via apt; continuing without it."
+            echo "ERROR: neither $PKG_VERNAME nor $PKG_GENERIC are available via apt on this runner." >&2
+            echo "This CI job requires distutils to be installable via apt for the active Python." >&2
+            echo "Options: run generate-locks on a runner that provides these packages, add the appropriate apt sources, or build the wheelhouse in a manylinux container." >&2
+            exit 1
           fi
-          # Ensure the Python environment has modern packaging tools.
+
+          # Ensure the Python tooling is up-to-date in the interpreter we will use.
           python -m pip install --upgrade pip setuptools wheel
       - name: Generate lockfile and wheelhouse
         run: |
