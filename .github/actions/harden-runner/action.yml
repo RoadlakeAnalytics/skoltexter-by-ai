@@ -1,21 +1,10 @@
-"""Composite action to apply the hardened runner policy and run a preflight check.
-
-This composite action centralizes the invocation of the external
-`step-security/harden-runner` action and the local preflight verification
-script (`tools/ci/verify_harden_runner.sh`). It accepts an override for the
-`allowed-endpoints` list and the egress policy, but provides a sensible
-default union of endpoints used across the workflow.
-
-Inputs
-------
-egress-policy : str, optional
-    Egress policy to apply to the runner. Defaults to `block`.
-allowed-endpoints : multiline str, optional
-    Newline-separated list of allowed host:port endpoints. If omitted the
-    default union list is used.
-verify-preflight : bool, optional
-    Whether to run the preflight verify script. Defaults to ``true``.
-"""
+# Composite action to apply the hardened runner policy and run a preflight check.
+#
+# This composite action centralizes the invocation of the external
+# `step-security/harden-runner` action and the local preflight verification
+# script (`tools/ci/verify_harden_runner.sh`). It accepts an override for the
+# `allowed-endpoints` list and the egress policy, but provides a sensible
+# default union of endpoints used across the workflow.
 
 name: Harden Runner (composite)
 description: "Apply runner hardening and (optionally) run a preflight verify."
@@ -74,4 +63,3 @@ runs:
       continue-on-error: true
       shell: bash
       run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
-

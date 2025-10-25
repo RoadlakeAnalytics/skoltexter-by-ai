@@ -1,17 +1,8 @@
-"""Composite action to install project dependencies from lockfiles and wheelhouse.
-
-This composite action centralizes the common installation logic used across
-the workflow. It prefers offline installation using a provided wheelhouse and
-lockfile, and falls back to installing from the lockfile or `requirements.lock`.
-
-Inputs
-------
-lockfile : path
-    Path to the pip-compile generated lockfile (e.g. `lockfiles/requirements.lock-3.12`).
-wheel-dir : path
-    Path to the wheelhouse directory containing wheels for the given Python version
-    (e.g. `wheelhouse/3.12`).
-"""
+ # Composite action to install project dependencies from lockfiles and wheelhouse.
+ #
+ # This composite action centralizes the common installation logic used across
+ # the workflow. It prefers offline installation using a provided wheelhouse and
+ # lockfile, and falls back to installing from the lockfile or `requirements.lock`.
 
 name: Install Dependencies (composite)
 description: "Install dependencies using wheelhouse and lockfile, with offline-first behaviour."
@@ -47,4 +38,3 @@ runs:
             exit 1
           fi
         fi
-
