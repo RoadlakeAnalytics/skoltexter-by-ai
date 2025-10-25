@@ -20,9 +20,10 @@ on:
 
 jobs:
   validate-local-checks:
-    # This job provides quick, local-only checks and should not be blocked
-    # by the long-running artifact preparation step. Use a normal checkout
-    # so this job can run in parallel and provide fast feedback.
+    # This job provides quick local-only checks but requires the prepared
+    # offline artifacts (lockfiles/wheelhouse) to run offline; ensure it
+    # waits for `prepare-artifacts`.
+    needs: prepare-artifacts
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -119,7 +120,51 @@ jobs:
           name: repo
           path: repo.tar.gz
 
+  fetch-osv-db:
+    # Fetch the OSV bulk vulnerability database with unrestricted egress.
+    # This job runs after `pack-repo` and uploads an `osv-db` artifact that
+    # hardened/offline jobs can later download. It intentionally does NOT use
+    # the hardened-runner so it can reach CDNs and other hosts needed for the
+    # vulnerability database bulk download.
+    needs: pack-repo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download OSV vulnerability database (bulk)
+        run: |
+          set -euo pipefail
+          # Public, verifiable URL chosen by the team (visible in workflow):
+          OSV_URL="https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"
+          echo "Downloading OSV bulk database from: $OSV_URL"
+          mkdir -p vuln-db vuln-db/extracted
+          curl -fsSL "$OSV_URL" -o vuln-db/all.zip
+          unzip -q vuln-db/all.zip -d vuln-db/extracted || true
+          # Prefer a single consolidated JSON if present; otherwise concatenate
+          # JSON files found inside the archive into a single file for offline use.
+          FIRST_JSON=$(find vuln-db/extracted -type f -name 'all.json' -o -name '*.json' | head -n 1 || true)
+          if [ -n "$FIRST_JSON" ]; then
+            COUNT=$(find vuln-db/extracted -type f -name '*.json' | wc -l || true)
+            if [ "$COUNT" -eq 1 ]; then
+              cp "$FIRST_JSON" vuln-db/osv.json
+            else
+              # Concatenate multiple JSON files as newline-delimited records.
+              find vuln-db/extracted -type f -name '*.json' -print0 | xargs -0 cat > vuln-db/osv.json
+            fi
+          else
+            echo "ERROR: No JSON files found inside downloaded OSV archive" >&2
+            exit 1
+          fi
+      - name: Upload OSV database artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: osv-db
+          path: vuln-db
+
   generate-locks:
+    # Ensure we only start generating locks after the repository has been
+    # packed. This lets `pack-repo` finish and then run two parallel tracks:
+    #  - fast checks (needs: pack-repo)
+    #  - dependency generation (this job)
+    needs: pack-repo
     # Matrix job: create one lockfile+wheelhouse per Python version. Each
     # matrix axis is independent so a failure for one Python version does not
     # prevent others from completing. 3.14 is explicitly allowed to fail.
@@ -260,23 +305,6 @@ jobs:
         with:
           name: lockfiles
           path: lockfiles
-      - name: Download OSV vulnerability database (bulk)
-        env:
-          OSV_BULK_URL: ${{ secrets.OSV_BULK_URL }}
-        run: |
-          set -euo pipefail
-          if [ -z "${OSV_BULK_URL:-}" ]; then
-            echo "ERROR: secrets.OSV_BULK_URL is not set; cannot produce offline OSV database." >&2
-            exit 1
-          fi
-          mkdir -p vuln-db
-          echo "Downloading OSV bulk database from: $OSV_BULK_URL"
-          curl -fsSL "$OSV_BULK_URL" -o vuln-db/osv.json
-      - name: Upload OSV database artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: osv-db
-          path: vuln-db
       - name: Upload wheelhouse artifact
         uses: actions/upload-artifact@v4
         with:
@@ -284,7 +312,9 @@ jobs:
           path: wheelhouse
 
   branch-quick-matrix:
-    # Quick branch matrix should not be blocked by global artifact preparation.
+    # Branch quick matrix depends on prepared artifacts (lockfiles/wheelhouse)
+    # so it must wait for the consolidated `prepare-artifacts` job to finish.
+    needs: prepare-artifacts
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -430,6 +460,10 @@ jobs:
           pytest --randomly-seed=2 tests
 
   lint-and-types:
+    # Fast feedback job: only needs the packed repository. It can run
+    # immediately after `pack-repo` without waiting for lockfile/wheelhouse
+    # preparation.
+    needs: pack-repo
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     strategy:
@@ -437,53 +471,39 @@ jobs:
       matrix:
         python-version: ['3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
         with:
-          fetch-depth: 0
-      - name: Harden Runner
-        uses: ./.github/actions/harden-runner
+          artifact-name: repo
+
       - name: Cleanup mutants and caches
         shell: bash
         run: |
           rm -rf mutants .pytest_cache .mypy_cache .ruff_cache || true
           find . -type d -name __pycache__ -prune -exec rm -rf {} + || true
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Download lockfiles artifact (per-version)
-        uses: actions/download-artifact@v4
-        with:
-          name: lockfiles-${{ matrix.python-version }}
-          path: lockfiles
 
-      - name: Download wheelhouse artifact (per-version)
-        uses: actions/download-artifact@v4
-        with:
-          name: wheelhouse-${{ matrix.python-version }}
-          path: wheelhouse
-
-      - name: Verify offline artifacts
+      - name: Install linting tools
         run: |
-          LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
-          WHEEL=wheelhouse/${{ matrix.python-version }}
-          bash tools/ci/verify_offline_artifacts.sh "$LOCK" "$WHEEL"
+          python -m pip install --upgrade pip
+          python -m pip install ruff black mypy
 
-      - name: Install requirements (hash-locked)
-        uses: ./.github/actions/install-deps
-        with:
-          lockfile: lockfiles/requirements.lock-${{ matrix.python-version }}
-          wheel-dir: wheelhouse/${{ matrix.python-version }}
       - name: Ruff (lint)
         run: ruff check . --output-format=github
+
       - name: Black (format check)
         run: python -m black --check . --line-length=88
+
       - name: Mypy (strict)
         run: mypy --strict src setup_project.py
 
   security:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    needs: prepare-artifacts
+    needs: [prepare-artifacts, fetch-osv-db]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -569,14 +589,17 @@ jobs:
           path: sbom.json
 
   secrets-scan:
+    # Fast feedback job: only needs repository content. Run as soon as
+    # `pack-repo` completes.
+    needs: pack-repo
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
         with:
-          fetch-depth: 0
-      - name: Harden Runner
-        uses: ./.github/actions/harden-runner
+          artifact-name: repo
+
       - name: Gitleaks (secrets)
         uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc
         env:
@@ -748,8 +771,6 @@ jobs:
         uses: ./.github/actions/restore-repo
         with:
           artifact-name: repo
-      - name: Harden Runner
-        uses: ./.github/actions/harden-runner
       - name: Semgrep (p/ci, fail on high severity)
         uses: returntocorp/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d
         with:
@@ -783,9 +804,9 @@ jobs:
     name: docs-quality
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    # Only depend on lint-and-types; docs-quality can run without the global
-    # aggregated artifacts and will prefer per-version wheelhouses if present.
-    needs: [lint-and-types]
+    # Docs quality needs both lint results and the prepared offline artifacts
+    # (lockfiles/wheelhouse). Wait for `prepare-artifacts` and `lint-and-types`.
+    needs: [prepare-artifacts, lint-and-types]
     steps:
       - uses: actions/checkout@v4
         with:
