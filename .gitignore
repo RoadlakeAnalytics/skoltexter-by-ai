@@ -138,6 +138,10 @@ output/
 # repomix
 repomix*
 
+# CI repomix script and output
+generate_ci_repomix.sh
+ci-repomix-output.xml
+
 # Roo Code, CC, Codex
 .roo/rules/rules.md
 AGENTS.md

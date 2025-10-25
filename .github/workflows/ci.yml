@@ -23,7 +23,7 @@ jobs:
     # This job provides quick local-only checks but requires the prepared
     # offline artifacts (lockfiles/wheelhouse) to run offline; ensure it
     # waits for `prepare-artifacts`.
-    needs: prepare-artifacts
+    needs: generate-locks
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -37,37 +37,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            github.com:443
-            codeload.github.com:443
-            api.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            storage.googleapis.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
+        uses: ./.github/actions/harden-runner
       - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@v4
         with:
@@ -139,7 +109,8 @@ jobs:
     # artifact without contacting github.com.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Pack repository
@@ -260,92 +231,12 @@ jobs:
           name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse/${{ matrix.python-version }}
 
-  prepare-artifacts:
-    # Aggregate per-version artifacts produced by `generate-locks` into the
-    # consolidated `lockfiles` and `wheelhouse` artifacts consumed by the rest
-    # of the workflow. Missing per-version artifacts are tolerated.
-    needs: generate-locks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Make temp folders
-        run: mkdir -p temp/lockfiles temp/wheelhouse lockfiles wheelhouse
-      - name: Download lockfiles 3.11
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: lockfiles-3.11
-          path: temp/lockfiles/3.11
-      - name: Download lockfiles 3.12
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: lockfiles-3.12
-          path: temp/lockfiles/3.12
-      - name: Download lockfiles 3.13
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: lockfiles-3.13
-          path: temp/lockfiles/3.13
-      - name: Download lockfiles 3.14
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: lockfiles-3.14
-          path: temp/lockfiles/3.14
-      - name: Download wheelhouse 3.11
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: wheelhouse-3.11
-          path: temp/wheelhouse/3.11
-      - name: Download wheelhouse 3.12
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: wheelhouse-3.12
-          path: temp/wheelhouse/3.12
-      - name: Download wheelhouse 3.13
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: wheelhouse-3.13
-          path: temp/wheelhouse/3.13
-      - name: Download wheelhouse 3.14
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: wheelhouse-3.14
-          path: temp/wheelhouse/3.14
-      - name: Assemble artifacts
-        run: |
-          set -euo pipefail
-          mkdir -p lockfiles
-          mkdir -p wheelhouse
-          for v in 3.11 3.12 3.13 3.14; do
-            if [ -f temp/lockfiles/${v}/requirements.lock-${v} ]; then
-              cp temp/lockfiles/${v}/requirements.lock-${v} lockfiles/ || true
-            fi
-            if [ -d temp/wheelhouse/${v} ]; then
-              mkdir -p wheelhouse/${v}
-              cp -r temp/wheelhouse/${v}/* wheelhouse/${v}/ || true
-            fi
-          done
-      - name: Upload lockfiles artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lockfiles
-          path: lockfiles
-      - name: Upload wheelhouse artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheelhouse
-          path: wheelhouse
+  # `prepare-artifacts` removed: jobs now depend directly on `generate-locks`
 
   branch-quick-matrix:
-    # Branch quick matrix depends on prepared artifacts (lockfiles/wheelhouse)
-    # so it must wait for the consolidated `prepare-artifacts` job to finish.
-    needs: prepare-artifacts
+    # Branch quick matrix depends on per-version lockfiles/wheelhouse
+    # produced by `generate-locks` and can start as soon as those are available.
+    needs: generate-locks
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -356,7 +247,10 @@ jobs:
       matrix:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
+        with:
+          artifact-name: repo
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -410,7 +304,10 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
+        with:
+          artifact-name: repo
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -461,7 +358,10 @@ jobs:
       matrix:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
+        with:
+          artifact-name: repo
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -534,48 +434,19 @@ jobs:
 
   security:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    needs: [prepare-artifacts, fetch-osv-db]
+    needs: [generate-locks, fetch-osv-db]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
         with:
-          fetch-depth: 0
+          artifact-name: repo
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            github.com:443
-            codeload.github.com:443
-            api.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            storage.googleapis.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
+        uses: ./.github/actions/harden-runner
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
@@ -705,41 +576,12 @@ jobs:
             codecov-flag: 'macos-py313'
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
         with:
-          fetch-depth: 0
+          artifact-name: repo
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            github.com:443
-            codeload.github.com:443
-            api.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            storage.googleapis.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
+        uses: ./.github/actions/harden-runner
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -793,41 +635,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [tests]
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
         with:
-          fetch-depth: 0
+          artifact-name: repo
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            github.com:443
-            codeload.github.com:443
-            api.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            storage.googleapis.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
+        uses: ./.github/actions/harden-runner
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -915,37 +728,7 @@ jobs:
         with:
           artifact-name: repo
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            github.com:443
-            codeload.github.com:443
-            api.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            storage.googleapis.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
+        uses: ./.github/actions/harden-runner
       - name: Dependency Review (fail on high severity)
         uses: actions/dependency-review-action@c6c4c1745020c2dd28bf84835cf10d0e8c8a450f
         with:
@@ -956,44 +739,15 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     # Docs quality needs both lint results and the prepared offline artifacts
-    # (lockfiles/wheelhouse). Wait for `prepare-artifacts` and `lint-and-types`.
-    needs: [prepare-artifacts, lint-and-types]
+    # (lockfiles/wheelhouse). Wait for per-version lockfiles and `lint-and-types`.
+    needs: [generate-locks, lint-and-types]
     steps:
-      - uses: actions/checkout@v4
+      - name: Restore repository
+        uses: ./.github/actions/restore-repo
         with:
-          fetch-depth: 0
+          artifact-name: repo
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: block
-          allowed-endpoints: |
-            github.com:443
-            codeload.github.com:443
-            api.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            storage.googleapis.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
+        uses: ./.github/actions/harden-runner
       
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:

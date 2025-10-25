@@ -1,20 +1,19 @@
-# Composite action to apply the hardened runner policy and run a preflight check.
-#
-# This composite action centralizes the invocation of the external
-# `step-security/harden-runner` action and the local preflight verification
-# script (`tools/ci/verify_harden_runner.sh`). It accepts an override for the
-# `allowed-endpoints` list and the egress policy, but provides a sensible
-# default union of endpoints used across the workflow.
+name: Harden Runner (composite action)
+description: |
+  Composite action wrapper around the external `step-security/harden-runner`
+  action with a small optional preflight verification step. Use this action
+  from job steps to consistently apply the hardened egress policy.
 
-name: Harden Runner (composite)
-description: "Apply runner hardening and (optionally) run a preflight verify."
 inputs:
   egress-policy:
-    description: 'Egress policy to apply.'
+    description: Egress policy to pass to the underlying harden-runner action.
     required: false
     default: 'block'
   allowed-endpoints:
-    description: 'Newline-separated allowed endpoints. If omitted a default union is used.'
+    description: |
+      Multi-line list of allowed host:port endpoints (newline-separated).
+      The default list mirrors the project's previous configuration and
+      includes GitHub, PyPI, Codecov, OSV and other required hosts.
     required: false
     default: |
       github.com:443
@@ -45,7 +44,7 @@ inputs:
       productionresultssa9.blob.core.windows.net:443
       agent.api.stepsecurity.io:443
   verify-preflight:
-    description: 'Run the verify_harden_runner.sh preflight check?'
+    description: Whether to run the local preflight verification script.
     required: false
     default: 'true'
 
@@ -53,13 +52,19 @@ runs:
   using: composite
   steps:
     - name: Harden Runner
+      id: harden
       uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
       with:
         egress-policy: ${{ inputs.egress-policy }}
         allowed-endpoints: ${{ inputs.allowed-endpoints }}
 
     - name: Verify Harden Runner (preflight)
-      if: ${{ inputs.verify-preflight == 'true' && runner.os != 'Windows' }}
-      continue-on-error: true
+      if: ${{ inputs.verify-preflight == 'true' }}
       shell: bash
-      run: bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+      run: |
+        # Lightweight preflight check to ensure the hardened runner blocks
+        # unexpected egress. The verification script is intentionally
+        # conservative and retries a few times to account for transient CI
+        # runner scheduling delays.
+        bash tools/ci/verify_harden_runner.sh --tries 3 --timeout 8
+
