@@ -106,13 +106,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lockfiles-3.12
-          path: .
+          path: lockfiles
 
       - name: Download wheelhouse artifact (per-version)
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-3.12
-          path: .
+          path: wheelhouse
 
       - name: Verify offline artifacts
         run: |
