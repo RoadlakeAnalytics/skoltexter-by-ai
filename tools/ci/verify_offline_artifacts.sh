@@ -175,8 +175,15 @@ for name in names:
     # fallback to support some legacy wheel naming. Only accept matches
     # that are also compatible with the current Python interpreter.
     if not candidates:
+        # Conservative fallback: match the canonical package name only when
+        # it appears at a token boundary in the wheel filename. This avoids
+        # false-positives where the name appears as a substring inside a
+        # different distribution (e.g. `notaiohappyeyeballs`). We allow the
+        # package name to appear at the start or be separated by '-', '_' or
+        # '.' characters.
+        token_re = re.compile(r'(^|[-_.])' + re.escape(canon) + r'([-_.]|$)')
         for wf in wheel_files:
-            if canon in wf.lower() and wheel_compatible(wf):
+            if token_re.search(wf.lower()) and wheel_compatible(wf):
                 candidates.append(wf)
     has_compatible = any(wheel_compatible(wf) for wf in candidates)
     if not has_compatible:
