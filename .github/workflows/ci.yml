@@ -731,7 +731,7 @@ jobs:
       # have deemed non-reproducible under real-world conditions. Our dependency on 'py'
       # is limited to development and testing (via pytest), with no exposure in production.
       - name: pip-audit (deps)
-        run: pip-audit --requirement requirements.lock --strict --ignore-vuln PYSEC-2022-42969 --disable-pip-version-check
+        run: pip-audit --requirement requirements.lock --strict --ignore-vuln PYSEC-2022-42969 --disable-pip
       - name: License allowlist
         run: python tools/policy/check_licenses.py
       # SBOM AFTER license check
