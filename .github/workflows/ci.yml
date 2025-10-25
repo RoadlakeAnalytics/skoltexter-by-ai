@@ -224,7 +224,24 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Generate lockfile and wheelhouse
         run: |
-          python -m pip install --upgrade pip pip-tools
+          # Install pip-tools. Prefer the version pinned in requirements.lock
+          # to avoid surprising incompatibilities with newer pip internals.
+          echo "Before install: python -m pip --version"
+          python -m pip --version || true
+
+          PT_VER=$(awk -F'==' '/^pip-tools==/ {print $2; exit}' requirements.lock || true)
+          if [ -n "$PT_VER" ]; then
+            echo "Installing pip-tools==$PT_VER (from requirements.lock)"
+            python -m pip install "pip-tools==$PT_VER"
+          else
+            echo "pip-tools not pinned in requirements.lock; installing latest pip-tools"
+            python -m pip install pip-tools
+          fi
+          echo "After install: python -m pip --version"
+          python -m pip --version || true
+          echo "pip-compile version and pip-tools info:" 
+          pip-compile --version || true
+          python -m pip show pip-tools || true
           mkdir -p lockfiles
           pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=lockfiles/requirements.lock-${{ matrix.python-version }} requirements.txt
           mkdir -p wheelhouse/${{ matrix.python-version }}
