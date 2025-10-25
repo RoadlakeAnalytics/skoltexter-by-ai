@@ -66,57 +66,127 @@ fi
 echo "Performing strict wheelhouse verification against lockfile..."
 if ! python - "$LOCKFILE" "$WHEELDIR" <<'PY'
 from pathlib import Path
-import re, sys
+import re
+import sys
+
+try:
+    # Prefer the packaging utility for robust name canonicalization when available.
+    from packaging.utils import canonicalize_name
+except Exception:
+    def canonicalize_name(name: str) -> str:
+        """Fallback canonicalization: normalize separators and lowercase.
+
+        This is intentionally conservative and compatible with PEP 503 style
+        normalization used for package names when `packaging` is not
+        available in the execution environment.
+        """
+        return re.sub(r"[-_.]+", "-", name).lower()
 
 lock = Path(sys.argv[1])
-wheels = Path(sys.argv[2])
+wheels_dir = Path(sys.argv[2])
 
 if not lock.exists():
     print(f"ERROR: lockfile not found: {lock}", file=sys.stderr)
     sys.exit(2)
+
+if not wheels_dir.is_dir():
+    print(f"ERROR: wheel directory not found: {wheels_dir}", file=sys.stderr)
+    sys.exit(3)
 
 # Extract top-level package names in the form `name==version` from the lockfile.
 names = []
 for line in lock.read_text().splitlines():
     m = re.match(r'^\s*([A-Za-z0-9_.+-]+)==', line)
     if m:
-        names.append(m.group(1).lower())
+        names.append(m.group(1))
 names = sorted(set(names))
 
-if not wheels.is_dir():
-    print(f"ERROR: wheel directory not found: {wheels}", file=sys.stderr)
-    sys.exit(3)
-
-wheel_files = [p.name.lower() for p in wheels.iterdir() if p.is_file()]
+wheel_files = [p.name for p in wheels_dir.iterdir() if p.is_file()]
 print('wheelhouse contains (sample):')
 for wf in wheel_files[:200]:
     print('  ', wf)
+
+def parse_wheel_distribution(fname: str) -> str | None:
+    """Parse the distribution name from a wheel filename.
+
+    This follows the wheel filename structure defined in PEP 427. We parse
+    from the right-hand side so that distribution names containing hyphens
+    are handled correctly.
+    """
+    if not fname.endswith('.whl'):
+        return None
+    base = fname[:-4]
+    parts = base.split('-')
+    # Wheel filename should have at least distribution, version, python tag,
+    # abi tag and platform tag => minimum 5 parts.
+    if len(parts) < 5:
+        return None
+    distribution = '-'.join(parts[:-4])
+    return canonicalize_name(distribution)
+
+def wheel_python_tags(fname: str) -> list[str]:
+    """Return the python-tag(s) from the wheel filename (may be multiple).
+
+    The python tag is the third-from-last component in the wheel filename
+    (PEP 427). Tags may be dot-separated when multiple tags are present.
+    """
+    if not fname.endswith('.whl'):
+        return []
+    base = fname[:-4]
+    parts = base.split('-')
+    if len(parts) < 5:
+        return []
+    tag_field = parts[-3]
+    return tag_field.split('.')
+
+py_major = sys.version_info.major
+py_minor = sys.version_info.minor
+cp_tag = f'cp{py_major}{py_minor}'
+py_major_tag = f'py{py_major}'
+
+def wheel_compatible(fname: str) -> bool:
+    """Return True if the wheel filename looks compatible with this Python.
+
+    This is a conservative check: we accept exact matches for the current
+    CPython tag (e.g. ``cp312``), the generic ``py3`` or the major-version
+    specific tag (e.g. ``py3`` / ``py312``) when present.
+    """
+    tags = wheel_python_tags(fname)
+    for t in tags:
+        if t == cp_tag:
+            return True
+        if t == py_major_tag or t == 'py3':
+            return True
+    return False
+
+# Map canonicalized distribution -> list of wheel filenames
+dist_to_wheels: dict[str, list[str]] = {}
+for wf in wheel_files:
+    dist = parse_wheel_distribution(wf)
+    if not dist:
+        continue
+    dist_to_wheels.setdefault(dist, []).append(wf)
+
 missing = []
-for n in names:
-    norm = n.lower()
-    alt1 = norm.replace('-', '_')
-    alt2 = norm.replace('_', '-')
-    candidates = {norm, alt1, alt2}
-    found = False
-    for wf in wheel_files:
-        for token in candidates:
-            # Match common wheel filename patterns: token followed by '-' or '_' or '.'
-            if wf.startswith(token + '-') or wf.startswith(token + '_'):
-                found = True
-                break
-            if token + '-' in wf or token + '_' in wf or token + '.' in wf:
-                found = True
-                break
-        if found:
-            break
-    if not found:
-        missing.append(n)
+for name in names:
+    canon = canonicalize_name(name)
+    candidates = dist_to_wheels.get(canon, [])
+    # If no exact distribution-name match, try a conservative substring
+    # fallback to support some legacy wheel naming. Only accept matches
+    # that are also compatible with the current Python interpreter.
+    if not candidates:
+        for wf in wheel_files:
+            if canon in wf.lower() and wheel_compatible(wf):
+                candidates.append(wf)
+    has_compatible = any(wheel_compatible(wf) for wf in candidates)
+    if not has_compatible:
+        missing.append(name)
 
 if missing:
-    print("ERROR: missing wheels for: " + ", ".join(missing), file=sys.stderr)
+    print("ERROR: missing compatible wheels for: " + ", ".join(missing), file=sys.stderr)
     sys.exit(4)
 
-    print("All wheels present.")
+print("All wheels present and compatible.")
 PY
 then
   echo "ERROR: strict wheelhouse verification failed. Missing wheels reported above." >&2
