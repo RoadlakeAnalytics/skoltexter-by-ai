@@ -232,16 +232,7 @@ jobs:
           path: vuln-db
 
   generate-locks:
-    # Ensure we only start generating locks after the repository has been
-    # packed. This lets `pack-repo` finish and then run two parallel tracks:
-    #  - fast checks (needs: pack-repo)
-    #  - dependency generation (this job)
     needs: pack-repo
-    # Matrix job: create one lockfile+wheelhouse per Python version. Each
-    # matrix axis is independent so a failure for one Python version does not
-    # prevent others from completing. 3.14 is explicitly allowed to fail.
-    # Use a direct checkout here so generate-locks does not have to wait on
-    # the separate `pack-repo` job; this reduces the overall critical path.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -256,59 +247,30 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install system build dependencies (strict)
-        # Ensure the runner has compilers and development headers so `pip wheel`
-        # can build wheels from sdists when binary wheels are not available.
-        # This step will *fail* explicitly if a required distutils package is
-        # not available from apt. We do not silently skip installation.
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y build-essential python3-dev libssl-dev libffi-dev pkg-config
 
-          # Determine the active Python major.minor (e.g. 3.12) and try to
-          # install the corresponding distutils package. We try the
-          # version-specific package (python3.X-distutils) first, then the
-          # generic python3-distutils. If neither is available, fail hard so
-          # the runner owner can correct the environment.
-          PY_VER=$(python - <<'PY'
-          import sys
-          print(f"{sys.version_info.major}.{sys.version_info.minor}")
-          PY
-          )
-          PKG_VERNAME="python${PY_VER}-distutils"
-          PKG_GENERIC="python3-distutils"
-
-          echo "Attempting to install distutils package for Python $PY_VER"
-          if apt-cache show "$PKG_VERNAME" >/dev/null 2>&1; then
-            sudo apt-get install -y "$PKG_VERNAME"
-          elif apt-cache show "$PKG_GENERIC" >/dev/null 2>&1; then
-            sudo apt-get install -y "$PKG_GENERIC"
-          else
-            echo "ERROR: neither $PKG_VERNAME nor $PKG_GENERIC are available via apt on this runner." >&2
-            echo "This CI job requires distutils to be installable via apt for the active Python." >&2
-            echo "Options: run generate-locks on a runner that provides these packages, add the appropriate apt sources, or build the wheelhouse in a manylinux container." >&2
-            exit 1
-          fi
+          # DISTUTILS ÄR BORTTAGET FRÅN UBUNTU 24.04!
+          # Modern Python (3.10+) använder setuptools istället.
+          # Vi behöver INTE installera distutils via apt längre.
+          
+          echo "Python version: ${{ matrix.python-version }}"
+          echo "Distutils is deprecated and removed from Ubuntu 24.04 repos"
+          echo "Using setuptools instead (installed via pip below)"
 
           # Ensure the Python tooling is up-to-date in the interpreter we will use.
           python -m pip install --upgrade pip setuptools wheel
       - name: Generate lockfile and wheelhouse
         run: |
-          # Install pip-tools. Prefer the version pinned in requirements.lock
-          # to avoid surprising incompatibilities with newer pip internals.
           echo "Before install: python -m pip --version"
           python -m pip --version || true
 
-          # Extract pip-tools version from requirements.lock robustly. The
-          # lockfile contains line-continuations ("\") after package lines,
-          # so avoid naively splitting on '==' which can capture the trailing
-          # backslash. We extract the full line and then parse the version.
           PT_LINE=$(awk '/^pip-tools==/ {print; exit}' requirements.lock || true)
           PT_VER=""
           if [ -n "$PT_LINE" ]; then
-            # Extract a sane version token (digits/letters/dot/+-) from the line.
             PT_VER=$(printf "%s" "$PT_LINE" | sed -E 's/^pip-tools==([0-9A-Za-z.+-]+).*/\1/')
-            # Defensive: strip any stray backslashes or whitespace
             PT_VER=$(printf "%s" "$PT_VER" | tr -d '\\' | tr -d '\r' | tr -d '[:space:]')
           fi
           if [ -n "$PT_VER" ]; then
@@ -318,17 +280,17 @@ jobs:
             echo "pip-tools not pinned in requirements.lock; installing latest pip-tools"
             python -m pip install pip-tools
           fi
+          
           echo "After install: python -m pip --version"
           python -m pip --version || true
           echo "pip-compile version and pip-tools info:"
           pip-compile --version || true
           python -m pip show pip-tools || true
+          
           mkdir -p lockfiles
           pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=lockfiles/requirements.lock-${{ matrix.python-version }} requirements.txt
+          
           mkdir -p wheelhouse/${{ matrix.python-version }}
-          # Build a complete wheelhouse using the repository helper. This will
-          # first download any available binary distributions and then attempt
-          # to build wheels for packages that lack prebuilt wheels.
           bash tools/ci/build_wheelhouse.sh --python python --lock lockfiles/requirements.lock-${{ matrix.python-version }} --wheel-dir wheelhouse/${{ matrix.python-version }}
       - name: Debug - list wheelhouse contents
         if: always()
