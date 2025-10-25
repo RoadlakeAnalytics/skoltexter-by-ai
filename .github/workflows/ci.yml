@@ -258,9 +258,23 @@ jobs:
       - name: Install system build dependencies
         # Ensure the runner has compilers and development headers so `pip wheel`
         # can build wheels from sdists when binary wheels are not available.
+        # Some Ubuntu releases (e.g. noble) may not provide `python3-distutils`
+        # as a package; attempt to install it only if present and avoid failing
+        # the job when it is absent. Ensure pip/setuptools/wheel are present
+        # in the chosen Python interpreter afterwards.
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3-dev python3-distutils libssl-dev libffi-dev pkg-config
+          # Install core build dependencies (do not fail the job if a package is unavailable)
+          sudo apt-get install -y build-essential python3-dev libssl-dev libffi-dev pkg-config || true
+          # Attempt to install python3-distutils only when available to avoid
+          # failing on Ubuntu releases that do not provide that package.
+          if apt-cache show python3-distutils >/dev/null 2>&1; then
+            sudo apt-get install -y python3-distutils || true
+          else
+            echo "python3-distutils not available via apt; continuing without it."
+          fi
+          # Ensure the Python environment has modern packaging tools.
+          python -m pip install --upgrade pip setuptools wheel
       - name: Generate lockfile and wheelhouse
         run: |
           # Install pip-tools. Prefer the version pinned in requirements.lock
