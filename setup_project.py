@@ -693,17 +693,35 @@ def manage_virtual_environment() -> None:
             created = False
             if not os.environ.get("PYTEST_CURRENT_TEST"):
                 try:
-                    if sys.platform == "win32":
-                        if shutil.which("py") is not None:
+                    # Try to prefer an explicit python3.X executable across
+                    # platforms (highest supported first). If none of the
+                    # explicit executables exist, fall back to using the
+                    # Windows py launcher (if present) and try the same
+                    # versions. This keeps behaviour consistent and allows
+                    # tests to mock specific python3.x names.
+                    preferred_versions = ["3.14", "3.13", "3.12", "3.11"]
+                    # 1) Prefer explicit python3.x executables on all platforms
+                    for ver in preferred_versions:
+                        exe_name = f"python{ver}"
+                        exe_path = shutil.which(exe_name)
+                        if exe_path:
                             subprocess.check_call(
-                                ["py", "-3.13", "-m", "venv", str(VENV_DIR)]
+                                [exe_path, "-m", "venv", str(VENV_DIR)]
                             )
                             created = True
-                    else:
-                        py313 = shutil.which("python3.13")
-                        if py313:
-                            subprocess.check_call([py313, "-m", "venv", str(VENV_DIR)])
-                            created = True
+                            break
+                    # 2) If not created and on Windows, try the py launcher
+                    if not created and sys.platform == "win32" and shutil.which("py"):
+                        for ver in preferred_versions:
+                            try:
+                                subprocess.check_call(
+                                    ["py", f"-{ver}", "-m", "venv", str(VENV_DIR)]
+                                )
+                                created = True
+                                break
+                            except Exception:
+                                # try next version
+                                continue
                 except Exception:
                     created = False
             if not created:

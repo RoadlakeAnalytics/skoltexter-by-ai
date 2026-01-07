@@ -1,0 +1,46 @@
+ # Composite action to install project dependencies from lockfiles and wheelhouse.
+ #
+ # This composite action centralizes the common installation logic used across
+ # the workflow. It prefers offline installation using a provided wheelhouse and
+ # lockfile, and falls back to installing from the lockfile or `requirements.lock`.
+
+name: Install Dependencies (composite)
+description: "Install dependencies using wheelhouse and lockfile, with offline-first behaviour."
+inputs:
+  lockfile:
+    description: 'Path to lockfile to install from.'
+    required: true
+  wheel-dir:
+    description: 'Path to wheel directory for offline installs.'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install requirements (hash-locked)
+      shell: bash
+      run: |
+        set -euo pipefail
+        LOCK="${{ inputs.lockfile }}"
+        WHEEL="${{ inputs.wheel-dir }}"
+        # Show pip version for diagnostics
+        python -m pip --version || true
+        if [ -n "$WHEEL" ] && [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
+          # Try offline first, fall back to network (needed for macOS/Windows wheels)
+          if pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"; then
+            echo "Installed from wheelhouse (offline)"
+          else
+            echo "Offline install failed, falling back to network install"
+            pip install --find-links "$WHEEL" --require-hashes -r "$LOCK"
+          fi
+        elif [ -f "$LOCK" ]; then
+          pip install --require-hashes -r "$LOCK"
+        else
+          if [ -f requirements.lock ]; then
+            pip install --require-hashes -r requirements.lock
+          else
+            echo "ERROR: no lockfile found at $LOCK and no requirements.lock present" >&2
+            exit 1
+          fi
+        fi

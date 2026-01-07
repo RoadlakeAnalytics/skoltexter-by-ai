@@ -1,0 +1,67 @@
+name: "Restore Repository"
+description: "Download a repository artifact if present and restore it; fall back to actions/checkout when not available."
+inputs:
+  artifact-name:
+    description: 'Name of the repository artifact to download.'
+    required: false
+    default: 'repo'
+  require-artifact:
+    description: 'If "true" the action fails when the repository artifact is missing. If "false" falls back to checkout.'
+    required: false
+    default: 'true'
+runs:
+  using: 'composite'
+  steps:
+    - id: download
+      name: Download repository artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: repo_artifact
+      continue-on-error: true
+
+    - id: restore
+      name: Restore repository from artifact (if present)
+      shell: bash
+      run: |
+        set -euo pipefail
+        REQUIRE=${{ inputs.require-artifact }}
+        RESTORED=0
+        if [ -f repo_artifact/repo.bundle ]; then
+          echo "Found repo.bundle; cloning into temporary dir and copying contents"
+          git clone repo_artifact/repo.bundle repo_temp
+          cp -a repo_temp/. .
+          rm -rf repo_temp
+          RESTORED=1
+        elif [ -f repo_artifact/repo.tar.gz ]; then
+          echo "Found repo.tar.gz; extracting tarball"
+          tar -xzf repo_artifact/repo.tar.gz -C .
+          RESTORED=1
+        else
+          echo "No repository artifact found"
+        fi
+
+        if [ "$RESTORED" -eq 1 ]; then
+          if [ ! -d .git ]; then
+            git init
+            git config user.email "actions@github.com"
+            git config user.name "GitHub Actions"
+            git add --all || true
+            git commit -m "CI: import repository" || true
+          fi
+          exit 0
+        fi
+
+        if [ "${REQUIRE}" = "true" ]; then
+          echo "ERROR: required repository artifact '${{ inputs.artifact-name }}' not found" >&2
+          exit 1
+        else
+          echo "Artifact not found; will fall back to actions/checkout as configured (require-artifact=false)"
+          exit 1
+        fi
+
+    - name: Fallback to checkout
+      if: ${{ inputs.require-artifact == 'false' && (steps.download.outcome != 'success' || steps.restore.outcome != 'success') }}
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0

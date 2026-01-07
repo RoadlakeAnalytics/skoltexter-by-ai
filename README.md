@@ -10,7 +10,7 @@
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
-[![Python 3.14 (dev)](https://img.shields.io/badge/python-3.14%20(dev)-orange)](.github/workflows/ci.yml)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-orange)](.github/workflows/ci.yml)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
@@ -313,15 +313,15 @@ Vår kvalitetsstrategi bygger på principen att fånga fel så tidigt som möjli
 
 1.  Snabba kontroller (vid Pull Request & Push): För varje kodändring körs ett jobb som exakt speglar vår lokala `pre-commit`-konfiguration. Detta verifierar linting, typning, säkerhet och tester i en neutral miljö och ger feedback inom några minuter.
 
-    - Branch‑push (före PR): En snabb Ubuntu‑matris (Python 3.11–3.14 dev) körs med en enda pytest‑seed för att snabbt ge feedback innan PR öppnas.
+    - Branch‑push (före PR): En snabb Ubuntu‑matris (Python 3.11–3.14) körs med en enda pytest‑seed för att snabbt ge feedback innan PR öppnas.
 
 2.  Nattlig & Veckovis "Canary"-körning:
-    - Dagligen (02:00 UTC): Den fullständiga testsviten körs mot Linux och Windows på alla Python-versioner från 3.11 till 3.14 (dev).
+    - Dagligen (02:00 UTC): Den fullständiga testsviten körs mot Linux och Windows på alla Python-versioner från 3.11 till 3.14.
     - Veckovis (måndagar 03:00 UTC): Samma fullständiga matris körs mot macOS för att säkerställa plattformsoberoende kompatibilitet och samtidigt spara på kostsamma CI-resurser.
 
     - Syfte: Dessa schemalagda jobb är designade för att proaktivt upptäcka problem som uppstår över tid, såsom regressioner i beroenden och framtida inkompatibiliteter.
 
-    - Förväntade fel: Eftersom vi testar mot "bleeding edge"-miljöer (särskilt Python 3.14), förväntas det jobbet ibland misslyckas. Ett misslyckande här blockerar inte utvecklingen, utan fungerar som en tidig varning och en underhållsuppgift att åtgärda.
+    - Förväntade fel: Eftersom Python 3.14 fortfarande har begränsat stöd bland beroenden, förväntas det jobbet ibland misslyckas. Ett misslyckande här blockerar inte utvecklingen, utan fungerar som en tidig varning och en underhållsuppgift att åtgärda.
 
 ## 🔒 CI/CD: Extremt strikt läge
 

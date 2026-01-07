@@ -18,7 +18,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
-[![Python 3.14 (dev)](https://img.shields.io/badge/python-3.14%20(dev)-orange)](.github/workflows/ci.yml)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-orange)](.github/workflows/ci.yml)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
@@ -322,15 +322,15 @@ Our quality strategy is built on the principle of catching errors as early as po
 
 1.  Fast Checks (on Pull Request & Push): For every code change, a job runs that exactly mirrors our local `pre-commit` configuration. This verifies linting, typing, security, and tests in a neutral environment, providing feedback within a few minutes.
 
-    - Branch push (pre‑PR): A quick Ubuntu matrix (Python 3.11–3.14 dev) runs with a single pytest seed to provide fast feedback before opening a PR.
+    - Branch push (pre‑PR): A quick Ubuntu matrix (Python 3.11–3.14) runs with a single pytest seed to provide fast feedback before opening a PR.
 
 2.  Nightly & Weekly Canary Builds:
-    - Daily (02:00 UTC): The full test suite is executed against Linux and Windows across all Python versions from 3.11 to 3.14 (dev).
+    - Daily (02:00 UTC): The full test suite is executed against Linux and Windows across all Python versions from 3.11 to 3.14.
     - Weekly (Mondays 03:00 UTC): The same full matrix runs against macOS to ensure cross-platform compatibility while conserving costly CI resources.
 
     - Purpose: These scheduled jobs are designed to proactively detect issues that emerge over time, such as dependency regressions and future incompatibilities.
 
-    - Expected Failures: As this job tests against bleeding-edge environments (especially Python 3.14), it is expected to fail occasionally. A failure here does not block development but serves as an early warning and a maintenance task to investigate and resolve.
+    - Expected Failures: As Python 3.14 still has limited ecosystem support, the job is expected to fail occasionally. A failure here does not block development but serves as an early warning and a maintenance task to investigate and resolve.
 
 ## 🔒 CI/CD: Extreme Strict Mode
 

@@ -27,6 +27,12 @@ ALLOWED = {
     "Unlicense",
 }
 
+# Dev-only packages exempt from copyleft restrictions.
+# These are CI/build tools not distributed with the main project.
+DEV_EXEMPT: set[str] = {
+    "chardet",  # LGPL - pulled in by cyclonedx-bom for SBOM generation (dev-only)
+}
+
 # Package-specific overrides to correct messy/unknown license strings
 PKG_OVERRIDES: dict[str, str] = {
     # Previously UNKNOWN in CI
@@ -174,6 +180,10 @@ def main() -> int:
         lic_raw = (row.get("License") or "").strip()
         # Skip placeholder meta-packages some environments inject
         if pkg == "pre-commit-placeholder-package":
+            continue
+
+        # Skip dev-only packages exempt from copyleft restrictions
+        if pkg in DEV_EXEMPT:
             continue
 
         # Apply package-level overrides when available
