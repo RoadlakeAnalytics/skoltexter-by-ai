@@ -112,7 +112,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wheelhouse-3.12
-          path: wheelhouse
+          path: wheelhouse/3.12
 
       - name: Verify offline artifacts
         run: |
