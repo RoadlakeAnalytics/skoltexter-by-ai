@@ -736,9 +736,8 @@ jobs:
         run: |
           # Use pre-downloaded osv-scanner binary from artifact
           chmod +x osv-db/osv-scanner
-          # Scan lockfile - uses OSV API (storage.googleapis.com is in allowed endpoints)
-          # Note: PYSEC-2022-42969 is a disputed ReDoS in 'py' library (dev-only dep)
-          osv-db/osv-scanner \
+          # Scan lockfile - uses OSV API; ignores configured in osv-scanner.toml
+          osv-db/osv-scanner --config=osv-scanner.toml \
             --lockfile=requirements.txt:lockfiles/requirements.lock-${{ matrix.python-version }}
       - name: License allowlist
         run: python tools/policy/check_licenses.py

@@ -1,0 +1,6 @@
+# OSV-Scanner configuration
+# https://google.github.io/osv-scanner/configuration/
+
+[[IgnoredVulns]]
+id = "PYSEC-2022-42969"
+reason = "Disputed ReDoS in 'py' library SVN parsing. Dev-only dependency via pytest, not exposed in production."
