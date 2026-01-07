@@ -29,7 +29,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -65,7 +65,7 @@ jobs:
             echo "ERROR: required repository artifact 'repo' not found" >&2
             exit 1
           fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -103,13 +103,13 @@ jobs:
             agent.api.stepsecurity.io:443
           verify-preflight: 'true'
       - name: Download lockfiles artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: lockfiles-3.12
           path: lockfiles
 
       - name: Download wheelhouse artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: wheelhouse-3.12
           path: wheelhouse/3.12
@@ -180,14 +180,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
       - name: Pack repository
         run: |
           git archive --format=tar HEAD | gzip > repo.tar.gz
       - name: Upload repository artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: repo
           path: repo.tar.gz
@@ -226,7 +226,7 @@ jobs:
             exit 1
           fi
       - name: Upload OSV database artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: osv-db
           path: vuln-db
@@ -240,10 +240,10 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     continue-on-error: ${{ matrix.python-version == '3.14' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install system build dependencies (strict)
@@ -305,12 +305,12 @@ jobs:
           echo "Wheel count:"
           find wheelhouse/${{ matrix.python-version }} -maxdepth 1 -type f -name '*.whl' | wc -l || true
       - name: Upload lockfile artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: lockfiles-${{ matrix.python-version }}
           path: lockfiles/requirements.lock-${{ matrix.python-version }}
       - name: Upload wheelhouse artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse/${{ matrix.python-version }}
@@ -332,7 +332,7 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -368,19 +368,19 @@ jobs:
             echo "ERROR: required repository artifact 'repo' not found" >&2
             exit 1
           fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
           cache: 'pip'
       - name: Download lockfiles artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
       - name: Download wheelhouse artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse/${{ matrix.python-version }}
@@ -422,7 +422,7 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -458,19 +458,19 @@ jobs:
             echo "ERROR: required repository artifact 'repo' not found" >&2
             exit 1
           fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
           cache: 'pip'
       - name: Download lockfiles artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
       - name: Download wheelhouse artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse/${{ matrix.python-version }}
@@ -509,7 +509,7 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -545,13 +545,13 @@ jobs:
             echo "ERROR: required repository artifact 'repo' not found" >&2
             exit 1
           fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
           cache: 'pip'
       - name: Download lockfiles artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
@@ -586,7 +586,7 @@ jobs:
         python-version: ['3.11', '3.12', '3.13']
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -629,7 +629,7 @@ jobs:
           rm -rf mutants .pytest_cache .mypy_cache .ruff_cache || true
           find . -type d -name __pycache__ -prune -exec rm -rf {} + || true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -658,7 +658,7 @@ jobs:
         python-version: ['3.11', '3.12', '3.13']
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -734,19 +734,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: Download lockfiles artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
       - name: Download wheelhouse artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse/${{ matrix.python-version }}
 
       - name: Download OSV database artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: osv-db
           path: osv-db
@@ -796,7 +796,7 @@ jobs:
           fi
           python -m cyclonedx_py environment -o sbom.json --output-format json
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: sbom-${{ matrix.python-version }}
           path: sbom.json
@@ -809,7 +809,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -891,7 +891,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -971,13 +971,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: Download lockfiles artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: lockfiles-${{ matrix.python-version }}
           path: lockfiles
 
       - name: Download wheelhouse artifact (per-version)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse/${{ matrix.python-version }}
@@ -1015,7 +1015,7 @@ jobs:
     needs: [tests]
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -1095,13 +1095,13 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       - name: Download lockfiles artifact (3.12)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: lockfiles-3.12
           path: lockfiles
 
       - name: Download wheelhouse artifact (3.12)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: wheelhouse-3.12
           path: wheelhouse/3.12
@@ -1146,7 +1146,7 @@ jobs:
     needs: pack-repo
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -1202,7 +1202,7 @@ jobs:
     needs: pack-repo
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -1286,7 +1286,7 @@ jobs:
     needs: [generate-locks, lint-and-types]
     steps:
       - name: Download repository artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: repo
           path: repo_artifact
@@ -1362,13 +1362,13 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       - name: Download lockfiles artifact (3.12)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: lockfiles-3.12
           path: lockfiles
 
       - name: Download wheelhouse artifact (3.12)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: wheelhouse-3.12
           path: wheelhouse/3.12
