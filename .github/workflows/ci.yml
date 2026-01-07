@@ -763,14 +763,13 @@ jobs:
       # have deemed non-reproducible under real-world conditions. Our dependency on 'py'
       # is limited to development and testing (via pytest), with no exposure in production.
       - name: osv-scanner (deps) (offline)
-        env:
-          OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: ${{ github.workspace }}/osv-db
         run: |
           # Use pre-downloaded osv-scanner from artifact
           chmod +x osv-db/osv-scanner
-          # Scan lockfile with offline database
+          # Scan lockfile with offline database using --offline flag
+          # The database path is specified with --download-offline-databases
           # Note: PYSEC-2022-42969 is a disputed ReDoS in 'py' library (dev-only dep)
-          osv-db/osv-scanner --experimental-offline \
+          osv-db/osv-scanner --offline --download-offline-databases osv-db \
             --lockfile=requirements.txt:lockfiles/requirements.lock-${{ matrix.python-version }}
       - name: License allowlist
         run: python tools/policy/check_licenses.py
