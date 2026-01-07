@@ -141,8 +141,6 @@ jobs:
           if [ -d "$WHEEL" ]; then
             if pip install --no-index --find-links "$WHEEL" cyclonedx-bom; then
               echo "Installed cyclonedx-bom from wheelhouse"
-            elif pip install --no-index --find-links "$WHEEL" cyclonedx-python-lib; then
-              echo "Installed cyclonedx-python-lib (provides cyclonedx_py) from wheelhouse"
             else
               echo "WARNING: cyclonedx-bom not found in wheelhouse; skipping SBOM tooling installation to avoid network egress"
             fi
@@ -752,10 +750,8 @@ jobs:
           if [ -d "$WHEEL" ]; then
             if pip install --no-index --find-links "$WHEEL" cyclonedx-bom; then
               echo "Installed cyclonedx-bom from wheelhouse"
-            elif pip install --no-index --find-links "$WHEEL" cyclonedx-python-lib; then
-              echo "Installed cyclonedx-python-lib (provides cyclonedx_py) from wheelhouse"
             else
-              echo "WARNING: cyclonedx tooling not found in wheelhouse; skipping SBOM generation to avoid network egress"
+              echo "WARNING: cyclonedx-bom not found in wheelhouse; skipping SBOM generation to avoid network egress"
               exit 0
             fi
           else
