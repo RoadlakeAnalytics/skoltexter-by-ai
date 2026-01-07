@@ -185,12 +185,17 @@ jobs:
           fetch-depth: 0
       - name: Pack repository
         run: |
+          # Create git bundle with full history for gitleaks diff scanning
+          git bundle create repo.bundle --all
+          # Also create tarball for jobs that only need files
           git archive --format=tar HEAD | gzip > repo.tar.gz
       - name: Upload repository artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: repo
-          path: repo.tar.gz
+          path: |
+            repo.bundle
+            repo.tar.gz
 
   fetch-osv-db:
     # Fetch the OSV bulk vulnerability database with unrestricted egress.
@@ -768,9 +773,9 @@ jobs:
       # It is a disputed ReDoS vulnerability in SVN info parsing that security researchers
       # have deemed non-reproducible under real-world conditions. Our dependency on 'py'
       # is limited to development and testing (via pytest), with no exposure in production.
-      - name: pip-audit (deps) (offline)
+      - name: pip-audit (deps)
         run: |
-          pip-audit --requirement requirements.lock --strict --ignore-vuln PYSEC-2022-42969 --disable-pip --database osv-db/osv.json
+          pip-audit --requirement lockfiles/requirements.lock-${{ matrix.python-version }} --strict --ignore-vuln PYSEC-2022-42969 --disable-pip
       - name: License allowlist
         run: python tools/policy/check_licenses.py
       # SBOM AFTER license check
