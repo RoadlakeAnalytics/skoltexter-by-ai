@@ -87,6 +87,7 @@ jobs:
             pypi.python.org:443
             pip.pypa.io:443
             storage.googleapis.com:443
+            osv-vulnerabilities.storage.googleapis.com:443
             codecov.io:443
             api.codecov.io:443
             uploader.codecov.io:443
@@ -707,6 +708,7 @@ jobs:
             pypi.python.org:443
             pip.pypa.io:443
             storage.googleapis.com:443
+            osv-vulnerabilities.storage.googleapis.com:443
             codecov.io:443
             api.codecov.io:443
             uploader.codecov.io:443
@@ -762,14 +764,13 @@ jobs:
       # It is a disputed ReDoS vulnerability in SVN info parsing that security researchers
       # have deemed non-reproducible under real-world conditions. Our dependency on 'py'
       # is limited to development and testing (via pytest), with no exposure in production.
-      - name: osv-scanner (deps) (offline)
+      - name: osv-scanner (deps)
         run: |
-          # Use pre-downloaded osv-scanner from artifact
+          # Use pre-downloaded osv-scanner binary from artifact
           chmod +x osv-db/osv-scanner
-          # Scan lockfile with offline database using --offline flag
-          # The database path is specified with --download-offline-databases
+          # Scan lockfile - uses OSV API (storage.googleapis.com is in allowed endpoints)
           # Note: PYSEC-2022-42969 is a disputed ReDoS in 'py' library (dev-only dep)
-          osv-db/osv-scanner --offline --download-offline-databases osv-db \
+          osv-db/osv-scanner \
             --lockfile=requirements.txt:lockfiles/requirements.lock-${{ matrix.python-version }}
       - name: License allowlist
         run: python tools/policy/check_licenses.py
@@ -946,6 +947,7 @@ jobs:
             pypi.python.org:443
             pip.pypa.io:443
             storage.googleapis.com:443
+            osv-vulnerabilities.storage.googleapis.com:443
             codecov.io:443
             api.codecov.io:443
             uploader.codecov.io:443
@@ -1070,6 +1072,7 @@ jobs:
             pypi.python.org:443
             pip.pypa.io:443
             storage.googleapis.com:443
+            osv-vulnerabilities.storage.googleapis.com:443
             codecov.io:443
             api.codecov.io:443
             uploader.codecov.io:443
@@ -1310,6 +1313,7 @@ jobs:
             pypi.python.org:443
             pip.pypa.io:443
             storage.googleapis.com:443
+            osv-vulnerabilities.storage.googleapis.com:443
             codecov.io:443
             api.codecov.io:443
             uploader.codecov.io:443
