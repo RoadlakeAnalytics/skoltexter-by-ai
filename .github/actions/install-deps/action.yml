@@ -27,7 +27,13 @@ runs:
         # Show pip version for diagnostics
         python -m pip --version || true
         if [ -n "$WHEEL" ] && [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
-          pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
+          # Try offline first, fall back to network (needed for macOS/Windows wheels)
+          if pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"; then
+            echo "Installed from wheelhouse (offline)"
+          else
+            echo "Offline install failed, falling back to network install"
+            pip install --find-links "$WHEEL" --require-hashes -r "$LOCK"
+          fi
         elif [ -f "$LOCK" ]; then
           pip install --require-hashes -r "$LOCK"
         else
