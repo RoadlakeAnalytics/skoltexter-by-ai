@@ -206,35 +206,24 @@ jobs:
     needs: pack-repo
     runs-on: ubuntu-latest
     steps:
-      - name: Download OSV vulnerability database (bulk)
+      - name: Download OSV vulnerability database and scanner
         run: |
           set -euo pipefail
-          # Public, verifiable URL chosen by the team (visible in workflow):
+          mkdir -p osv-db/PyPI
+          # Download OSV database for PyPI (structure for osv-scanner offline mode)
           OSV_URL="https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"
           echo "Downloading OSV bulk database from: $OSV_URL"
-          mkdir -p vuln-db vuln-db/extracted
-          curl -fsSL "$OSV_URL" -o vuln-db/all.zip
-          unzip -q vuln-db/all.zip -d vuln-db/extracted || true
-          # Prefer a single consolidated JSON if present; otherwise concatenate
-          # JSON files found inside the archive into a single file for offline use.
-          FIRST_JSON=$(find vuln-db/extracted -type f -name 'all.json' -o -name '*.json' | head -n 1 || true)
-          if [ -n "$FIRST_JSON" ]; then
-            COUNT=$(find vuln-db/extracted -type f -name '*.json' | wc -l || true)
-            if [ "$COUNT" -eq 1 ]; then
-              cp "$FIRST_JSON" vuln-db/osv.json
-            else
-              # Concatenate multiple JSON files as newline-delimited records.
-              find vuln-db/extracted -type f -name '*.json' -print0 | xargs -0 cat > vuln-db/osv.json
-            fi
-          else
-            echo "ERROR: No JSON files found inside downloaded OSV archive" >&2
-            exit 1
-          fi
+          curl -fsSL "$OSV_URL" -o osv-db/PyPI/all.zip
+          # Download osv-scanner binary for offline use in hardened jobs
+          echo "Downloading osv-scanner binary"
+          curl -fsSL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o osv-db/osv-scanner
+          chmod +x osv-db/osv-scanner
+          echo "OSV database and scanner ready for offline scanning"
       - name: Upload OSV database artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: osv-db
-          path: vuln-db
+          path: osv-db
 
   generate-locks:
     needs: pack-repo
@@ -773,9 +762,16 @@ jobs:
       # It is a disputed ReDoS vulnerability in SVN info parsing that security researchers
       # have deemed non-reproducible under real-world conditions. Our dependency on 'py'
       # is limited to development and testing (via pytest), with no exposure in production.
-      - name: pip-audit (deps)
+      - name: osv-scanner (deps) (offline)
+        env:
+          OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: ${{ github.workspace }}/osv-db
         run: |
-          pip-audit --requirement lockfiles/requirements.lock-${{ matrix.python-version }} --strict --ignore-vuln PYSEC-2022-42969 --disable-pip --vulnerability-service osv
+          # Use pre-downloaded osv-scanner from artifact
+          chmod +x osv-db/osv-scanner
+          # Scan lockfile with offline database
+          # Note: PYSEC-2022-42969 is a disputed ReDoS in 'py' library (dev-only dep)
+          osv-db/osv-scanner --experimental-offline \
+            --lockfile=requirements.txt:lockfiles/requirements.lock-${{ matrix.python-version }}
       - name: License allowlist
         run: python tools/policy/check_licenses.py
       # SBOM AFTER license check
@@ -1244,39 +1240,8 @@ jobs:
             exit 1
           fi
 
-      - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a
-        with:
-          egress-policy: 'block'
-          allowed-endpoints: |
-            github.com:443
-            codeload.github.com:443
-            api.github.com:443
-            raw.githubusercontent.com:443
-            objects.githubusercontent.com:443
-            uploads.github.com:443
-            results-receiver.actions.githubusercontent.com:443
-            actions-results-receiver-production.githubapp.com:443
-            pypi.org:443
-            files.pythonhosted.org:443
-            pypi.python.org:443
-            pip.pypa.io:443
-            storage.googleapis.com:443
-            codecov.io:443
-            api.codecov.io:443
-            uploader.codecov.io:443
-            uploads.codecov.io:443
-            static.codecov.io:443
-            ghcr.io:443
-            pkg-containers.githubusercontent.com:443
-            registry.semgrep.dev:443
-            semgrep.dev:443
-            osv.dev:443
-            api.osv.dev:443
-            productionresultssa12.blob.core.windows.net:443
-            productionresultssa9.blob.core.windows.net:443
-            agent.api.stepsecurity.io:443
-          verify-preflight: 'true'
+      # Note: No harden-runner here - dependency-review-action needs to
+      # communicate with GitHub's dependency graph API which uses dynamic IPs
       - name: Dependency Review (fail on high severity)
         uses: actions/dependency-review-action@c6c4c1745020c2dd28bf84835cf10d0e8c8a450f
         with:
