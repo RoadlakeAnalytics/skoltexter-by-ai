@@ -473,6 +473,7 @@ jobs:
           path: wheelhouse/${{ matrix.python-version }}
 
       - name: Install dependencies
+        shell: bash
         run: |
           # Do not upgrade pip here; print current pip version instead
           python -m pip --version
@@ -486,6 +487,7 @@ jobs:
             pip install --require-hashes -r requirements.lock
           fi
       - name: Run tests with two random seeds
+        shell: bash
         env:
           PYTHONPATH: .
         run: |
