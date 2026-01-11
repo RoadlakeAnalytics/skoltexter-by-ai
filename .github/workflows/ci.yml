@@ -479,8 +479,16 @@ jobs:
           python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
+          # The wheelhouse is built on Linux and only contains Linux-compatible
+          # wheels. On Windows/macOS, we allow pip to fall back to PyPI for
+          # platform-specific packages (e.g., aiohttp with native extensions).
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
-            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
+            if [ "$RUNNER_OS" = "Linux" ]; then
+              pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
+            else
+              # Non-Linux: use wheelhouse as cache but allow PyPI fallback
+              pip install --find-links "$WHEEL" --require-hashes -r "$LOCK"
+            fi
           elif [ -f "$LOCK" ]; then
             pip install --require-hashes -r "$LOCK"
           else
