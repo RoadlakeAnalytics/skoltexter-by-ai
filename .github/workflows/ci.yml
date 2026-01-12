@@ -588,10 +588,12 @@ jobs:
     needs: pack-repo
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
+    continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Download repository artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -641,6 +643,7 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
           cache: 'pip'
 
       - name: Install linting tools
@@ -661,10 +664,12 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: [generate-locks, fetch-osv-db]
     runs-on: ubuntu-latest
+    # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
+    continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Download repository artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -711,6 +716,7 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
           cache: 'pip'
       - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -837,11 +843,13 @@ jobs:
   tests:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: [lint-and-types, security, secrets-scan]
+    # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
+    continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
         include:
           - os: ubuntu-latest
             python-version: '3.11'
@@ -852,6 +860,9 @@ jobs:
           - os: ubuntu-latest
             python-version: '3.13'
             codecov-flag: 'ubuntu-py313'
+          - os: ubuntu-latest
+            python-version: '3.14'
+            codecov-flag: 'ubuntu-py314'
           - os: windows-latest
             python-version: '3.11'
             codecov-flag: 'windows-py311'
@@ -861,6 +872,9 @@ jobs:
           - os: windows-latest
             python-version: '3.13'
             codecov-flag: 'windows-py313'
+          - os: windows-latest
+            python-version: '3.14'
+            codecov-flag: 'windows-py314'
           - os: macos-latest
             python-version: '3.11'
             codecov-flag: 'macos-py311'
@@ -870,6 +884,9 @@ jobs:
           - os: macos-latest
             python-version: '3.13'
             codecov-flag: 'macos-py313'
+          - os: macos-latest
+            python-version: '3.14'
+            codecov-flag: 'macos-py314'
     runs-on: ${{ matrix.os }}
     steps:
       - name: Download repository artifact
@@ -922,6 +939,7 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
           cache: 'pip'
       - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
