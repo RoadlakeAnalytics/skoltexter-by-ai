@@ -14,7 +14,7 @@
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
-![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
+![osv-scanner](https://img.shields.io/badge/deps-osv--scanner-informational)
 ![gitleaks](https://img.shields.io/badge/protected%20by-gitleaks-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
@@ -245,7 +245,7 @@ För testning och kodkontroll:
 - ruff
 - mypy
 - bandit
-- pip-audit
+- osv-scanner
 - cyclonedx-bom
 - pip-licenses
 - pre-commit
@@ -332,7 +332,7 @@ Den här pipelinen är hårt säkrad och reproducerbar. Nedan summeras de viktig
   - Lokalt: samma kommando rekommenderas. Regenerera låsfil med pip‑tools vid ändringar i `requirements.txt` (se installation ovan).
 
 - Multi‑OS testmatris:
-  - CI kör tester på `ubuntu`, `windows`, `macos` och Python `3.11–3.13`.
+  - CI kör tester på `ubuntu`, `windows`, `macos` och Python `3.11–3.14`.
 
 - Pytest hårt läge:
   - Alla varningar är fel (`pytest.ini: filterwarnings=error`).
@@ -400,7 +400,7 @@ Jag har tagit fram en kort guide för _ungefär_ vad som behöver bytas ut för 
 ## 🔐 Säkerhet & Tillförlitlighet
 
 - Lint & Typer: `ruff` (inga varningar) och `mypy --strict` i CI.
-- Säkerhetsskanning: `bandit` (MEDIUM+), `pip-audit` för sårbarheter, och secrets‑skanning via Gitleaks.
+- Säkerhetsskanning: `bandit` (MEDIUM+), `osv-scanner` för sårbarheter, och secrets‑skanning via Gitleaks.
 - SBOM: Genereras med CycloneDX i CI (`sbom.json`).
 - Tester: `pytest` med coverage‑grind i CI; async‑tester med nätverksfakes; timeouter/backoff i runtime.
 - Rate limiting & retries: Alla AI‑anrop har limiter + exponentiell backoff; timeouts via `aiohttp.ClientTimeout`.

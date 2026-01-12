@@ -22,7 +22,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
-![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
+![osv-scanner](https://img.shields.io/badge/deps-osv--scanner-informational)
 ![gitleaks](https://img.shields.io/badge/protected%20by-gitleaks-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
@@ -41,7 +41,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 - [CI Strategy: Local Gating with Remote Verification](#ci-strategy-local-gating-with-remote-verification)
 - [🔒 CI/CD: Extreme Strict Mode](#cicd-extreme-strict-mode)
 - [🧷 Pre-commit: Local Quality Gates](#pre-commit-local-quality-gates)
-- [🤖 Switching to a different LLM](#switching-to-a-different)
+- [🤖 Switching to a different LLM](#switching-to-a-different-llm)
 - [🪪 License](#license)
 
 ## 🔍 Overview
@@ -85,17 +85,6 @@ If you already have an Azure OpenAI endpoint and have your three values for key,
 
 - **🛠️ Orchestration & Setup**
   - `setup_project.py`: Interactive, menu-driven CLI for managing the pipeline, supporting language selection, environment management, dependency installation, pipeline execution, log viewing, and file resets.
-
-### 🏷️ CI/Badges
-
-[![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
-![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
-![ruff](https://img.shields.io/badge/lint-ruff-informational)
-![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
-![Bandit](https://img.shields.io/badge/security-bandit-informational)
-![pip-audit](https://img.shields.io/badge/deps-pip--audit-informational)
 
 - **📃 Configuration & Environment**
   - `.env-example`: Template for required Azure OpenAI environment variables.
@@ -245,6 +234,8 @@ From `requirements.txt`:
 - tqdm
 - Jinja2
 - markdown2
+- rich
+- questionary
 
 🧰 Additional standard library modules used: argparse, csv, logging, pathlib, json, re, os, asyncio, typing
 
@@ -254,7 +245,7 @@ For testing and code control:
 - ruff
 - mypy
 - bandit
-- pip-audit
+- osv-scanner
 - cyclonedx-bom
 - pip-licenses
 - pre-commit
@@ -341,7 +332,7 @@ This pipeline is locked down and reproducible. Key CI gates (and how to run them
   - Locally: same command recommended. Regenerate the lock file with pip-tools when `requirements.txt` changes (see setup above).
 
 - Multi-OS test matrix:
-  - CI runs tests on `ubuntu`, `windows`, `macos` and Python `3.11–3.13`.
+  - CI runs tests on `ubuntu`, `windows`, `macos` and Python `3.11–3.14`.
 
 - Pytest in strict mode:
   - All warnings are errors (`pytest.ini: filterwarnings=error`).
@@ -410,7 +401,7 @@ See the [LICENSE](./LICENSE) file for full details.
 ## 🔐 Security & Reliability
 
 - Lint & Types: `ruff` (no warnings) and `mypy --strict` in CI.
-- Security scanning: `bandit` (MEDIUM+), `pip-audit` for CVEs, and secret scanning via Gitleaks.
+- Security scanning: `bandit` (MEDIUM+), `osv-scanner` for CVEs, and secret scanning via Gitleaks.
 - SBOM: Generated with CycloneDX in CI (`sbom.json`).
 - Tests: `pytest` with coverage gating in CI; async tests with network fakes; timeouts/backoff in runtime code.
 - Rate limiting & retries: All AI calls use limiter + exponential backoff; request timeouts via `aiohttp.ClientTimeout`.
