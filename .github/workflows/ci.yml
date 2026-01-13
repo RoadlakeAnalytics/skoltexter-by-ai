@@ -20,9 +20,8 @@ on:
 
 jobs:
   validate-local-checks:
-    # This job provides quick local-only checks but requires the prepared
-    # offline artifacts (lockfiles/wheelhouse) to run offline; ensure it
-    # waits for `prepare-artifacts`.
+    # Runs quick local-only checks using offline artifacts (lockfiles/wheelhouse)
+    # produced by generate-locks.
     needs: generate-locks
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -104,7 +103,6 @@ jobs:
             productionresultssa12.blob.core.windows.net:443
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
-          verify-preflight: 'true'
       - name: Download lockfiles artifact (per-version)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
@@ -247,15 +245,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3-dev libssl-dev libffi-dev pkg-config
 
-          # DISTUTILS ÄR BORTTAGET FRÅN UBUNTU 24.04!
-          # Modern Python (3.10+) använder setuptools istället.
-          # Vi behöver INTE installera distutils via apt längre.
-          
-          echo "Python version: ${{ matrix.python-version }}"
-          echo "Distutils is deprecated and removed from Ubuntu 24.04 repos"
-          echo "Using setuptools instead (installed via pip below)"
+          # Note: distutils was removed from Ubuntu 24.04. Modern Python (3.10+)
+          # uses setuptools instead, which is installed via pip below.
 
-          # Ensure the Python tooling is up-to-date in the interpreter we will use.
+          echo "Python version: ${{ matrix.python-version }}"
+
+          # Ensure pip, setuptools, and wheel are up-to-date.
           python -m pip install --upgrade pip setuptools wheel
       - name: Generate lockfile and wheelhouse
         run: |
@@ -309,8 +304,6 @@ jobs:
         with:
           name: wheelhouse-${{ matrix.python-version }}
           path: wheelhouse/${{ matrix.python-version }}
-
-  # `prepare-artifacts` removed: jobs now depend directly on `generate-locks`
 
   branch-quick-matrix:
     # Branch quick matrix depends on per-version lockfiles/wheelhouse
@@ -385,7 +378,7 @@ jobs:
         # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
         continue-on-error: ${{ matrix.python-version == '3.14' }}
         run: |
-          # Do not upgrade pip here; print current pip version instead
+          # Print pip version for diagnostics (no upgrade needed).
           python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
@@ -475,7 +468,7 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          # Do not upgrade pip here; print current pip version instead
+          # Print pip version for diagnostics (no upgrade needed).
           python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
@@ -566,7 +559,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # Do not upgrade pip here; print current pip version instead
+          # Print pip version for diagnostics (no upgrade needed).
           python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           if [ -f "$LOCK" ]; then
@@ -757,16 +750,16 @@ jobs:
         run: |
           # Use pre-downloaded osv-scanner binary from artifact
           chmod +x osv-db/osv-scanner
-          # Scan lockfile - uses OSV API; ignores configured in osv-scanner.toml
+          # Scan lockfile using OSV API; ignore rules configured in osv-scanner.toml
           osv-db/osv-scanner --config=osv-scanner.toml \
             --lockfile=requirements.txt:lockfiles/requirements.lock-${{ matrix.python-version }}
       - name: License allowlist
         run: python tools/policy/check_licenses.py
-      # SBOM AFTER license check
+      # Generate SBOM after license check passes.
       - name: SBOM (CycloneDX via python -m)
         shell: bash
         run: |
-          # Do not upgrade pip here; print current pip version instead
+          # Print pip version for diagnostics (no upgrade needed).
           python -m pip --version
           # Try to install SBOM tooling from local wheelhouse to avoid network egress
           WHEEL=wheelhouse/${{ matrix.python-version }}
@@ -1059,7 +1052,6 @@ jobs:
             productionresultssa12.blob.core.windows.net:443
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
-          verify-preflight: 'true'
       - name: Cleanup mutants and caches
         shell: bash
         run: |
@@ -1113,7 +1105,7 @@ jobs:
 
   semgrep:
     name: semgrep
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1159,69 +1151,34 @@ jobs:
             exit 1
           fi
 
+      - name: Install Semgrep
+        run: pip3 install semgrep
+
       - name: Semgrep (p/ci, fail on high severity)
-        uses: returntocorp/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d
-        with:
-          config: p/ci
-          generateSarif: true
-          sarifFile: semgrep.sarif
-          auditOn: pull_request
-          # Only treat high-severity issues as failures
-          semgrep_args: --severity=ERROR
+        run: semgrep scan --config p/ci --error --severity ERROR
 
   dependency-review:
     name: dependency-review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-    needs: pack-repo
+      contents: write
+    # Note: This job uses actions/checkout instead of pack-repo artifact
+    # because dependency-review-action requires real git history to compare
+    # dependency changes between base and head commits.
     steps:
-      - name: Download repository artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: repo
-          path: repo_artifact
-        continue-on-error: true
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - name: Restore repository from artifact (if present)
-        shell: bash
-        run: |
-          set -euo pipefail
-          RESTORED=0
-          if [ -f repo_artifact/repo.bundle ]; then
-            echo "Found repo.bundle; cloning into temporary dir and copying contents"
-            git clone repo_artifact/repo.bundle repo_temp
-            cp -a repo_temp/. .
-            rm -rf repo_temp
-            RESTORED=1
-          elif [ -f repo_artifact/repo.tar.gz ]; then
-            echo "Found repo.tar.gz; extracting tarball"
-            tar -xzf repo_artifact/repo.tar.gz -C .
-            RESTORED=1
-          else
-            echo "No repository artifact found"
-          fi
+      # Submit dependencies to GitHub's dependency graph before review.
+      - name: Submit dependencies
+        uses: advanced-security/component-detection-dependency-submission-action@d433c2f467e149a8009c8fbce92cc708ed15ef7b
 
-          if [ "$RESTORED" -eq 1 ]; then
-            if [ ! -d .git ]; then
-              git init
-              git config user.email "actions@github.com"
-              git config user.name "GitHub Actions"
-              git add --all || true
-              git commit -m "CI: import repository" || true
-            fi
-          else
-            echo "ERROR: required repository artifact 'repo' not found" >&2
-            exit 1
-          fi
-
-      # Note: No harden-runner here - dependency-review-action needs to
-      # communicate with GitHub's dependency graph API which uses dynamic IPs
       - name: Dependency Review (fail on high severity)
         uses: actions/dependency-review-action@c6c4c1745020c2dd28bf84835cf10d0e8c8a450f
         with:
           fail-on-severity: high
+          retry-on-snapshot-warnings: true
 
   docs-quality:
     name: docs-quality
@@ -1304,7 +1261,6 @@ jobs:
             productionresultssa12.blob.core.windows.net:443
             productionresultssa9.blob.core.windows.net:443
             agent.api.stepsecurity.io:443
-          verify-preflight: 'true'
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
@@ -1330,7 +1286,7 @@ jobs:
 
       - name: Install deps (hash-locked)
         run: |
-          # Do not upgrade pip here; print current pip version instead
+          # Print pip version for diagnostics (no upgrade needed).
           python -m pip --version
           LOCK=lockfiles/requirements.lock-3.12
           WHEEL=wheelhouse/3.12

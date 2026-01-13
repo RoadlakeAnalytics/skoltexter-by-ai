@@ -20,10 +20,13 @@ runs:
   steps:
     - name: Install requirements (hash-locked)
       shell: bash
+      env:
+        INPUT_LOCKFILE: ${{ inputs.lockfile }}
+        INPUT_WHEEL_DIR: ${{ inputs.wheel-dir }}
       run: |
         set -euo pipefail
-        LOCK="${{ inputs.lockfile }}"
-        WHEEL="${{ inputs.wheel-dir }}"
+        LOCK="$INPUT_LOCKFILE"
+        WHEEL="$INPUT_WHEEL_DIR"
         # Show pip version for diagnostics
         python -m pip --version || true
         if [ -n "$WHEEL" ] && [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then

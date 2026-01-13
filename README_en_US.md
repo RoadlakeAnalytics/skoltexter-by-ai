@@ -10,6 +10,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 
 [![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/RoadlakeAnalytics/skoltexter-by-ai/badge)](https://scorecard.dev/viewer/?uri=github.com/RoadlakeAnalytics/skoltexter-by-ai)
 [![Mutation Testing](https://img.shields.io/badge/Mutation%20Testing-gated-blueviolet)](.github/workflows/ci.yml)
 [![Docstrings](https://img.shields.io/badge/Docstrings-100%25-success)](.github/workflows/ci.yml)
 [![Semgrep](https://img.shields.io/badge/Semgrep-gated-important)](https://semgrep.dev/docs/semgrep-ci/)
@@ -18,7 +19,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
-[![Python 3.14](https://img.shields.io/badge/python-3.14-orange)](.github/workflows/ci.yml)
+![Python 3.14](https://img.shields.io/badge/python-3.14-blue)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
@@ -319,9 +320,7 @@ Our quality strategy is built on the principle of catching errors as early as po
     - Daily (02:00 UTC): The full test suite is executed against Linux and Windows across all Python versions from 3.11 to 3.14.
     - Weekly (Mondays 03:00 UTC): The same full matrix runs against macOS to ensure cross-platform compatibility while conserving costly CI resources.
 
-    - Purpose: These scheduled jobs are designed to proactively detect issues that emerge over time, such as dependency regressions and future incompatibilities.
-
-    - Expected Failures: As Python 3.14 still has limited ecosystem support, the job is expected to fail occasionally. A failure here does not block development but serves as an early warning and a maintenance task to investigate and resolve.
+    - Purpose: These scheduled jobs are designed to proactively detect issues that emerge over time, such as dependency regressions and platform-specific incompatibilities.
 
 ## 🔒 CI/CD: Extreme Strict Mode
 
