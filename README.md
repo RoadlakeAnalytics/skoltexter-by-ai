@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/RoadlakeAnalytics/skoltexter-by-ai/badge)](https://scorecard.dev/viewer/?uri=github.com/RoadlakeAnalytics/skoltexter-by-ai)
 [![Mutation Testing](https://img.shields.io/badge/Mutation%20Testing-gated-blueviolet)](.github/workflows/ci.yml)
 [![Docstrings](https://img.shields.io/badge/Docstrings-100%25-success)](.github/workflows/ci.yml)
 [![Semgrep](https://img.shields.io/badge/Semgrep-gated-important)](https://semgrep.dev/docs/semgrep-ci/)
@@ -10,7 +11,7 @@
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
-[![Python 3.14](https://img.shields.io/badge/python-3.14-orange)](.github/workflows/ci.yml)
+![Python 3.14](https://img.shields.io/badge/python-3.14-blue)
 ![ruff](https://img.shields.io/badge/lint-ruff-informational)
 ![mypy --strict](https://img.shields.io/badge/types-mypy%20--strict-informational)
 ![Bandit](https://img.shields.io/badge/security-bandit-informational)
@@ -319,9 +320,7 @@ Vår kvalitetsstrategi bygger på principen att fånga fel så tidigt som möjli
     - Dagligen (02:00 UTC): Den fullständiga testsviten körs mot Linux och Windows på alla Python-versioner från 3.11 till 3.14.
     - Veckovis (måndagar 03:00 UTC): Samma fullständiga matris körs mot macOS för att säkerställa plattformsoberoende kompatibilitet och samtidigt spara på kostsamma CI-resurser.
 
-    - Syfte: Dessa schemalagda jobb är designade för att proaktivt upptäcka problem som uppstår över tid, såsom regressioner i beroenden och framtida inkompatibiliteter.
-
-    - Förväntade fel: Eftersom Python 3.14 fortfarande har begränsat stöd bland beroenden, förväntas det jobbet ibland misslyckas. Ett misslyckande här blockerar inte utvecklingen, utan fungerar som en tidig varning och en underhållsuppgift att åtgärda.
+    - Syfte: Dessa schemalagda jobb är designade för att proaktivt upptäcka problem som uppstår över tid, såsom regressioner i beroenden och plattformsspecifika inkompatibiliteter.
 
 ## 🔒 CI/CD: Extremt strikt läge
 
