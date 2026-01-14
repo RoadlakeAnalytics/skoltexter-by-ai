@@ -10,7 +10,6 @@ This project is a data processing pipeline that transforms raw Swedish school st
 
 [![CI](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RoadlakeAnalytics/skoltexter-by-ai/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/RoadlakeAnalytics/skoltexter-by-ai/branch/main)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/RoadlakeAnalytics/skoltexter-by-ai/badge)](https://scorecard.dev/viewer/?uri=github.com/RoadlakeAnalytics/skoltexter-by-ai)
 [![Mutation Testing](https://img.shields.io/badge/Mutation%20Testing-gated-blueviolet)](.github/workflows/ci.yml)
 [![Docstrings](https://img.shields.io/badge/Docstrings-100%25-success)](.github/workflows/ci.yml)
 [![Semgrep](https://img.shields.io/badge/Semgrep-gated-important)](https://semgrep.dev/docs/semgrep-ci/)
