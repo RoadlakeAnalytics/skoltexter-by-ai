@@ -1,36 +1,36 @@
 ########################################
 # Runtime & core libraries
 ########################################
-pandas
-openpyxl
-aiohttp>=3.9
-aiolimiter
-python-dotenv
-tqdm
-Jinja2
-markdown2
-rich
-questionary
-jsonschema[format-nongpl]>=4.18
-requests>=2.32
-urllib3>=2.6.0
+pandas>=2.3.3
+openpyxl>=3.1.5
+aiohttp>=3.13.3
+aiolimiter>=1.2.1
+python-dotenv>=1.2.1
+tqdm>=4.67.1
+Jinja2>=3.1.6
+markdown2>=2.5.4
+rich>=14.2.0
+questionary>=2.1.1
+jsonschema[format-nongpl]>=4.26.0
+requests>=2.32.5
 charset-normalizer>=3
+urllib3>=2.6.3
 
 ########################################
 # Linting, formatting & quality gates
 ########################################
-black
-ruff
-mypy
-bandit
-pip-audit
+black>=25.12.0
+ruff>=0.14.11
+mypy>=1.19.1
+bandit>=1.9.2
+pip-audit>=2.10.0
 pip-licenses
-pre-commit
+pre-commit>=4.5.1
 
 ########################################
 # Testing
 ########################################
-pytest
+pytest>=9.0.2
 pytest-cov
 xdoctest
 pytest-mock
@@ -56,4 +56,4 @@ cyclonedx-bom
 ########################################
 # Special
 ########################################
-aiohappyeyeballs>=2.3.0
+aiohappyeyeballs>=2.6.1
