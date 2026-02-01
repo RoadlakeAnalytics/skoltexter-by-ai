@@ -31,17 +31,17 @@ runs:
         python -m pip --version || true
         if [ -n "$WHEEL" ] && [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
           # Try offline first, fall back to network (needed for macOS/Windows wheels)
-          if pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"; then
+          if python -m pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"; then
             echo "Installed from wheelhouse (offline)"
           else
             echo "Offline install failed, falling back to network install"
-            pip install --find-links "$WHEEL" --require-hashes -r "$LOCK"
+            python -m pip install --find-links "$WHEEL" --require-hashes -r "$LOCK"
           fi
         elif [ -f "$LOCK" ]; then
-          pip install --require-hashes -r "$LOCK"
+          python -m pip install --require-hashes -r "$LOCK"
         else
           if [ -f requirements.lock ]; then
-            pip install --require-hashes -r requirements.lock
+            python -m pip install --require-hashes -r requirements.lock
           else
             echo "ERROR: no lockfile found at $LOCK and no requirements.lock present" >&2
             exit 1

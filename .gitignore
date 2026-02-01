@@ -151,3 +151,5 @@ sbom-*.json
 .sbomenv/
 .sbomvenv/
 cyclonedx*.json
+
+PRESENTATION.md

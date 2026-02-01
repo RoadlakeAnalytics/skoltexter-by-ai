@@ -128,18 +128,18 @@ jobs:
           LOCKFILE=lockfiles/requirements.lock-3.12
           WHEEL=wheelhouse/3.12
           if [ -d "$WHEEL" ] && [ -f "$LOCKFILE" ]; then
-            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCKFILE"
+            python -m pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCKFILE"
           elif [ -f "$LOCKFILE" ]; then
-            pip install --require-hashes -r "$LOCKFILE"
+            python -m pip install --require-hashes -r "$LOCKFILE"
           else
-            pip install --require-hashes -r requirements.lock
+            python -m pip install --require-hashes -r requirements.lock
           fi
           # Attempt offline install of SBOM tooling from the wheelhouse to avoid
           # network egress in hardened jobs. If the package is not present in
           # the wheelhouse, skip installation rather than attempting a network
           # fetch which will fail under the hardened runner.
           if [ -d "$WHEEL" ]; then
-            if pip install --no-index --find-links "$WHEEL" cyclonedx-bom; then
+            if python -m pip install --no-index --find-links "$WHEEL" cyclonedx-bom; then
               echo "Installed cyclonedx-bom from wheelhouse"
             else
               echo "WARNING: cyclonedx-bom not found in wheelhouse; skipping SBOM tooling installation to avoid network egress"
@@ -383,11 +383,11 @@ jobs:
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           WHEEL=wheelhouse/${{ matrix.python-version }}
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
-            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
+            python -m pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
           elif [ -f "$LOCK" ]; then
-            pip install --require-hashes -r "$LOCK"
+            python -m pip install --require-hashes -r "$LOCK"
           else
-            pip install --require-hashes -r requirements.lock
+            python -m pip install --require-hashes -r requirements.lock
           fi
       - name: Quick tests (single seed, no coverage)
         # Allow Python 3.14 to fail: Ecosystem libraries not yet fully compatible
@@ -477,15 +477,15 @@ jobs:
           # platform-specific packages (e.g., aiohttp with native extensions).
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
             if [ "$RUNNER_OS" = "Linux" ]; then
-              pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
+              python -m pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
             else
               # Non-Linux: use wheelhouse as cache but allow PyPI fallback
-              pip install --find-links "$WHEEL" --require-hashes -r "$LOCK"
+              python -m pip install --find-links "$WHEEL" --require-hashes -r "$LOCK"
             fi
           elif [ -f "$LOCK" ]; then
-            pip install --require-hashes -r "$LOCK"
+            python -m pip install --require-hashes -r "$LOCK"
           else
-            pip install --require-hashes -r requirements.lock
+            python -m pip install --require-hashes -r requirements.lock
           fi
       - name: Run tests with two random seeds
         shell: bash
@@ -563,9 +563,9 @@ jobs:
           python -m pip --version
           LOCK=lockfiles/requirements.lock-${{ matrix.python-version }}
           if [ -f "$LOCK" ]; then
-            pip install --require-hashes -r "$LOCK"
+            python -m pip install --require-hashes -r "$LOCK"
           else
-            pip install --require-hashes -r requirements.lock
+            python -m pip install --require-hashes -r requirements.lock
           fi
       - name: Run tests with two random seeds
         env:
@@ -764,7 +764,7 @@ jobs:
           # Try to install SBOM tooling from local wheelhouse to avoid network egress
           WHEEL=wheelhouse/${{ matrix.python-version }}
           if [ -d "$WHEEL" ]; then
-            if pip install --no-index --find-links "$WHEEL" cyclonedx-bom; then
+            if python -m pip install --no-index --find-links "$WHEEL" cyclonedx-bom; then
               echo "Installed cyclonedx-bom from wheelhouse"
             else
               echo "WARNING: cyclonedx-bom not found in wheelhouse; skipping SBOM generation to avoid network egress"
@@ -1292,11 +1292,11 @@ jobs:
           LOCK=lockfiles/requirements.lock-3.12
           WHEEL=wheelhouse/3.12
           if [ -d "$WHEEL" ] && [ -f "$LOCK" ]; then
-            pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
+            python -m pip install --no-index --find-links "$WHEEL" --require-hashes -r "$LOCK"
           elif [ -f "$LOCK" ]; then
-            pip install --require-hashes -r "$LOCK"
+            python -m pip install --require-hashes -r "$LOCK"
           else
-            pip install --require-hashes -r requirements.lock
+            python -m pip install --require-hashes -r requirements.lock
           fi
       - name: Interrogate (docstring coverage 100%)
         run: |
