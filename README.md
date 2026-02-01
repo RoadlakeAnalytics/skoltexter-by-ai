@@ -41,6 +41,7 @@ Detta projekt är en datapipeline som omvandlar rå svensk skolstatistik till AI
 - [🔒 CI/CD: Extremt strikt läge](#cicd-extremt-strikt-läge)
 - [🧷 Pre-commit: lokala kvalitetsgrindar](#pre-commit-lokala-kvalitetsgrindar)
 - [🤖 Byta till en annan LLM](#byta-till-en-annan-llm)
+- [Avgränsningar för LLM-utvärdering](#avgränsningar-för-llm-utvärdering)
 - [🪪 Licens](#licens)
 
 ## 🔍 Översikt
@@ -425,6 +426,10 @@ pre-commit run --all-files
 # eller endast licenskollen
 python tools/policy/check_licenses.py
 ```
+
+## Avgränsningar för LLM-utvärdering
+
+Vi testar medvetet inte LLM‑utdata utifrån kvalitet, konsistens eller liknande bedömningskriterier. Den typen av utvärdering ligger utanför projektets relevanta scope i detta repo. Exemplet här är avsett som en teknisk demonstration, och vi publicerar inte en mer verksamhetsnära implementation än den som visas.
 
 ## 🪪 Licens
 

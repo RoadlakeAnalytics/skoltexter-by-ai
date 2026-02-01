@@ -43,6 +43,7 @@ This project is a data processing pipeline that transforms raw Swedish school st
 - [🔒 CI/CD: Extreme Strict Mode](#cicd-extreme-strict-mode)
 - [🧷 Pre-commit: Local Quality Gates](#pre-commit-local-quality-gates)
 - [🤖 Switching to a different LLM](#switching-to-a-different-llm)
+- [Scope Limitations for LLM Evaluation](#scope-limitations-for-llm-evaluation)
 - [🪪 License](#license)
 
 ## 🔍 Overview
@@ -424,3 +425,7 @@ pre-commit run --all-files
 # or just the license check
 python tools/policy/check_licenses.py
 ```
+
+## Scope Limitations for LLM Evaluation
+
+We intentionally do not test LLM outputs for quality, consistency, or similar subjective criteria. That evaluation is out of scope for this repository. The implementation shown here is a technical demonstration, and we do not publish a more business-specific implementation beyond what is presented.
